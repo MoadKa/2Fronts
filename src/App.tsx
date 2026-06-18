@@ -4,6 +4,8 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { AuthProvider } from './contexts/AuthContext'
 import { AppLayout } from './components/layout/AppLayout'
 import { NotFoundPage } from './pages/public/NotFoundPage'
+import { CatalogPage } from './pages/public/CatalogPage'
+import { AutomationDetailPage } from './pages/public/AutomationDetailPage'
 
 export default function App() {
   return (
@@ -13,6 +15,8 @@ export default function App() {
           <BrowserRouter>
             <Routes>
               <Route element={<AppLayout />}>
+                <Route path="/" element={<CatalogPage />} />
+                <Route path="/automations/:id" element={<AutomationDetailPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
