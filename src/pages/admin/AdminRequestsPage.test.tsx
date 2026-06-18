@@ -48,4 +48,15 @@ describe('AdminRequestsPage', () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('No requests yet.')).toBeInTheDocument())
   })
+
+  it('re-fetches with the selected status filter', async () => {
+    vi.mocked(listAllRequests).mockResolvedValue([{ ...baseRequest, status: 'paid' }])
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Invoice Sync')).toBeInTheDocument())
+    expect(listAllRequests).toHaveBeenCalledWith(undefined)
+
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'paid' } })
+
+    await waitFor(() => expect(listAllRequests).toHaveBeenCalledWith({ status: 'paid' }))
+  })
 })

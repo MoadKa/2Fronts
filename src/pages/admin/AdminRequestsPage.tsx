@@ -15,19 +15,24 @@ const NEXT_STATUS: Record<RequestStatus, RequestStatus | null> = {
   requested: null, payment_pending: null, paid: 'in_progress', in_progress: 'delivered', delivered: null, cancelled: null,
 }
 
+const ALL_STATUSES: RequestStatus[] = [
+  'requested', 'payment_pending', 'paid', 'in_progress', 'delivered', 'cancelled',
+]
+
 export function AdminRequestsPage() {
   const { showToast } = useToast()
   const [requests, setRequests] = useState<AutomationRequestWithAutomation[]>([])
   const [loading, setLoading] = useState(true)
   const [notesByRequest, setNotesByRequest] = useState<Record<string, string>>({})
+  const [statusFilter, setStatusFilter] = useState<RequestStatus | ''>('')
 
-  async function refresh() {
-    setRequests(await listAllRequests())
+  async function refresh(filterStatus: RequestStatus | '' = statusFilter) {
+    setRequests(await listAllRequests(filterStatus ? { status: filterStatus } : undefined))
   }
 
   useEffect(() => {
     let mounted = true
-    listAllRequests().then((requests) => {
+    listAllRequests(statusFilter ? { status: statusFilter } : undefined).then((requests) => {
       if (mounted) {
         setRequests(requests)
         setLoading(false)
@@ -36,7 +41,7 @@ export function AdminRequestsPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [statusFilter])
 
   async function advance(request: AutomationRequestWithAutomation) {
     const nextStatus = NEXT_STATUS[request.status]
@@ -46,12 +51,30 @@ export function AdminRequestsPage() {
     await refresh()
   }
 
-  if (loading) return <p>Loading requests...</p>
-  if (requests.length === 0) return <p>No requests yet.</p>
+  function handleStatusFilterChange(value: string) {
+    setLoading(true)
+    setStatusFilter(value as RequestStatus | '')
+  }
 
   return (
     <div>
-      {requests.map((request) => {
+      <label>
+        Status
+        <select
+          value={statusFilter}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
+        >
+          <option value="">All</option>
+          {ALL_STATUSES.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+      </label>
+      {loading && <p>Loading requests...</p>}
+      {!loading && requests.length === 0 && <p>No requests yet.</p>}
+      {!loading && requests.map((request) => {
         const nextStatus = NEXT_STATUS[request.status]
         return (
           <Card key={request.id} className="my-requests-card">
