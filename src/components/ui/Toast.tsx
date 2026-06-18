@@ -2,6 +2,9 @@ import { useCallback, useState, type ReactNode } from 'react'
 import { ToastContext, type Tone, type ToastItem } from './ToastContext'
 import './Toast.css'
 
+// eslint-disable-next-line react-refresh/only-export-components -- re-export keeps the public import path stable for later tasks
+export { useToast } from './useToast'
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
