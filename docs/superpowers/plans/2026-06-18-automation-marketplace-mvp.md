@@ -43,6 +43,17 @@ git push -u origin main
 ```
 All subsequent feature branches push to this same `origin`.
 
+**Merge method (decided during Task 1 execution):** `gh` CLI is installed in this
+environment but not authenticated, and authenticating requires an interactive
+browser login the agent cannot perform. Tasks are therefore not opened as
+GitHub PRs. Each task is still implemented in its own worktree/branch and
+independently reviewed by a fresh subagent (spec compliance + code quality,
+with a re-review loop on any Important/Critical finding) before it is
+fast-forward merged into `main` and pushed — the subagent review is the
+approval gate in place of a GitHub PR review. If `gh auth login` is completed
+later, subsequent tasks can switch back to real PRs without any change to
+the plan itself.
+
 ## Documentation Checks
 
 These APIs change between versions — verify against current official docs before writing the code, don't rely on memory:
