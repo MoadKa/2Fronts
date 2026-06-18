@@ -23,11 +23,19 @@ export function AdminRequestsPage() {
 
   async function refresh() {
     setRequests(await listAllRequests())
-    setLoading(false)
   }
 
   useEffect(() => {
-    refresh()
+    let mounted = true
+    listAllRequests().then((requests) => {
+      if (mounted) {
+        setRequests(requests)
+        setLoading(false)
+      }
+    })
+    return () => {
+      mounted = false
+    }
   }, [])
 
   async function advance(request: AutomationRequestWithAutomation) {
