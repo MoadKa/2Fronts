@@ -109,3 +109,5 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.catalog-card-link { text-decoration: none; display: block; margin-bottom: 1rem; color: inherit; }
