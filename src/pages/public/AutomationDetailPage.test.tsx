@@ -1,34 +1,71 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AutomationDetailPage } from './AutomationDetailPage'
 import { getAutomationById } from '../../services/AutomationService'
+import { createRequest, createCheckoutSession } from '../../services/RequestService'
+import { useAuth } from '../../contexts/AuthContext'
+import { ToastProvider } from '../../components/ui/Toast'
 
 vi.mock('../../services/AutomationService', () => ({ getAutomationById: vi.fn() }))
+vi.mock('../../services/RequestService', () => ({ createRequest: vi.fn(), createCheckoutSession: vi.fn() }))
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
+
+const sampleAutomation = {
+  id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'Saves 5 hours/week',
+  category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, created_at: '2026-06-01T00:00:00Z',
+}
 
 function renderAt(id: string) {
   return render(
-    <MemoryRouter initialEntries={[`/automations/${id}`]}>
-      <Routes>
-        <Route path="/automations/:id" element={<AutomationDetailPage />} />
-      </Routes>
-    </MemoryRouter>
+    <ToastProvider>
+      <MemoryRouter initialEntries={[`/automations/${id}`]}>
+        <Routes>
+          <Route path="/automations/:id" element={<AutomationDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ToastProvider>
   )
 }
 
 describe('AutomationDetailPage', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'location', { value: { href: '' }, writable: true })
+  })
+
   it('renders the outcome description for a found automation', async () => {
-    vi.mocked(getAutomationById).mockResolvedValue({
-      id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'Saves 5 hours/week',
-      category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, created_at: '2026-06-01T00:00:00Z',
-    })
+    vi.mocked(getAutomationById).mockResolvedValue(sampleAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: null, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
     renderAt('auto-1')
     await waitFor(() => expect(screen.getByText('Saves 5 hours/week')).toBeInTheDocument())
   })
 
   it('shows a not-found message when the automation does not exist', async () => {
     vi.mocked(getAutomationById).mockResolvedValue(null)
+    vi.mocked(useAuth).mockReturnValue({ user: null, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
     renderAt('missing')
     await waitFor(() => expect(screen.getByText('Automation not found.')).toBeInTheDocument())
+  })
+
+  it('prompts signed-out visitors to log in instead of showing the request button', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue(sampleAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: null, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    renderAt('auto-1')
+    await waitFor(() => expect(screen.getByText('Log in to request this automation.')).toBeInTheDocument())
+  })
+
+  it('creates a request, starts checkout, and redirects to the Stripe URL', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue(sampleAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    vi.mocked(createRequest).mockResolvedValue({
+      id: 'req-1', automation_id: 'auto-1', customer_id: 'user-1', status: 'requested',
+      stripe_checkout_session_id: null, delivery_notes: null, requested_at: '2026-06-18T00:00:00Z', paid_at: null, delivered_at: null,
+    })
+    vi.mocked(createCheckoutSession).mockResolvedValue({ url: 'https://checkout.stripe.com/session-1' })
+    renderAt('auto-1')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Request this automation' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Request this automation' }))
+    await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledWith('req-1'))
+    await waitFor(() => expect(window.location.href).toBe('https://checkout.stripe.com/session-1'))
   })
 })
