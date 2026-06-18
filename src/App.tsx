@@ -6,6 +6,7 @@ import { AppLayout } from './components/layout/AppLayout'
 import { NotFoundPage } from './pages/public/NotFoundPage'
 import { CatalogPage } from './pages/public/CatalogPage'
 import { AutomationDetailPage } from './pages/public/AutomationDetailPage'
+import { CheckoutResultPage } from './pages/public/CheckoutResultPage'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<CatalogPage />} />
                 <Route path="/automations/:id" element={<AutomationDetailPage />} />
+                <Route path="/checkout/result" element={<CheckoutResultPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
