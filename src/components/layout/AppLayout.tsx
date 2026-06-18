@@ -16,7 +16,12 @@ export function AppLayout() {
         <div className="app-nav-links">
           {user ? (
             <>
-              {profile?.role === 'admin' && <Link to="/admin/automations">Admin</Link>}
+              {profile?.role === 'admin' && (
+                <>
+                  <Link to="/admin/automations">Admin Catalog</Link>
+                  <Link to="/admin/requests">Admin Requests</Link>
+                </>
+              )}
               <Link to="/my-requests">My Requests</Link>
               <span>{profile?.company_name}</span>
               <Button variant="secondary" onClick={() => signOut()}>Log out</Button>
