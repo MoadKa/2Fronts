@@ -15,14 +15,22 @@ export function AdminCatalogPage() {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<NewAutomationInput>(EMPTY_FORM)
 
+  useEffect(() => {
+    let mounted = true
+    listAllAutomations().then((automations) => {
+      if (mounted) {
+        setAutomations(automations)
+        setLoading(false)
+      }
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   async function refresh() {
     setAutomations(await listAllAutomations())
-    setLoading(false)
   }
-
-  useEffect(() => {
-    refresh()
-  }, [])
 
   async function handleCreate() {
     await createAutomation(form)
