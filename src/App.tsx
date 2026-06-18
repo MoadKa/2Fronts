@@ -7,6 +7,8 @@ import { NotFoundPage } from './pages/public/NotFoundPage'
 import { CatalogPage } from './pages/public/CatalogPage'
 import { AutomationDetailPage } from './pages/public/AutomationDetailPage'
 import { CheckoutResultPage } from './pages/public/CheckoutResultPage'
+import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { MyRequestsPage } from './pages/customer/MyRequestsPage'
 
 export default function App() {
   return (
@@ -19,6 +21,9 @@ export default function App() {
                 <Route path="/" element={<CatalogPage />} />
                 <Route path="/automations/:id" element={<AutomationDetailPage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/my-requests" element={<MyRequestsPage />} />
+                </Route>
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
