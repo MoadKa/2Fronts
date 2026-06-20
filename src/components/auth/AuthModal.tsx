@@ -39,10 +39,12 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
       )}
       <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
-      <Button onClick={handleSubmit}>{mode === 'signIn' ? 'Log in' : 'Sign up'}</Button>
-      <Button variant="secondary" onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}>
-        {mode === 'signIn' ? 'Need an account? Sign up' : 'Already have an account? Log in'}
-      </Button>
+      <div className="page-stack">
+        <Button onClick={handleSubmit}>{mode === 'signIn' ? 'Log in' : 'Sign up'}</Button>
+        <Button variant="secondary" onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}>
+          {mode === 'signIn' ? 'Need an account? Sign up' : 'Already have an account? Log in'}
+        </Button>
+      </div>
     </Modal>
   )
 }

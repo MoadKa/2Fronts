@@ -58,9 +58,13 @@ export function AdminRequestsPage() {
 
   return (
     <div>
-      <label>
-        Status
+      <div className="page-header">
+        <h1>Admin requests</h1>
+      </div>
+      <div className="input-field" style={{ maxWidth: 240 }}>
+        <label htmlFor="status-filter">Status</label>
         <select
+          id="status-filter"
           value={statusFilter}
           onChange={(e) => handleStatusFilterChange(e.target.value)}
         >
@@ -71,15 +75,15 @@ export function AdminRequestsPage() {
             </option>
           ))}
         </select>
-      </label>
+      </div>
       {loading && <p>Loading requests...</p>}
       {!loading && requests.length === 0 && <p>No requests yet.</p>}
       {!loading && requests.map((request) => {
         const nextStatus = NEXT_STATUS[request.status]
         return (
           <Card key={request.id} className="my-requests-card">
-            <h3>{request.automation.name}</h3>
             <Badge tone={STATUS_TONE[request.status]}>{request.status}</Badge>
+            <h3>{request.automation.name}</h3>
             {nextStatus === 'delivered' && (
               <Input
                 label="Delivery notes"

@@ -1,4 +1,30 @@
-.toast-stack { position: fixed; bottom: 1rem; right: 1rem; display: flex; flex-direction: column; gap: 0.5rem; z-index: 1000; }
-.toast { padding: 0.75rem 1rem; border-radius: 8px; color: white; }
-.toast-success { background: #16a34a; }
-.toast-error { background: #dc2626; }
+.toast-stack {
+  position: fixed;
+  bottom: var(--space-lg);
+  right: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  z-index: 1100;
+}
+
+.toast {
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--shadow-clay-md);
+  animation: toast-in 200ms ease-out;
+}
+
+.toast-success { background: var(--color-success); }
+.toast-error { background: var(--color-destructive); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

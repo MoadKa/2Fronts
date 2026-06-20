@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { getAutomationById } from '../../services/AutomationService'
 import { createRequest, createCheckoutSession } from '../../services/RequestService'
 import { useAuth } from '../../contexts/AuthContext'
@@ -46,18 +46,21 @@ export function AutomationDetailPage() {
   if (!automation) return <p>Automation not found.</p>
 
   return (
-    <Card>
-      <h2>{automation.name}</h2>
-      <Badge>{automation.category}</Badge>
-      <p>{automation.outcome_description}</p>
-      <p>{formatPrice(automation.price_cents, automation.currency)}</p>
-      {user ? (
-        <Button onClick={handleRequest} disabled={requesting}>
-          {requesting ? 'Starting checkout...' : 'Request this automation'}
-        </Button>
-      ) : (
-        <p>Log in to request this automation.</p>
-      )}
-    </Card>
+    <div className="page-stack">
+      <Link to="/">&larr; Back to catalog</Link>
+      <Card>
+        <Badge>{automation.category}</Badge>
+        <h2>{automation.name}</h2>
+        <p>{automation.outcome_description}</p>
+        <h3>{formatPrice(automation.price_cents, automation.currency)}</h3>
+        {user ? (
+          <Button onClick={handleRequest} disabled={requesting}>
+            {requesting ? 'Starting checkout...' : 'Request this automation'}
+          </Button>
+        ) : (
+          <p>Log in to request this automation.</p>
+        )}
+      </Card>
+    </div>
   )
 }

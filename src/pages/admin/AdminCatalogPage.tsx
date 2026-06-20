@@ -48,6 +48,10 @@ export function AdminCatalogPage() {
 
   return (
     <div>
+      <div className="page-header">
+        <h1>Admin catalog</h1>
+      </div>
+
       <Card>
         <h3>Add automation</h3>
         <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -60,8 +64,8 @@ export function AdminCatalogPage() {
 
       {automations.map((automation) => (
         <Card key={automation.id} className="my-requests-card">
-          <h3>{automation.name}</h3>
           <Badge tone={automation.is_active ? 'success' : 'neutral'}>{automation.is_active ? 'active' : 'inactive'}</Badge>
+          <h3>{automation.name}</h3>
           <Button variant="secondary" onClick={() => toggleActive(automation)}>
             {automation.is_active ? 'Deactivate' : 'Activate'}
           </Button>

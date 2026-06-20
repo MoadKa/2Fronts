@@ -24,15 +24,21 @@ export function MyRequestsPage() {
     })
   }, [])
 
-  if (loading) return <p>Loading your requests...</p>
-  if (requests.length === 0) return <p>You haven't requested any automations yet.</p>
-
   return (
     <div>
-      {requests.map((request) => (
+      <div className="page-header">
+        <h1>My requests</h1>
+      </div>
+      {loading && <p>Loading your requests...</p>}
+      {!loading && requests.length === 0 && (
+        <div className="empty-state">
+          <p>You haven't requested any automations yet.</p>
+        </div>
+      )}
+      {!loading && requests.map((request) => (
         <Card key={request.id} className="my-requests-card">
-          <h3>{request.automation.name}</h3>
           <Badge tone={STATUS_TONE[request.status]}>{request.status}</Badge>
+          <h3>{request.automation.name}</h3>
           {request.status === 'delivered' && request.delivery_notes && <p>{request.delivery_notes}</p>}
         </Card>
       ))}

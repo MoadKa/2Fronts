@@ -12,7 +12,7 @@ export function AppLayout() {
   return (
     <div>
       <nav className="app-nav">
-        <Link to="/"><strong>2Fronts</strong></Link>
+        <Link to="/" className="app-logo">2Fronts</Link>
         <div className="app-nav-links">
           {user ? (
             <>
@@ -23,7 +23,7 @@ export function AppLayout() {
                 </>
               )}
               <Link to="/my-requests">My Requests</Link>
-              <span>{profile?.company_name}</span>
+              <span className="app-nav-company">{profile?.company_name}</span>
               <Button variant="secondary" onClick={() => signOut()}>Log out</Button>
             </>
           ) : (

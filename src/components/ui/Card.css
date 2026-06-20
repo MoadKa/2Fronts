@@ -1,1 +1,14 @@
-.card { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1.25rem; }
+.card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-clay-sm);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  text-align: left;
+}
+
+.catalog-card-link:hover .card {
+  box-shadow: var(--shadow-clay-md);
+  transform: translateY(-3px);
+}
