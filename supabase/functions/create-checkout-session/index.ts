@@ -1,11 +1,16 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@16'
+import { corsHeaders } from '../_shared/cors.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
   const authHeader = req.headers.get('Authorization') ?? ''
@@ -17,7 +22,10 @@ Deno.serve(async (req) => {
 
   const { requestId } = await req.json()
   if (!requestId) {
-    return new Response(JSON.stringify({ error: 'requestId is required' }), { status: 400 })
+    return new Response(JSON.stringify({ error: 'requestId is required' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   // RLS on automation_requests ("customers read own requests") guarantees this
@@ -29,7 +37,10 @@ Deno.serve(async (req) => {
     .single()
 
   if (requestError || !requestRow) {
-    return new Response(JSON.stringify({ error: 'Request not found' }), { status: 404 })
+    return new Response(JSON.stringify({ error: 'Request not found' }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 
   const automation = requestRow.automations as unknown as { name: string; price_cents: number; currency: string }
@@ -59,6 +70,6 @@ Deno.serve(async (req) => {
     .eq('id', requestId)
 
   return new Response(JSON.stringify({ url: session.url }), {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   })
 })
