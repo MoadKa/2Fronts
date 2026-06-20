@@ -43,14 +43,23 @@ describe('AuthContext', () => {
     expect(screen.getByTestId('user').textContent).toBe('none')
   })
 
-  it('signUp creates the auth user and a matching profile row', async () => {
+  it('signUp sends company_name as user metadata instead of inserting profiles client-side', async () => {
+    // The profile row must be created by a database trigger (immune to session
+    // state), not by a client-side insert after signUp(). When Supabase's
+    // default "Confirm email" setting is on, signUp() returns no session, so a
+    // client-side insert has no JWT, fails RLS, and (since its error was never
+    // checked) was silently dropped -- leaving the user with no profile row.
     const { supabase } = await import('../lib/supabaseClient')
     render(<AuthProvider><Probe /></AuthProvider>)
     await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('false'))
     fireEvent.click(screen.getByRole('button', { name: 'Sign up' }))
     await waitFor(() =>
-      expect(supabase.auth.signUp).toHaveBeenCalledWith({ email: 'a@acme.com', password: 'pw123456' })
+      expect(supabase.auth.signUp).toHaveBeenCalledWith({
+        email: 'a@acme.com',
+        password: 'pw123456',
+        options: { data: { company_name: 'Acme' } },
+      })
     )
-    expect(supabase.from).toHaveBeenCalledWith('profiles')
+    expect(supabase.from).not.toHaveBeenCalledWith('profiles')
   })
 })
