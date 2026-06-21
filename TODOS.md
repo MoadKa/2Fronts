@@ -99,3 +99,17 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 **Context:** Not relevant to the current Wizard-of-Oz test (explicitly rejected as over-scoped for testing with one customer this week — see the design doc's Assignment, which uses a feasibility check + hand-built per-customer script instead). Only relevant if/when Approach B gets greenlit.
 
 **Depends on:** A go signal from the current Wizard-of-Oz test, and a decision to actually build Approach B.
+
+## 8. No expiry/cleanup for abandoned-checkout `automation_provisions` rows stuck in `pending`
+
+**What:** `createProvisionDetails` inserts a `pending` provision row before checkout starts (`AutomationDetailPage.handleRequest`). If the customer abandons checkout (closes the tab at the Stripe page, payment fails, etc.), that row has no expiry, no cleanup job, and no cancel path — it sits in `pending` forever, and `MyRequestsPage` shows "Setting up..." indefinitely with nothing to act on.
+
+**Why:** Real data-hygiene gap, not a security hole — but it means `automation_provisions` will accumulate dead rows tied to never-paid requests as soon as more than a handful of customers touch checkout, and the customer-facing UI gives no indication anything is wrong.
+
+**Pros:** Closes a real UX dead-end (indefinite "Setting up..." with no recourse) before it's hit by a real customer who abandons checkout.
+
+**Cons:** Not urgent with one pilot customer who's unlikely to abandon checkout; needs a design decision (TTL? explicit cancel button? cron sweep?), not just a quick fix.
+
+**Context:** Found by `/ship`'s Claude adversarial review on 2026-06-21, while reviewing the missed-call provisioning flow alongside the marketplace test page work.
+
+**Depends on:** Nothing blocking, but should be designed before scaling past the pilot customer.
