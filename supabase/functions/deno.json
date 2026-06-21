@@ -1,0 +1,6 @@
+{
+  "imports": {},
+  "test": {
+    "include": ["**/*.test.ts"]
+  }
+}

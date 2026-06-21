@@ -3,17 +3,27 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { AutomationDetailPage } from './AutomationDetailPage'
 import { getAutomationById } from '../../services/AutomationService'
-import { createRequest, createCheckoutSession } from '../../services/RequestService'
+import { createRequest, createCheckoutSession, createProvisionDetails } from '../../services/RequestService'
 import { useAuth } from '../../contexts/AuthContext'
 import { ToastProvider } from '../../components/ui/Toast'
 
 vi.mock('../../services/AutomationService', () => ({ getAutomationById: vi.fn() }))
-vi.mock('../../services/RequestService', () => ({ createRequest: vi.fn(), createCheckoutSession: vi.fn() }))
+vi.mock('../../services/RequestService', () => ({
+  createRequest: vi.fn(),
+  createCheckoutSession: vi.fn(),
+  createProvisionDetails: vi.fn(),
+}))
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 
 const sampleAutomation = {
   id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'Saves 5 hours/week',
-  category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, created_at: '2026-06-01T00:00:00Z',
+  category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false,
+  created_at: '2026-06-01T00:00:00Z',
+}
+
+const provisionedAutomation = {
+  ...sampleAutomation,
+  id: 'auto-2', name: 'AI Missed-Call Recovery', requires_provisioning: true,
 }
 
 function renderAt(id: string) {
@@ -31,6 +41,9 @@ function renderAt(id: string) {
 describe('AutomationDetailPage', () => {
   beforeEach(() => {
     Object.defineProperty(window, 'location', { value: { href: '' }, writable: true })
+    vi.mocked(createRequest).mockReset()
+    vi.mocked(createCheckoutSession).mockReset()
+    vi.mocked(createProvisionDetails).mockReset()
   })
 
   it('renders the outcome description for a found automation', async () => {
@@ -67,5 +80,48 @@ describe('AutomationDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Request this automation' }))
     await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledWith('req-1'))
     await waitFor(() => expect(window.location.href).toBe('https://checkout.stripe.com/session-1'))
+  })
+
+  it('shows a booking link field for automations that require provisioning', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue(provisionedAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    renderAt('auto-2')
+    await waitFor(() => expect(screen.getByLabelText('Booking link')).toBeInTheDocument())
+  })
+
+  it('does not show a booking link field for automations that do not require provisioning', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue(sampleAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    renderAt('auto-1')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Request this automation' })).toBeInTheDocument())
+    expect(screen.queryByLabelText('Booking link')).not.toBeInTheDocument()
+  })
+
+  it('blocks checkout until a booking link is entered for provisioned automations', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue(provisionedAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    renderAt('auto-2')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Request this automation' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Request this automation' }))
+    expect(createRequest).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByText('Enter a booking link so customers can reach you.')).toBeInTheDocument())
+  })
+
+  it('submits provisioning details before starting checkout for provisioned automations', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue(provisionedAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    vi.mocked(createRequest).mockResolvedValue({
+      id: 'req-2', automation_id: 'auto-2', customer_id: 'user-1', status: 'requested',
+      stripe_checkout_session_id: null, delivery_notes: null, requested_at: '2026-06-18T00:00:00Z', paid_at: null, delivered_at: null,
+    })
+    vi.mocked(createCheckoutSession).mockResolvedValue({ url: 'https://checkout.stripe.com/session-2' })
+    renderAt('auto-2')
+    await waitFor(() => expect(screen.getByLabelText('Booking link')).toBeInTheDocument())
+    fireEvent.change(screen.getByLabelText('Booking link'), { target: { value: 'https://cal.com/acme' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Request this automation' }))
+    await waitFor(() =>
+      expect(createProvisionDetails).toHaveBeenCalledWith('req-2', { businessName: '', bookingLink: 'https://cal.com/acme', businessHours: undefined })
+    )
+    await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledWith('req-2'))
   })
 })

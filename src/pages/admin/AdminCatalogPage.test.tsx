@@ -12,7 +12,7 @@ vi.mock('../../services/AutomationService', () => ({
 
 const sample = {
   id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance',
-  price_cents: 49900, currency: 'eur', is_active: true, created_at: '2026-06-01T00:00:00Z',
+  price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, created_at: '2026-06-01T00:00:00Z',
 }
 
 function renderPage() {

@@ -4,3 +4,9 @@ dist/
 .env
 .env.local
 *.local
+data/
+.firecrawl/
+ajax_test.html
+group_test.html
+gs_test.html
+tmp_page.html

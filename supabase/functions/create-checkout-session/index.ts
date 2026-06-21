@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@16'
 import { corsHeaders } from '../_shared/cors.ts'
+import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 
@@ -63,7 +64,7 @@ Deno.serve(async (req) => {
 
   // Service-role client: customers have no UPDATE policy on automation_requests by
   // design (see migration), so this transition is performed server-side only.
-  const adminClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const adminClient = createAdminClient()
   await adminClient
     .from('automation_requests')
     .update({ status: 'payment_pending', stripe_checkout_session_id: session.id })
