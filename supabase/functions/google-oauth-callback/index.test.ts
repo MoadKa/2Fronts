@@ -21,12 +21,38 @@ interface CapturedUpsert {
   options?: unknown
 }
 
-function fakeAdminClient(captured: CapturedUpsert, opts: { error?: Error } = {}) {
+// The fake admin client serves two calls: the provision -> customer lookup
+// (from('automation_provisions').select().eq().maybeSingle()) and the
+// connection upsert (from('connector_connections').upsert()).
+function fakeAdminClient(
+  captured: CapturedUpsert,
+  opts: { error?: Error; customerId?: string; provisionMissing?: boolean } = {},
+) {
   return () => ({
     from(table: string) {
-      captured.table = table
       return {
+        select(_cols: string) {
+          return {
+            eq(_col: string, _val: string) {
+              return {
+                maybeSingle() {
+                  if (opts.provisionMissing) {
+                    return Promise.resolve({ data: null, error: null })
+                  }
+                  return Promise.resolve({
+                    data: {
+                      request_id: 'req-1',
+                      automation_requests: { customer_id: opts.customerId ?? 'cust-1' },
+                    },
+                    error: null,
+                  })
+                },
+              }
+            },
+          }
+        },
         upsert(row: Record<string, unknown>, options: unknown) {
+          captured.table = table
           captured.row = row
           captured.options = options
           return Promise.resolve({ data: null, error: opts.error ?? null })
@@ -63,7 +89,7 @@ function makeDeps(
   captured: CapturedUpsert,
   fetchImpl: typeof fetch,
   envOverrides: Record<string, string> = {},
-  adminOpts: { error?: Error } = {},
+  adminOpts: { error?: Error; customerId?: string; provisionMissing?: boolean } = {},
 ): OAuthCallbackDeps {
   const env = { ...ENV, ...envOverrides }
   return {
@@ -84,18 +110,20 @@ Deno.test('exchanges code, encrypts refresh token, and upserts the connection', 
     { email: 'customer@gmail.com' },
   )
 
-  const req = new Request('http://localhost/google-oauth-callback?code=auth-code&state=cust-1')
+  // state carries the PROVISION id; the customer is derived from it server-side.
+  const req = new Request('http://localhost/google-oauth-callback?code=auth-code&state=prov-1')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
-  // Redirects back into the app on success.
+  // On success, redirects to THAT provision's mapping confirmation screen.
   assertEquals(res.status, 302)
-  assertStringIncludes(res.headers.get('Location') ?? '', 'https://app.example.com/connections/result?status=success')
+  assertStringIncludes(res.headers.get('Location') ?? '', 'https://app.example.com/connect/prov-1/confirm')
 
   // Hit both Google endpoints.
   assertEquals(calls.some((c) => c.includes('oauth2.googleapis.com/token')), true)
   assertEquals(calls.some((c) => c.includes('userinfo')), true)
 
-  // Right table + columns.
+  // Right table + columns. customer_id is the one resolved from the provision,
+  // never the raw state value.
   assertEquals(captured.table, 'connector_connections')
   const row = captured.row!
   assertEquals(row.customer_id, 'cust-1')
@@ -112,11 +140,29 @@ Deno.test('exchanges code, encrypts refresh token, and upserts the connection', 
   assertEquals(await decryptToken(stored), PLAINTEXT_REFRESH)
 })
 
+Deno.test('redirects to error (no upsert) when the provision in state is unknown', async () => {
+  Deno.env.set('CONNECTOR_TOKEN_KEY', TEST_KEY_B64)
+  const captured: CapturedUpsert = {}
+  const { fn } = fakeFetch(
+    { access_token: 'at-123', refresh_token: PLAINTEXT_REFRESH, scope: GRANTED_SCOPE },
+    { email: 'customer@gmail.com' },
+  )
+
+  // A forged/stale state that doesn't resolve to any provision must fail closed:
+  // no connection is written against a guessed customer id.
+  const req = new Request('http://localhost/google-oauth-callback?code=auth-code&state=prov-nope')
+  const res = await handleOAuthCallback(req, makeDeps(captured, fn, {}, { provisionMissing: true }))
+
+  assertEquals(res.status, 302)
+  assertStringIncludes(res.headers.get('Location') ?? '', 'status=error')
+  assertEquals(captured.table, undefined)
+})
+
 Deno.test('redirects to error (no upsert) when token exchange fails', async () => {
   const captured: CapturedUpsert = {}
   const { fn } = fakeFetch({ error: 'invalid_grant' }, {}, { tokenOk: false })
 
-  const req = new Request('http://localhost/google-oauth-callback?code=bad&state=cust-1')
+  const req = new Request('http://localhost/google-oauth-callback?code=bad&state=prov-1')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
   assertEquals(res.status, 302)
@@ -128,7 +174,7 @@ Deno.test('redirects to error when Google returns no refresh token', async () =>
   const captured: CapturedUpsert = {}
   const { fn } = fakeFetch({ access_token: 'at-123', scope: GRANTED_SCOPE }, { email: 'x@y.com' })
 
-  const req = new Request('http://localhost/google-oauth-callback?code=auth&state=cust-1')
+  const req = new Request('http://localhost/google-oauth-callback?code=auth&state=prov-1')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
   assertEquals(res.status, 302)
@@ -140,7 +186,7 @@ Deno.test('redirects to error when code or state is missing', async () => {
   const captured: CapturedUpsert = {}
   const { fn } = fakeFetch({}, {})
 
-  const req = new Request('http://localhost/google-oauth-callback?state=cust-1')
+  const req = new Request('http://localhost/google-oauth-callback?state=prov-1')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
   assertEquals(res.status, 302)
@@ -152,7 +198,7 @@ Deno.test('redirects to error when the user denies consent', async () => {
   const captured: CapturedUpsert = {}
   const { fn } = fakeFetch({}, {})
 
-  const req = new Request('http://localhost/google-oauth-callback?error=access_denied&state=cust-1')
+  const req = new Request('http://localhost/google-oauth-callback?error=access_denied&state=prov-1')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
   assertEquals(res.status, 302)

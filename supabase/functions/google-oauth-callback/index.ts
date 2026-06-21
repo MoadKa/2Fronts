@@ -1,7 +1,12 @@
 // google-oauth-callback: receives Google's redirect (?code=...&state=...),
 // exchanges the code for tokens, reads the user's email, ENCRYPTS the refresh
 // token, and upserts a connector_connections row via the service-role admin
-// client. On success the customer is redirected back into the app.
+// client.
+//
+// `state` carries the PROVISION the customer is connecting for. We derive the
+// owning customer from that provision server-side (never trusting a raw
+// customer id from the query string) and, on success, redirect the customer to
+// that provision's column-mapping confirmation screen.
 //
 // fetch is injected so tests can mock Google's token + userinfo endpoints with
 // canned responses — no real network calls. Deps style mirrors stripe-webhook.
@@ -47,6 +52,26 @@ function errorRedirect(appBaseUrl: string | null, reason: string): Response {
   }
   const location = `${appBaseUrl}/connections/result?status=error`
   return new Response(null, { status: 302, headers: { Location: location } })
+}
+
+// Resolve the customer who owns a provision. The provision links to a request,
+// which carries the customer_id. Returns null when the provision can't be found
+// (a stale/forged state), so the caller can fail closed rather than write a
+// connection against a guessed or attacker-supplied id.
+async function resolveCustomerId(
+  adminClient: SupabaseClient,
+  provisionId: string,
+): Promise<string | null> {
+  const { data, error } = await adminClient
+    .from('automation_provisions')
+    .select('request_id, automation_requests(customer_id)')
+    .eq('id', provisionId)
+    .maybeSingle()
+  if (error || !data) return null
+  // A to-one embed comes back as an object, but tolerate an array shape too.
+  const rel = (data as { automation_requests?: unknown }).automation_requests
+  const row = (Array.isArray(rel) ? rel[0] : rel) as { customer_id?: unknown } | undefined
+  return typeof row?.customer_id === 'string' ? row.customer_id : null
 }
 
 export async function handleOAuthCallback(
@@ -123,12 +148,20 @@ export async function handleOAuthCallback(
   // 3. Encrypt the refresh token BEFORE it touches the database.
   const encryptedRefreshToken = await deps.encryptToken(tokens.refresh_token)
 
-  // 4. Upsert the connection (service-role, bypasses RLS). Unique on
-  //    (customer_id, connector_type), so re-connecting refreshes in place.
+  // 4. Resolve which customer owns the provision named in `state`. We trust the
+  //    database, not the query string: if the provision is unknown, fail closed.
+  const provisionId = state
   const adminClient = deps.createAdminClient()
+  const customerId = await resolveCustomerId(adminClient, provisionId)
+  if (!customerId) {
+    return errorRedirect(appBaseUrl, 'unknown_provision')
+  }
+
+  // 5. Upsert the connection (service-role, bypasses RLS). Unique on
+  //    (customer_id, connector_type), so re-connecting refreshes in place.
   const { error } = await adminClient.from('connector_connections').upsert(
     {
-      customer_id: state,
+      customer_id: customerId,
       connector_type: 'google_sheets',
       encrypted_refresh_token: encryptedRefreshToken,
       scope: tokens.scope ?? '',
@@ -146,7 +179,9 @@ export async function handleOAuthCallback(
   if (!appBaseUrl) {
     return new Response('Connected. You can close this window.', { status: 200 })
   }
-  const location = `${appBaseUrl}/connections/result?status=success&connector=google_sheets`
+  // 6. Send the customer straight to the column-mapping confirmation for the
+  //    provision they just connected.
+  const location = `${appBaseUrl}/connect/${provisionId}/confirm`
   return new Response(null, { status: 302, headers: { Location: location } })
 }
 

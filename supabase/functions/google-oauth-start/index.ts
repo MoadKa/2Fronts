@@ -1,6 +1,7 @@
 // google-oauth-start: builds the Google OAuth consent URL and 302-redirects the
-// customer to it. The `state` param carries the provision/customer id so the
-// callback can attribute the resulting tokens. access_type=offline +
+// customer to it. The `state` param carries the PROVISION id the customer is
+// connecting for; the callback derives the owning customer from it and routes
+// back to that provision's mapping screen. access_type=offline +
 // prompt=consent are required to reliably receive a refresh token.
 //
 // Factored as handleOAuthStart(req, deps) with an injectable env getter so the
