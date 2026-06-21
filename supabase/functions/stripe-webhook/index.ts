@@ -2,7 +2,8 @@ import Stripe from 'npm:stripe@16'
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 import { purchaseNumber } from '../_shared/twilioProvision.ts'
-import { attemptProvision, type ProvisionAutomation } from '../_shared/provisioning.ts'
+import { type ProvisionAutomation } from '../_shared/provisioning.ts'
+import { getConnector, type ProvisionRow } from '../_shared/connectors.ts'
 
 export type { ProvisionAutomation }
 
@@ -37,12 +38,17 @@ async function provisionIfNeeded(
 
   const { data: provisionRow } = await adminClient
     .from('automation_provisions')
-    .select('id, business_name, booking_link, status')
+    .select('id, connector_type, business_name, booking_link, config, status')
     .eq('request_id', requestId)
     .single()
   if (!provisionRow) return
 
-  await attemptProvision(adminClient, provisionRow as { id: string; business_name: string }, 'pending', provisionAutomation)
+  // Dispatch by connector_type. Legacy/Twilio rows (connector_type null or
+  // 'twilio_missed_call') route to the missed-call connector, which reuses the
+  // existing claim-first attemptProvision engine via the provisionAutomation dep.
+  const row = provisionRow as ProvisionRow
+  const connector = getConnector(row.connector_type)
+  await connector.provision({ adminClient, row, fromStatus: 'pending', deps: { provisionAutomation } })
 }
 
 export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defaultDeps): Promise<Response> {

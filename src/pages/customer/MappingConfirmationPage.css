@@ -1,0 +1,173 @@
+/* T6 — First-connect column mapping confirmation.
+   Markup/classes mirror the design wireframe; all colors come from the
+   claymorphism tokens defined in src/index.css. */
+
+.mapping-wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.mapping-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-clay-md);
+}
+
+.mapping-card .muted {
+  color: var(--color-text);
+}
+
+.mapping-rows {
+  margin-top: var(--space-lg);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-family: var(--sans);
+}
+
+.pill-high {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.pill-mid {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+/* mapping table */
+.map-row {
+  display: grid;
+  grid-template-columns: 1fr 28px 1.4fr auto;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--color-muted);
+}
+
+.map-row:last-child {
+  border-bottom: none;
+}
+
+.field {
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+
+.arrow {
+  color: var(--color-border);
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.col-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.7rem;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.col-needs {
+  border: 2px dashed var(--color-warning);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-weight: 700;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.col-needs:focus-visible {
+  outline: 3px solid var(--color-warning);
+}
+
+.preview {
+  margin-top: var(--space-lg);
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-md) var(--space-lg);
+  font-size: 0.9rem;
+}
+
+.preview b {
+  color: var(--color-foreground);
+}
+
+.reassure {
+  margin-top: var(--space-lg);
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  color: var(--color-success);
+  font-weight: 500;
+  font-size: 0.92rem;
+}
+
+.reassure .ic {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin-top: 2px;
+}
+
+.mapping-actions {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.btn {
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1.3rem;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: 0 3px 0 var(--color-primary-dark);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  border-color: var(--color-border);
+}
+
+@media (max-width: 560px) {
+  .map-row {
+    grid-template-columns: 1fr 20px 1fr;
+    grid-template-areas: 'f a c' 'p p p';
+  }
+  .map-row .pill-wrap {
+    grid-area: p;
+    padding-left: 0;
+  }
+}

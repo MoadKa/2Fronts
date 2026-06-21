@@ -6,10 +6,12 @@ import { AppLayout } from './components/layout/AppLayout'
 import { NotFoundPage } from './pages/public/NotFoundPage'
 import { CatalogPage } from './pages/public/CatalogPage'
 import { AutomationDetailPage } from './pages/public/AutomationDetailPage'
+import { SupportedSoftwarePage } from './pages/public/SupportedSoftwarePage'
 import { CheckoutResultPage } from './pages/public/CheckoutResultPage'
 import { MarketplaceTestPage } from './pages/public/MarketplaceTestPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { MyRequestsPage } from './pages/customer/MyRequestsPage'
+import { MappingConfirmationPage } from './pages/customer/MappingConfirmationPage'
 import { AdminCatalogPage } from './pages/admin/AdminCatalogPage'
 import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
 
@@ -23,10 +25,12 @@ export default function App() {
               <Route element={<AppLayout />}>
                 <Route path="/" element={<CatalogPage />} />
                 <Route path="/automations/:id" element={<AutomationDetailPage />} />
+                <Route path="/supported-software" element={<SupportedSoftwarePage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
                 <Route path="/marketplace-test" element={<MarketplaceTestPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route path="/my-requests" element={<MyRequestsPage />} />
+                  <Route path="/connect/:provisionId/confirm" element={<MappingConfirmationPage />} />
                 </Route>
                 <Route element={<ProtectedRoute requireRole="admin" />}>
                   <Route path="/admin/automations" element={<AdminCatalogPage />} />

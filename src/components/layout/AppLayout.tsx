@@ -14,6 +14,7 @@ export function AppLayout() {
       <nav className="app-nav">
         <Link to="/" className="app-logo">2Fronts</Link>
         <div className="app-nav-links">
+          <Link to="/supported-software">Unterstützte Software</Link>
           {user ? (
             <>
               {profile?.role === 'admin' && (
