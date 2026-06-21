@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import Stripe from 'npm:stripe@16'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
+import { resolveAppBaseUrl } from '../_shared/appUrl.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 
@@ -25,6 +26,22 @@ Deno.serve(async (req) => {
   if (!requestId) {
     return new Response(JSON.stringify({ error: 'requestId is required' }), {
       status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Fail fast on a misconfigured redirect origin rather than silently sending
+  // paid customers to a broken URL (e.g. a leftover localhost dev value).
+  let appBaseUrl: string
+  try {
+    appBaseUrl = resolveAppBaseUrl(
+      Deno.env.get('PUBLIC_APP_URL'),
+      Deno.env.get('ALLOW_INSECURE_APP_URL') === 'true',
+    )
+  } catch (err) {
+    console.error('create-checkout-session:', err instanceof Error ? err.message : err)
+    return new Response(JSON.stringify({ error: 'Checkout is temporarily unavailable' }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
@@ -58,8 +75,8 @@ Deno.serve(async (req) => {
       quantity: 1,
     }],
     metadata: { request_id: requestId },
-    success_url: `${Deno.env.get('PUBLIC_APP_URL')}/checkout/result?status=success`,
-    cancel_url: `${Deno.env.get('PUBLIC_APP_URL')}/checkout/result?status=cancelled`,
+    success_url: `${appBaseUrl}/checkout/result?status=success`,
+    cancel_url: `${appBaseUrl}/checkout/result?status=cancelled`,
   })
 
   // Service-role client: customers have no UPDATE policy on automation_requests by
