@@ -7,6 +7,7 @@ import { NotFoundPage } from './pages/public/NotFoundPage'
 import { CatalogPage } from './pages/public/CatalogPage'
 import { AutomationDetailPage } from './pages/public/AutomationDetailPage'
 import { CheckoutResultPage } from './pages/public/CheckoutResultPage'
+import { MarketplaceTestPage } from './pages/public/MarketplaceTestPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { MyRequestsPage } from './pages/customer/MyRequestsPage'
 import { AdminCatalogPage } from './pages/admin/AdminCatalogPage'
@@ -23,6 +24,7 @@ export default function App() {
                 <Route path="/" element={<CatalogPage />} />
                 <Route path="/automations/:id" element={<AutomationDetailPage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
+                <Route path="/marketplace-test" element={<MarketplaceTestPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route path="/my-requests" element={<MyRequestsPage />} />
                 </Route>

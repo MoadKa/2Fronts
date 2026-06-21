@@ -1,0 +1,82 @@
+.provision-panel {
+  margin-top: var(--space-md);
+  padding-top: var(--space-md);
+  border-top: 2px solid var(--color-border);
+}
+
+.provision-status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+.provision-phone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.provision-phone a {
+  font-family: var(--heading);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-foreground);
+  text-decoration: none;
+}
+
+.provision-phone a:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+.provision-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  font-family: var(--heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 200ms ease, background-color 200ms ease;
+}
+
+.provision-copy-btn:hover {
+  background: var(--color-muted);
+  transform: translateY(-2px);
+}
+
+.provision-message {
+  color: var(--color-text);
+  margin: 0 0 var(--space-sm);
+}
+
+.provision-forwarding {
+  margin-top: var(--space-sm);
+  background: var(--color-muted);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.provision-forwarding summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.provision-forwarding ol {
+  margin: var(--space-sm) 0 0;
+  padding-left: var(--space-lg);
+  color: var(--color-text);
+}
+
+.provision-forwarding li {
+  margin-bottom: var(--space-xs);
+}

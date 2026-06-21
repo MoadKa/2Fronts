@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getAutomationById } from '../../services/AutomationService'
-import { createRequest, createCheckoutSession } from '../../services/RequestService'
+import { createRequest, createCheckoutSession, createProvisionDetails } from '../../services/RequestService'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../components/ui/Toast'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
 import type { Automation } from '../../types/database'
 
 function formatPrice(cents: number, currency: string): string {
@@ -20,6 +21,9 @@ export function AutomationDetailPage() {
   const [automation, setAutomation] = useState<Automation | null>(null)
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
+  const [businessName, setBusinessName] = useState('')
+  const [bookingLink, setBookingLink] = useState('')
+  const [bookingLinkError, setBookingLinkError] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -31,9 +35,21 @@ export function AutomationDetailPage() {
 
   async function handleRequest() {
     if (!automation) return
+    if (automation.requires_provisioning && !bookingLink.trim()) {
+      setBookingLinkError('Enter a booking link so customers can reach you.')
+      return
+    }
+    setBookingLinkError('')
     setRequesting(true)
     try {
       const request = await createRequest(automation.id)
+      if (automation.requires_provisioning) {
+        await createProvisionDetails(request.id, {
+          businessName,
+          bookingLink,
+          businessHours: undefined,
+        })
+      }
       const { url } = await createCheckoutSession(request.id)
       window.location.href = url
     } catch (err) {
@@ -54,9 +70,26 @@ export function AutomationDetailPage() {
         <p>{automation.outcome_description}</p>
         <h3>{formatPrice(automation.price_cents, automation.currency)}</h3>
         {user ? (
-          <Button onClick={handleRequest} disabled={requesting}>
-            {requesting ? 'Starting checkout...' : 'Request this automation'}
-          </Button>
+          <>
+            {automation.requires_provisioning && (
+              <>
+                <Input
+                  label="Business name"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                />
+                <Input
+                  label="Booking link"
+                  value={bookingLink}
+                  onChange={(e) => setBookingLink(e.target.value)}
+                  error={bookingLinkError}
+                />
+              </>
+            )}
+            <Button onClick={handleRequest} disabled={requesting}>
+              {requesting ? 'Starting checkout...' : 'Request this automation'}
+            </Button>
+          </>
         ) : (
           <p>Log in to request this automation.</p>
         )}

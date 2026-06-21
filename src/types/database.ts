@@ -16,7 +16,23 @@ export interface Automation {
   price_cents: number
   currency: string
   is_active: boolean
+  requires_provisioning: boolean
   created_at: string
+}
+
+export type AutomationProvisionStatus = 'pending' | 'provisioning' | 'active' | 'failed' | 'cancelled'
+
+export interface AutomationProvision {
+  id: string
+  request_id: string
+  business_name: string
+  booking_link: string
+  business_hours: string | null
+  twilio_phone_number: string | null
+  twilio_phone_number_sid: string | null
+  status: AutomationProvisionStatus
+  created_at: string
+  updated_at: string
 }
 
 export type RequestStatus =
@@ -41,4 +57,5 @@ export interface AutomationRequest {
 
 export interface AutomationRequestWithAutomation extends AutomationRequest {
   automation: Automation
+  automation_provisions?: AutomationProvision[]
 }

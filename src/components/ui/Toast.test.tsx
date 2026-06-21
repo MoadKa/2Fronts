@@ -17,4 +17,14 @@ describe('Toast', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Trigger' }))
     expect(screen.getByText('Saved!')).toBeInTheDocument()
   })
+
+  it('announces toast messages to screen readers via aria-live', () => {
+    render(
+      <ToastProvider>
+        <Trigger />
+      </ToastProvider>
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger' }))
+    expect(screen.getByText('Saved!').closest('[aria-live]')).toHaveAttribute('aria-live', 'polite')
+  })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createRequest, createCheckoutSession, listMyRequests, listAllRequests, updateRequestStatus } from './RequestService'
+import { createRequest, createCheckoutSession, createProvisionDetails, listMyRequests, listAllRequests, updateRequestStatus, retryProvisioning } from './RequestService'
 
 vi.mock('../lib/supabaseClient', () => {
   const sampleRequest = {
@@ -8,7 +8,8 @@ vi.mock('../lib/supabaseClient', () => {
   }
   const sampleRequestWithAutomation = {
     ...sampleRequest,
-    automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, created_at: '2026-06-01T00:00:00Z' },
+    automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, created_at: '2026-06-01T00:00:00Z' },
+    automation_provisions: [],
   }
 
   function chainableList(data: unknown[]) {
@@ -19,22 +20,33 @@ vi.mock('../lib/supabaseClient', () => {
     return promise
   }
 
+  const capturedSelects: string[] = []
+
   return {
     supabase: {
       auth: { getUser: () => Promise.resolve({ data: { user: { id: 'user-1' } } }) },
-      from: () => ({
-        insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: sampleRequest, error: null }) }) }),
-        select: () => ({ order: () => chainableList([sampleRequestWithAutomation]) }),
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: () => Promise.resolve({ data: { ...sampleRequest, status: 'delivered', delivery_notes: 'Done' }, error: null }),
+      from: (table: string) => {
+        if (table === 'automation_provisions') {
+          return { insert: (row: unknown) => Promise.resolve({ data: row, error: null }) }
+        }
+        return {
+          insert: () => ({ select: () => ({ single: () => Promise.resolve({ data: sampleRequest, error: null }) }) }),
+          select: (query: string) => {
+            capturedSelects.push(query)
+            return { order: () => chainableList([sampleRequestWithAutomation]) }
+          },
+          update: () => ({
+            eq: () => ({
+              select: () => ({
+                single: () => Promise.resolve({ data: { ...sampleRequest, status: 'delivered', delivery_notes: 'Done' }, error: null }),
+              }),
             }),
           }),
-        }),
-      }),
-      functions: { invoke: () => Promise.resolve({ data: { url: 'https://checkout.stripe.com/session-1' }, error: null }) },
+        }
+      },
+      functions: { invoke: vi.fn(() => Promise.resolve({ data: { url: 'https://checkout.stripe.com/session-1' }, error: null })) },
     },
+    __capturedSelects: capturedSelects,
   }
 })
 
@@ -55,9 +67,11 @@ describe('RequestService', () => {
     expect(result.url).toBe('https://checkout.stripe.com/session-1')
   })
 
-  it("lists the current user's requests with their automation joined", async () => {
+  it("lists the current user's requests with their automation and provisions joined", async () => {
+    const mod = (await import('../lib/supabaseClient')) as unknown as { __capturedSelects: string[] }
     const result = await listMyRequests()
     expect(result).toHaveLength(1)
+    expect(mod.__capturedSelects.some((q) => q.includes('automation_provisions'))).toBe(true)
   })
 
   it('lists all requests with their automation joined', async () => {
@@ -74,5 +88,20 @@ describe('RequestService', () => {
     const result = await updateRequestStatus('req-1', 'delivered', 'Done')
     expect(result.status).toBe('delivered')
     expect(result.delivery_notes).toBe('Done')
+  })
+
+  it('creates a pending provision row with the business details for a request', async () => {
+    const { supabase } = await import('../lib/supabaseClient')
+    const fromSpy = vi.spyOn(supabase, 'from')
+    await createProvisionDetails('req-1', { businessName: 'Acme Plumbing', bookingLink: 'https://cal.com/acme' })
+    expect(fromSpy).toHaveBeenCalledWith('automation_provisions')
+  })
+
+  it('invokes the retry-provision function with the request id and returns the new status', async () => {
+    const { supabase } = await import('../lib/supabaseClient')
+    vi.mocked(supabase.functions.invoke).mockResolvedValueOnce({ data: { status: 'active' }, error: null } as never)
+    const result = await retryProvisioning('req-1')
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('retry-provision', { body: { requestId: 'req-1' } })
+    expect(result.status).toBe('active')
   })
 })

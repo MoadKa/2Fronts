@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react'
-import { listAllRequests, updateRequestStatus } from '../../services/RequestService'
+import { listAllRequests, updateRequestStatus, retryProvisioning } from '../../services/RequestService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/Toast'
-import type { AutomationRequestWithAutomation, RequestStatus } from '../../types/database'
+import type { AutomationProvisionStatus, AutomationRequestWithAutomation, RequestStatus } from '../../types/database'
 
 const STATUS_TONE: Record<RequestStatus, 'neutral' | 'success' | 'warning' | 'danger'> = {
   requested: 'neutral', payment_pending: 'neutral', paid: 'warning', in_progress: 'warning', delivered: 'success', cancelled: 'danger',
+}
+
+const PROVISION_TONE: Record<AutomationProvisionStatus, 'neutral' | 'success' | 'warning' | 'danger'> = {
+  pending: 'neutral', provisioning: 'warning', active: 'success', failed: 'danger', cancelled: 'neutral',
 }
 
 const NEXT_STATUS: Record<RequestStatus, RequestStatus | null> = {
@@ -51,6 +55,12 @@ export function AdminRequestsPage() {
     await refresh()
   }
 
+  async function retry(request: AutomationRequestWithAutomation) {
+    const { status } = await retryProvisioning(request.id)
+    showToast(`Provisioning ${status}`)
+    await refresh()
+  }
+
   function handleStatusFilterChange(value: string) {
     setLoading(true)
     setStatusFilter(value as RequestStatus | '')
@@ -80,10 +90,24 @@ export function AdminRequestsPage() {
       {!loading && requests.length === 0 && <p>No requests yet.</p>}
       {!loading && requests.map((request) => {
         const nextStatus = NEXT_STATUS[request.status]
+        const provision = request.automation.requires_provisioning
+          ? request.automation_provisions?.[0]
+          : undefined
         return (
           <Card key={request.id} className="my-requests-card">
             <Badge tone={STATUS_TONE[request.status]}>{request.status}</Badge>
             <h3>{request.automation.name}</h3>
+            {provision && (
+              <p>
+                <Badge tone={PROVISION_TONE[provision.status]}>{provision.status}</Badge>
+                {provision.status === 'active' && provision.twilio_phone_number && (
+                  <span> {provision.twilio_phone_number}</span>
+                )}
+                {provision.status === 'failed' && (
+                  <Button onClick={() => retry(request)}>Retry</Button>
+                )}
+              </p>
+            )}
             {nextStatus === 'delivered' && (
               <Input
                 label="Delivery notes"
