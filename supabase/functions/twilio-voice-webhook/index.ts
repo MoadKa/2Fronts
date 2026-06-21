@@ -66,7 +66,7 @@ export async function handleVoiceWebhook(req: Request, deps: VoiceWebhookDeps = 
     .eq('twilio_phone_number', to)
     .maybeSingle()
 
-  if (provision) {
+  if (provision && (provision as { status: string }).status === 'active') {
     const row = provision as { business_name: string; booking_link: string; business_hours: string | null }
     const message = buildMessage(row.business_name, row.booking_link, row.business_hours)
     try {
