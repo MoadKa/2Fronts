@@ -33,6 +33,17 @@ describe('MarketplaceTestPage', () => {
     expect(meta?.getAttribute('content')).toBe('noindex')
   })
 
+  // Regression: live QA found visitors who land on the form without clicking
+  // a listing's "Interested?" CTA see an unexplained empty field with no
+  // guidance on what to type. Found by /qa on 2026-06-21.
+  it('shows placeholder guidance on the automation-of-interest field for visitors who land directly on the form', () => {
+    renderPage()
+    expect(screen.getByLabelText('Automation of interest')).toHaveAttribute(
+      'placeholder',
+      expect.stringContaining('Interested?')
+    )
+  })
+
   it('pre-fills the automation of interest when a listing\'s "Interested? Tell us" link is clicked', () => {
     renderPage()
     fireEvent.click(screen.getAllByText('Interested? Tell us')[0])

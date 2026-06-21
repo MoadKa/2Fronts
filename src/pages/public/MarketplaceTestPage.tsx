@@ -119,6 +119,7 @@ export function MarketplaceTestPage() {
         />
         <Input
           label="Automation of interest"
+          placeholder="Click 'Interested?' on a listing above, or describe what you're looking for"
           value={automationOfInterest}
           onChange={(e) => setAutomationOfInterest(e.target.value)}
         />
