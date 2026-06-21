@@ -2,5 +2,8 @@
   "imports": {},
   "test": {
     "include": ["**/*.test.ts"]
+  },
+  "tasks": {
+    "test": "deno test --allow-env"
   }
 }

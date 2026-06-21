@@ -75,5 +75,5 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
 }
 
 if (import.meta.main) {
-  Deno.serve(handleStripeWebhook)
+  Deno.serve((req) => handleStripeWebhook(req))
 }

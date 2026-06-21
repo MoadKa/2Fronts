@@ -65,5 +65,5 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
 }
 
 if (import.meta.main) {
-  Deno.serve(handleRetryProvision)
+  Deno.serve((req) => handleRetryProvision(req))
 }

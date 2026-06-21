@@ -12,7 +12,13 @@ function fakeStripe(event: unknown, shouldThrow = false) {
   }
 }
 
-function fakeAdminClient(captured: { table?: string; patch?: unknown; eqCalls: [string, unknown][] }) {
+interface CapturedAdminCall {
+  table?: string
+  patch?: unknown
+  eqCalls: [string, unknown][]
+}
+
+function fakeAdminClient(captured: CapturedAdminCall) {
   return () => ({
     from(table: string) {
       captured.table = table
@@ -47,12 +53,14 @@ interface ProvisionRow {
   requires_provisioning?: boolean
 }
 
-function fakeProvisioningAdminClient(opts: {
+interface FakeProvisioningAdminClientOpts {
   requestRow: { automations: { requires_provisioning: boolean } } | null
   provisionRow: ProvisionRow | null
   claimSucceeds: boolean
   updates: { table: string; patch: unknown; matchedStatus?: string }[]
-}) {
+}
+
+function fakeProvisioningAdminClient(opts: FakeProvisioningAdminClientOpts) {
   return () => ({
     from(table: string) {
       if (table === 'automation_requests') {
@@ -108,12 +116,13 @@ function fakeProvisioningAdminClient(opts: {
 }
 
 Deno.test('returns 400 and does not touch the DB when the Stripe signature is invalid', async () => {
-  const captured = { eqCalls: [] as [string, unknown][] }
+  const captured: CapturedAdminCall = { eqCalls: [] }
   const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
 
   const res = await handleStripeWebhook(req, {
     stripe: fakeStripe(null, true) as never,
     createAdminClient: fakeAdminClient(captured) as never,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 400)
@@ -121,7 +130,7 @@ Deno.test('returns 400 and does not touch the DB when the Stripe signature is in
 })
 
 Deno.test('marks the request paid when checkout.session.completed arrives with a request_id', async () => {
-  const captured = { eqCalls: [] as [string, unknown][] }
+  const captured: CapturedAdminCall = { eqCalls: [] }
   const event = {
     type: 'checkout.session.completed',
     data: { object: { id: 'cs_123', metadata: { request_id: 'req_abc' } } },
@@ -131,6 +140,7 @@ Deno.test('marks the request paid when checkout.session.completed arrives with a
   const res = await handleStripeWebhook(req, {
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeAdminClient(captured) as never,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -141,7 +151,7 @@ Deno.test('marks the request paid when checkout.session.completed arrives with a
 })
 
 Deno.test('returns 200 and skips the DB update when checkout.session.completed has no request_id', async () => {
-  const captured = { eqCalls: [] as [string, unknown][] }
+  const captured: CapturedAdminCall = { eqCalls: [] }
   const event = {
     type: 'checkout.session.completed',
     data: { object: { id: 'cs_123', metadata: {} } },
@@ -151,6 +161,7 @@ Deno.test('returns 200 and skips the DB update when checkout.session.completed h
   const res = await handleStripeWebhook(req, {
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeAdminClient(captured) as never,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -158,13 +169,14 @@ Deno.test('returns 200 and skips the DB update when checkout.session.completed h
 })
 
 Deno.test('returns 200 and does nothing for unrelated event types', async () => {
-  const captured = { eqCalls: [] as [string, unknown][] }
+  const captured: CapturedAdminCall = { eqCalls: [] }
   const event = { type: 'payment_intent.created', data: { object: {} } }
   const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
 
   const res = await handleStripeWebhook(req, {
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeAdminClient(captured) as never,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -172,7 +184,7 @@ Deno.test('returns 200 and does nothing for unrelated event types', async () => 
 })
 
 Deno.test('provisions a Twilio number when the automation requires provisioning and the claim succeeds', async () => {
-  const opts = {
+  const opts: FakeProvisioningAdminClientOpts = {
     requestRow: { automations: { requires_provisioning: true } },
     provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', status: 'pending' },
     claimSucceeds: true,
@@ -206,7 +218,7 @@ Deno.test('provisions a Twilio number when the automation requires provisioning 
 })
 
 Deno.test('skips provisioning (no duplicate purchase) when the claim fails because another delivery already claimed it', async () => {
-  const opts = {
+  const opts: FakeProvisioningAdminClientOpts = {
     requestRow: { automations: { requires_provisioning: true } },
     provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', status: 'pending' },
     claimSucceeds: false,
@@ -235,7 +247,7 @@ Deno.test('skips provisioning (no duplicate purchase) when the claim fails becau
 })
 
 Deno.test('marks the provision failed (not stuck pending) when the Twilio purchase throws', async () => {
-  const opts = {
+  const opts: FakeProvisioningAdminClientOpts = {
     requestRow: { automations: { requires_provisioning: true } },
     provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', status: 'pending' },
     claimSucceeds: true,
@@ -261,7 +273,7 @@ Deno.test('marks the provision failed (not stuck pending) when the Twilio purcha
 })
 
 Deno.test('does not attempt provisioning when the automation does not require it', async () => {
-  const opts = {
+  const opts: FakeProvisioningAdminClientOpts = {
     requestRow: { automations: { requires_provisioning: false } },
     provisionRow: null,
     claimSucceeds: false,

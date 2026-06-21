@@ -82,5 +82,5 @@ export async function handleVoiceWebhook(req: Request, deps: VoiceWebhookDeps = 
 }
 
 if (import.meta.main) {
-  Deno.serve(handleVoiceWebhook)
+  Deno.serve((req) => handleVoiceWebhook(req))
 }

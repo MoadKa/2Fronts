@@ -1,11 +1,13 @@
 import { assertEquals } from 'jsr:@std/assert@1'
 import { attemptProvision, type ProvisionAutomation } from './provisioning.ts'
 
-function fakeAdminClient(opts: {
+interface FakeAdminClientOpts {
   claimSucceeds: boolean
   provisionRow: { id: string; business_name: string }
   updates: { patch: unknown; matchedStatus?: string }[]
-}) {
+}
+
+function fakeAdminClient(opts: FakeAdminClientOpts) {
   return {
     from() {
       return {
@@ -35,7 +37,7 @@ function fakeAdminClient(opts: {
 }
 
 Deno.test('claims from the given fromStatus, purchases a number, and marks active on success', async () => {
-  const opts = { claimSucceeds: true, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
+  const opts: FakeAdminClientOpts = { claimSucceeds: true, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
   let purchaseCalledWith = ''
 
   const result = await attemptProvision(
@@ -58,7 +60,7 @@ Deno.test('claims from the given fromStatus, purchases a number, and marks activ
 })
 
 Deno.test('claims from a custom fromStatus (e.g. failed, for retry)', async () => {
-  const opts = { claimSucceeds: true, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
+  const opts: FakeAdminClientOpts = { claimSucceeds: true, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
 
   await attemptProvision(
     fakeAdminClient(opts) as never,
@@ -71,7 +73,7 @@ Deno.test('claims from a custom fromStatus (e.g. failed, for retry)', async () =
 })
 
 Deno.test('returns "not-claimed" without purchasing when the claim fails', async () => {
-  const opts = { claimSucceeds: false, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
+  const opts: FakeAdminClientOpts = { claimSucceeds: false, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
   let purchaseWasCalled = false
 
   const result = await attemptProvision(
@@ -86,7 +88,7 @@ Deno.test('returns "not-claimed" without purchasing when the claim fails', async
 })
 
 Deno.test('returns "failed" and persists the failure when the Twilio purchase throws', async () => {
-  const opts = { claimSucceeds: true, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
+  const opts: FakeAdminClientOpts = { claimSucceeds: true, provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing' }, updates: [] }
 
   const result = await attemptProvision(
     fakeAdminClient(opts) as never,

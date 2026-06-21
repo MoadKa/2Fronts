@@ -51,5 +51,5 @@ export async function handleSmsWebhook(req: Request, deps: SmsWebhookDeps = defa
 }
 
 if (import.meta.main) {
-  Deno.serve(handleSmsWebhook)
+  Deno.serve((req) => handleSmsWebhook(req))
 }

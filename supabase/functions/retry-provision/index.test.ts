@@ -1,7 +1,13 @@
 import { assertEquals } from 'jsr:@std/assert@1'
 import { handleRetryProvision, type ProvisionAutomation } from './index.ts'
 
-function fakeUserClient(opts: { provisionRow: { id: string; business_name: string; status: string } | null; claimSucceeds: boolean; updates: { patch: unknown; matchedStatus?: string }[] }) {
+interface FakeUserClientOpts {
+  provisionRow: { id: string; business_name: string; status: string } | null
+  claimSucceeds: boolean
+  updates: { patch: unknown; matchedStatus?: string }[]
+}
+
+function fakeUserClient(opts: FakeUserClientOpts) {
   return {
     from(table: string) {
       if (table === 'automation_provisions') {
@@ -65,7 +71,7 @@ Deno.test('returns 404 when no failed provision exists for the request (also the
 })
 
 Deno.test('retries a failed provision and returns the new status on success', async () => {
-  const opts = { provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing', status: 'failed' }, claimSucceeds: true, updates: [] }
+  const opts: FakeUserClientOpts = { provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing', status: 'failed' }, claimSucceeds: true, updates: [] }
   const res = await handleRetryProvision(reqWithAuth({ requestId: 'req-1' }), {
     createUserClient: () => fakeUserClient(opts) as never,
     provisionAutomation: { purchaseNumber: () => Promise.resolve({ phoneNumber: '+31612345678', sid: 'PN1' }) } as ProvisionAutomation,
@@ -78,7 +84,7 @@ Deno.test('retries a failed provision and returns the new status on success', as
 })
 
 Deno.test('returns 200 with status failed when the retry purchase fails again', async () => {
-  const opts = { provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing', status: 'failed' }, claimSucceeds: true, updates: [] }
+  const opts: FakeUserClientOpts = { provisionRow: { id: 'prov-1', business_name: 'Acme Plumbing', status: 'failed' }, claimSucceeds: true, updates: [] }
   const res = await handleRetryProvision(reqWithAuth({ requestId: 'req-1' }), {
     createUserClient: () => fakeUserClient(opts) as never,
     provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('still suspended')) } as ProvisionAutomation,
