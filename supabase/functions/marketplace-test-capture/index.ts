@@ -43,11 +43,16 @@ export async function handleMarketplaceCapture(req: Request, deps: CaptureDeps =
     return jsonResponse({ error: GENERIC_ERROR }, 500)
   }
 
+  const automationLine = typeof automationOfInterest === 'string' && automationOfInterest.trim() !== ''
+    ? automationOfInterest
+    : '(not specified)'
+  const text = `New automation request:\nEmail: ${email}\nBusiness: ${businessName}\nInterested in: ${automationLine}`
+
   try {
     const webhookRes = await deps.fetchImpl(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, business_name: businessName, automation_of_interest: automationOfInterest }),
+      body: JSON.stringify({ text }),
     })
     if (!webhookRes.ok) {
       console.error(`marketplace-test-capture: webhook responded with status ${webhookRes.status}`)

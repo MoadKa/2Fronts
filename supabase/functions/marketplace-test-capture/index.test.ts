@@ -10,19 +10,54 @@ function jsonReq(body: unknown, method = 'POST') {
 
 Deno.test('returns 200 and relays to the webhook when input is valid', async () => {
   let calledUrl = ''
-  let calledBody: unknown
   const res = await handleMarketplaceCapture(jsonReq({ email: 'a@b.com', business_name: 'Acme Plumbing' }), {
     getWebhookUrl: () => 'https://hooks.example.com/abc',
-    fetchImpl: ((url: string, init?: RequestInit) => {
+    fetchImpl: ((url: string) => {
       calledUrl = url
-      calledBody = JSON.parse(init?.body as string)
       return Promise.resolve(new Response('ok', { status: 200 }))
     }) as typeof fetch,
   })
 
   assertEquals(res.status, 200)
   assertEquals(calledUrl, 'https://hooks.example.com/abc')
-  assertEquals((calledBody as { email: string }).email, 'a@b.com')
+})
+
+// Regression: live QA against the real Slack webhook returned 400 "no_text" —
+// Slack's Incoming Webhook API requires a top-level "text" field; the
+// function was forwarding raw {email, business_name, ...} JSON instead.
+// Found by /qa on 2026-06-21.
+Deno.test('formats the webhook payload as Slack-compatible {text: ...} including email, business name, and automation of interest', async () => {
+  let calledBody: unknown
+  await handleMarketplaceCapture(
+    jsonReq({ email: 'a@b.com', business_name: 'Acme Plumbing', automation_of_interest: 'AI Missed-Call Recovery' }),
+    {
+      getWebhookUrl: () => 'https://hooks.example.com/abc',
+      fetchImpl: ((_url: string, init?: RequestInit) => {
+        calledBody = JSON.parse(init?.body as string)
+        return Promise.resolve(new Response('ok', { status: 200 }))
+      }) as typeof fetch,
+    }
+  )
+
+  const text = (calledBody as { text: string }).text
+  assertEquals(typeof text, 'string')
+  assertEquals(text.includes('a@b.com'), true)
+  assertEquals(text.includes('Acme Plumbing'), true)
+  assertEquals(text.includes('AI Missed-Call Recovery'), true)
+})
+
+Deno.test('formats the webhook payload with a placeholder when automation of interest is not provided', async () => {
+  let calledBody: unknown
+  await handleMarketplaceCapture(jsonReq({ email: 'a@b.com', business_name: 'Acme Plumbing' }), {
+    getWebhookUrl: () => 'https://hooks.example.com/abc',
+    fetchImpl: ((_url: string, init?: RequestInit) => {
+      calledBody = JSON.parse(init?.body as string)
+      return Promise.resolve(new Response('ok', { status: 200 }))
+    }) as typeof fetch,
+  })
+
+  const text = (calledBody as { text: string }).text
+  assertEquals(text.includes('not specified'), true)
 })
 
 Deno.test('returns 400 when email is missing', async () => {
