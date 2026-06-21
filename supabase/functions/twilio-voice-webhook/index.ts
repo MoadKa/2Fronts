@@ -62,19 +62,29 @@ export async function handleVoiceWebhook(req: Request, deps: VoiceWebhookDeps = 
   const adminClient = deps.createAdminClient()
   const { data: provision } = await adminClient
     .from('automation_provisions')
-    .select('business_name, booking_link, business_hours, status')
+    .select('id, business_name, booking_link, business_hours, status')
     .eq('twilio_phone_number', to)
     .maybeSingle()
 
   if (provision && (provision as { status: string }).status === 'active') {
-    const row = provision as { business_name: string; booking_link: string; business_hours: string | null }
-    const message = buildMessage(row.business_name, row.booking_link, row.business_hours)
-    try {
-      await deps.sendSms(from, message)
-    } catch {
-      // Outbound SMS failed -- the voice call itself still needs a valid
-      // TwiML response (Twilio can't retry the missed call), so this is
-      // swallowed here. Send failures surface via normal function logs.
+    const row = provision as { id: string; business_name: string; booking_link: string; business_hours: string | null }
+
+    const { data: optOut } = await adminClient
+      .from('automation_provision_opt_outs')
+      .select('id')
+      .eq('provision_id', row.id)
+      .eq('phone', from)
+      .maybeSingle()
+
+    if (!optOut) {
+      const message = buildMessage(row.business_name, row.booking_link, row.business_hours)
+      try {
+        await deps.sendSms(from, message)
+      } catch {
+        // Outbound SMS failed -- the voice call itself still needs a valid
+        // TwiML response (Twilio can't retry the missed call), so this is
+        // swallowed here. Send failures surface via normal function logs.
+      }
     }
   }
 

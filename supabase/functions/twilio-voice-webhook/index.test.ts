@@ -5,9 +5,20 @@ function formBody(fields: Record<string, string>): string {
   return new URLSearchParams(fields).toString()
 }
 
-function fakeAdminClient(provision: unknown) {
+function fakeAdminClient(provision: unknown, optedOut = false) {
   return () => ({
-    from() {
+    from(table: string) {
+      if (table === 'automation_provision_opt_outs') {
+        return {
+          select() {
+            return {
+              eq() {
+                return { eq: () => ({ maybeSingle: () => Promise.resolve({ data: optedOut ? { id: 'opt-1' } : null, error: null }) }) }
+              },
+            }
+          },
+        }
+      }
       return {
         select() {
           return { eq: () => ({ maybeSingle: () => Promise.resolve({ data: provision, error: null }) }) }
@@ -34,7 +45,7 @@ Deno.test('returns 400 when the Twilio signature is invalid', async () => {
 
 Deno.test('sends the fixed-template SMS and returns TwiML when the number matches an active provision', async () => {
   const provision = {
-    business_name: 'Acme Plumbing',
+    id: 'prov-1', business_name: 'Acme Plumbing',
     booking_link: 'https://cal.com/acme',
     business_hours: 'Mon-Fri 9-5',
     status: 'active',
@@ -87,7 +98,7 @@ Deno.test('returns generic TwiML without sending SMS when no provision matches t
 })
 
 Deno.test('still returns 200 TwiML when the outbound SMS send fails', async () => {
-  const provision = { business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', business_hours: null, status: 'active' }
+  const provision = { id: 'prov-1', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', business_hours: null, status: 'active' }
   const req = new Request('http://localhost/twilio-voice-webhook', {
     method: 'POST',
     body: formBody({ To: '+4915712345678', From: '+491701234567' }),
@@ -109,7 +120,7 @@ Deno.test('still returns 200 TwiML when the outbound SMS send fails', async () =
 // Found by /ship's coverage audit on 2026-06-21.
 Deno.test('returns generic TwiML without sending SMS when the matched provision is not active (e.g. cancelled)', async () => {
   const provision = {
-    business_name: 'Acme Plumbing',
+    id: 'prov-1', business_name: 'Acme Plumbing',
     booking_link: 'https://cal.com/acme',
     business_hours: null,
     status: 'cancelled',
@@ -123,6 +134,34 @@ Deno.test('returns generic TwiML without sending SMS when the matched provision 
   const res = await handleVoiceWebhook(req, {
     verifySignature: () => true,
     createAdminClient: fakeAdminClient(provision) as never,
+    sendSms: (() => {
+      sendCalled = true
+      return Promise.resolve()
+    }) as SmsSender,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(sendCalled, false)
+})
+
+// Regression: a lead who already replied STOP (recorded in
+// automation_provision_opt_outs by twilio-sms-webhook) kept receiving the
+// automated missed-call SMS on every subsequent call, because this handler
+// never checked that table before sending — the opt-out mechanism existed
+// but was never wired into the only place that actually sends the message.
+// Found by /ship's adversarial review on 2026-06-21 (live anti-spam/consent
+// compliance issue, not just a test gap).
+Deno.test('does not send the SMS when the caller already opted out (STOP) for this provision', async () => {
+  const provision = { id: 'prov-1', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', business_hours: null, status: 'active' }
+  let sendCalled = false
+  const req = new Request('http://localhost/twilio-voice-webhook', {
+    method: 'POST',
+    body: formBody({ To: '+4915712345678', From: '+491701234567' }),
+  })
+
+  const res = await handleVoiceWebhook(req, {
+    verifySignature: () => true,
+    createAdminClient: fakeAdminClient(provision, true) as never,
     sendSms: (() => {
       sendCalled = true
       return Promise.resolve()

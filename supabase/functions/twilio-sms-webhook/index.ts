@@ -42,9 +42,12 @@ export async function handleSmsWebhook(req: Request, deps: SmsWebhookDeps = defa
     .maybeSingle()
 
   if (provision && isStop(messageBody)) {
-    await adminClient
+    const { error } = await adminClient
       .from('automation_provision_opt_outs')
       .insert({ provision_id: (provision as { id: string }).id, phone: from })
+    if (error) {
+      console.error('twilio-sms-webhook: failed to record opt-out', error)
+    }
   }
 
   return new Response(EMPTY_TWIML, { status: 200, headers: { 'Content-Type': 'text/xml' } })
