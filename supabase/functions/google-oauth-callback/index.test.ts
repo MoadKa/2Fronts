@@ -1,8 +1,10 @@
 import { assertEquals, assertNotEquals, assertStringIncludes } from 'jsr:@std/assert@1'
 import { decryptToken, encryptToken } from '../_shared/tokenCrypto.ts'
 import { handleOAuthCallback, type OAuthCallbackDeps } from './index.ts'
+import { OAUTH_STATE_COOKIE, signState } from '../_shared/oauthState.ts'
 
 const TEST_KEY_B64 = btoa('0123456789abcdef0123456789abcdef')
+const STATE_SECRET = 'test-oauth-state-secret'
 
 const ENV: Record<string, string> = {
   GOOGLE_OAUTH_CLIENT_ID: 'fake-client-id.apps.googleusercontent.com',
@@ -10,6 +12,25 @@ const ENV: Record<string, string> = {
   GOOGLE_OAUTH_REDIRECT_URI: 'https://app.example.com/functions/v1/google-oauth-callback',
   PUBLIC_APP_URL: 'https://app.example.com',
   CONNECTOR_TOKEN_KEY: TEST_KEY_B64,
+  OAUTH_STATE_SECRET: STATE_SECRET,
+}
+
+// Build a callback request whose state is properly signed and whose cookie nonce
+// matches — i.e. the same browser that started the flow. `cookie: null` simulates
+// a foreign/CSRF browser; `cookie: '<val>'` overrides it.
+async function signedCallbackReq(
+  provisionId: string,
+  opts: { code?: string | null; cookie?: string | null } = {},
+): Promise<Request> {
+  const { state, nonce } = await signState(provisionId, STATE_SECRET)
+  const code = opts.code === undefined ? 'auth-code' : opts.code
+  const qs = new URLSearchParams()
+  if (code) qs.set('code', code)
+  qs.set('state', state)
+  const headers: Record<string, string> = {}
+  const cookie = opts.cookie === undefined ? `${OAUTH_STATE_COOKIE}=${nonce}` : opts.cookie
+  if (cookie) headers['Cookie'] = cookie
+  return new Request(`http://localhost/google-oauth-callback?${qs.toString()}`, { headers })
 }
 
 const PLAINTEXT_REFRESH = '1//fake-refresh-token'
@@ -111,7 +132,7 @@ Deno.test('exchanges code, encrypts refresh token, and upserts the connection', 
   )
 
   // state carries the PROVISION id; the customer is derived from it server-side.
-  const req = new Request('http://localhost/google-oauth-callback?code=auth-code&state=prov-1')
+  const req = await signedCallbackReq('prov-1')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
   // On success, redirects to THAT provision's mapping confirmation screen.
@@ -140,6 +161,26 @@ Deno.test('exchanges code, encrypts refresh token, and upserts the connection', 
   assertEquals(await decryptToken(stored), PLAINTEXT_REFRESH)
 })
 
+Deno.test('CSRF: rejects a valid signed state completed in a browser without the matching cookie', async () => {
+  Deno.env.set('CONNECTOR_TOKEN_KEY', TEST_KEY_B64)
+  const captured: CapturedUpsert = {}
+  const { fn, calls } = fakeFetch(
+    { access_token: 'at-123', refresh_token: PLAINTEXT_REFRESH, scope: GRANTED_SCOPE },
+    { email: 'customer@gmail.com' },
+  )
+
+  // The state is legitimately signed (attacker started a flow for their own
+  // provision), but the victim's browser has no matching nonce cookie.
+  const req = await signedCallbackReq('prov-1', { cookie: null })
+  const res = await handleOAuthCallback(req, makeDeps(captured, fn))
+
+  assertEquals(res.status, 302)
+  assertStringIncludes(res.headers.get('Location') ?? '', 'status=error')
+  // Fails closed BEFORE exchanging the code or writing anything.
+  assertEquals(calls.length, 0)
+  assertEquals(captured.table, undefined)
+})
+
 Deno.test('redirects to error (no upsert) when the provision in state is unknown', async () => {
   Deno.env.set('CONNECTOR_TOKEN_KEY', TEST_KEY_B64)
   const captured: CapturedUpsert = {}
@@ -150,7 +191,7 @@ Deno.test('redirects to error (no upsert) when the provision in state is unknown
 
   // A forged/stale state that doesn't resolve to any provision must fail closed:
   // no connection is written against a guessed customer id.
-  const req = new Request('http://localhost/google-oauth-callback?code=auth-code&state=prov-nope')
+  const req = await signedCallbackReq('prov-nope')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn, {}, { provisionMissing: true }))
 
   assertEquals(res.status, 302)
@@ -162,7 +203,7 @@ Deno.test('redirects to error (no upsert) when token exchange fails', async () =
   const captured: CapturedUpsert = {}
   const { fn } = fakeFetch({ error: 'invalid_grant' }, {}, { tokenOk: false })
 
-  const req = new Request('http://localhost/google-oauth-callback?code=bad&state=prov-1')
+  const req = await signedCallbackReq('prov-1', { code: 'bad' })
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
   assertEquals(res.status, 302)
@@ -174,7 +215,7 @@ Deno.test('redirects to error when Google returns no refresh token', async () =>
   const captured: CapturedUpsert = {}
   const { fn } = fakeFetch({ access_token: 'at-123', scope: GRANTED_SCOPE }, { email: 'x@y.com' })
 
-  const req = new Request('http://localhost/google-oauth-callback?code=auth&state=prov-1')
+  const req = await signedCallbackReq('prov-1')
   const res = await handleOAuthCallback(req, makeDeps(captured, fn))
 
   assertEquals(res.status, 302)

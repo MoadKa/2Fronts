@@ -15,6 +15,7 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 import { encryptToken } from '../_shared/tokenCrypto.ts'
 import { resolveAppBaseUrl } from '../_shared/appUrl.ts'
+import { OAUTH_STATE_COOKIE, readCookie, verifyState } from '../_shared/oauthState.ts'
 
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const USERINFO_ENDPOINT = 'https://www.googleapis.com/oauth2/v2/userinfo'
@@ -102,6 +103,17 @@ export async function handleOAuthCallback(
     return errorRedirect(appBaseUrl, 'missing_code_or_state')
   }
 
+  // CSRF: the signed state must verify against the per-flow nonce cookie that
+  // oauth-start set in THIS browser. A connect started elsewhere (an attacker's
+  // browser) arrives without a matching cookie and is rejected here — before we
+  // ever exchange the code. The provision id only comes out of a valid state.
+  const stateSecret = deps.getEnv('OAUTH_STATE_SECRET')
+  const cookieNonce = readCookie(req.headers.get('Cookie'), OAUTH_STATE_COOKIE)
+  const provisionId = stateSecret ? await verifyState(state, cookieNonce, stateSecret) : null
+  if (!provisionId) {
+    return errorRedirect(appBaseUrl, 'invalid_state')
+  }
+
   const clientId = deps.getEnv('GOOGLE_OAUTH_CLIENT_ID')
   const clientSecret = deps.getEnv('GOOGLE_OAUTH_CLIENT_SECRET')
   const redirectUri = deps.getEnv('GOOGLE_OAUTH_REDIRECT_URI')
@@ -148,9 +160,9 @@ export async function handleOAuthCallback(
   // 3. Encrypt the refresh token BEFORE it touches the database.
   const encryptedRefreshToken = await deps.encryptToken(tokens.refresh_token)
 
-  // 4. Resolve which customer owns the provision named in `state`. We trust the
-  //    database, not the query string: if the provision is unknown, fail closed.
-  const provisionId = state
+  // 4. Resolve which customer owns the provision (already extracted from the
+  //    verified state). We trust the database: if the provision is unknown, fail
+  //    closed.
   const adminClient = deps.createAdminClient()
   const customerId = await resolveCustomerId(adminClient, provisionId)
   if (!customerId) {
