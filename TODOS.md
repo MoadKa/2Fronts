@@ -113,3 +113,79 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 **Context:** Found by `/ship`'s Claude adversarial review on 2026-06-21, while reviewing the missed-call provisioning flow alongside the marketplace test page work.
 
 **Depends on:** Nothing blocking, but should be designed before scaling past the pilot customer.
+
+## 9. Connector pipeline go-live: set the required secrets ✅ DONE (2026-06-22)
+
+**Status:** All seven secrets set on live project `fettkrnajxbrfvwbenzf` from `.env` via `supabase secrets set --env-file`. Fixed a double-slash typo in `GOOGLE_OAUTH_REDIRECT_URI` (`.co//functions` → `.co/functions`) in `.env` before setting. Live Google Sheets / Gemini / OAuth-exchange paths are still untested against real APIs.
+
+**What:** Set the Supabase secrets the connector fulfillment pipeline reads: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` (→ the deployed google-oauth-callback URL), `CONNECTOR_TOKEN_KEY` (base64 32-byte AES-GCM key), `GEMINI_API_KEY`, `ALERT_WEBHOOK_URL`, and optionally `INTAKE_SECRET` (see #10).
+
+**Why:** The code is built and unit-tested against injected fakes, but every live path (OAuth token exchange, Sheets REST calls, the Gemini mapping call, ops alerting) is dead until these are set. Nothing in the repo carries secret values.
+
+**Pros:** Flips the pipeline from "green in tests" to actually usable by a real customer.
+
+**Cons:** None — required, not optional, before any real connect.
+
+**Context:** Shipped in v0.2.0.0 (connector fulfillment pipeline). `CONNECTOR_TOKEN_KEY` and `INTAKE_SECRET` values were generated for the founder during the build session; the Google + Gemini + alert values come from their respective consoles.
+
+**Depends on:** A deployed google-oauth-callback URL (for the redirect URI) and Google/Gemini accounts.
+
+## 10. Decide the `INTAKE_SECRET` posture (intake endpoint is open by default) ✅ DECIDED + DONE (2026-06-22)
+
+**Status:** Decision = gate it. `INTAKE_SECRET` is set on the live project, so the intake endpoint now requires the `x-intake-secret` header. Any legitimate lead source must send that header. Value lives in `.env` (gitignored).
+
+**What:** Decide whether `INTAKE_SECRET` is mandatory in production. When it is unset, the `intake` endpoint accepts a lead for any existing `customer_id` with no authentication.
+
+**Why:** Without the secret, anyone who learns a valid `customer_id` can inject leads into that customer's pipeline (the database foreign key blocks non-existent customers, so the blast radius is spam into a real customer's `needs_review` queue, not arbitrary writes). Setting the secret closes it.
+
+**Pros:** Removes an open write surface before real customers exist; the gate is already implemented and tested — it just needs the secret set.
+
+**Cons:** Requires every legitimate lead source to send the `x-intake-secret` header, so whoever wires up intake sources has to carry the secret.
+
+**Context:** Flagged as the single informational finding in `/ship`'s pre-landing review of the connector pipeline (v0.2.0.0). The endpoint deliberately ships open-by-default with the gate behind an env var.
+
+**Depends on:** Nothing — purely a deploy-time config decision.
+
+## 11. CSRF / `state`-signing on the OAuth callback
+
+**What:** Sign (or otherwise bind to a session) the OAuth `state` parameter so a stale or forged `state` can't be replayed against the callback.
+
+**Why:** The callback already fails closed on an *unknown* provision, but the `state` value itself is not signed — it's a bare provision id. Signing it is standard OAuth CSRF hardening before non-pilot traffic.
+
+**Pros:** Closes a known production-hardening gap on an externally-reachable auth callback.
+
+**Cons:** Adds a signing/verification step and a place to store the signing key; low urgency while the only connect path is a hand-held pilot.
+
+**Context:** Listed as integration seam #2 during the connector pipeline build; deferred out of v0.2.0.0 as hardening rather than a launch blocker.
+
+**Depends on:** Nothing blocking.
+
+## 12. Pass Google OAuth app verification
+
+**What:** Take the Google OAuth app through Google's verification process so users outside the test-user allowlist can complete the consent flow.
+
+**Why:** Until the app is verified, only allowlisted test accounts can connect Google Sheets; a real customer's consent will be blocked or warning-gated.
+
+**Pros:** Required before any non-test customer can connect their own sheet.
+
+**Cons:** Google's review is an external process with its own timeline (privacy policy, scopes justification, possibly a security assessment for sensitive scopes) — start it early.
+
+**Context:** Build seam #4. Process notes captured in `supabase/functions/_shared/README-google-verification.md`.
+
+**Depends on:** A published privacy policy and the production OAuth client configured.
+
+## 13. Spreadsheet picker → run `configure()` to populate the proposed mapping ✅ DONE (2026-06-22)
+
+**Status:** Built in the fulfillment-loop PR (closes issue #3). Paste-a-URL picker on the confirm screen → `connect-configure` edge function runs `googleSheetsConnector.configure()` and writes `config.proposedMapping` + `config.spreadsheetId`. Also closed the connect→configure→confirm→run loop: a token-refresh helper (`googleAuth`), lead filing wired into `intake` via `leadFiling`, and the `columnMapping`/`confirmedMapping` key-mismatch bug fixed. The live connect/file path is still untested against real Google APIs (happens at deploy). Remaining loop gap: deploy migration + functions to Supabase.
+
+**What:** Build the missing slice between "customer connected Google" and "customer sees a proposed mapping": a spreadsheet picker that runs `googleSheetsConnector.configure()` and writes the resulting `proposedMapping` into the provision's `config`.
+
+**Why:** Today the confirm screen reads `config.proposedMapping`, but nothing populates it — so after connecting, the customer lands on the confirm page's graceful "noch keine Spalten-Zuordnung" empty state instead of an actual mapping to approve. The pipeline can't file a lead end-to-end until this exists.
+
+**Pros:** Completes the connect → configure → confirm → run loop so the feature actually delivers a filed lead.
+
+**Cons:** Needs UI for picking a spreadsheet (and likely a sheet/tab within it) plus wiring `configure()` into that flow — a real next slice, not a one-liner.
+
+**Context:** Build seam #5 — the one genuinely unfinished functional gap in the v0.2.0.0 pipeline (every other connector verb is wired and tested).
+
+**Depends on:** A live Google connection (#9) to read a real header row against.

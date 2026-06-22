@@ -35,6 +35,20 @@ export interface AutomationProvision {
   updated_at: string
 }
 
+export type ConnectorStatus = 'live' | 'coming_soon'
+
+// A row of the connector_registry catalog. Drives the public Supported-software
+// page; status separates available (live) from dimmed coming-soon cards.
+export interface Connector {
+  connector_type: string
+  display_name: string
+  category: string | null
+  status: ConnectorStatus
+  is_public: boolean
+  sort_order: number
+  created_at: string
+}
+
 export type RequestStatus =
   | 'requested'
   | 'payment_pending'
@@ -58,4 +72,39 @@ export interface AutomationRequest {
 export interface AutomationRequestWithAutomation extends AutomationRequest {
   automation: Automation
   automation_provisions?: AutomationProvision[]
+}
+
+// --- First-connect column mapping (T6) -------------------------------------
+// The AI proposes a spreadsheet column for each lead field, tagged with a
+// confidence level. 'high' = auto-filled; 'low' = the customer MUST pick the
+// column manually (we never guess low-confidence mappings). See F3 guard #1.
+export type MappingConfidence = 'high' | 'low'
+
+export interface MappingColumnOption {
+  value: string
+  label: string
+}
+
+export interface ProposedFieldMapping {
+  field: string
+  label: string
+  // null when the AI is not confident enough to propose a column (low confidence).
+  column: string | null
+  columnLabel: string | null
+  confidence: MappingConfidence
+}
+
+export interface ProposedMapping {
+  connectorType: string
+  sheetTitle: string
+  fields: ProposedFieldMapping[]
+  // One example lead: { field -> value }, rendered into the chosen columns as a preview.
+  sampleLead: Record<string, string>
+  availableColumns: MappingColumnOption[]
+}
+
+// The customer's final, confirmed column choice for one field.
+export interface ConfirmedFieldMapping {
+  field: string
+  column: string
 }

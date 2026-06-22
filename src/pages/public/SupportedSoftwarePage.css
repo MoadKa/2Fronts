@@ -1,0 +1,93 @@
+.software-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-lg);
+}
+
+.software-page .page-header {
+  margin-bottom: var(--space-xl);
+}
+
+.software-page .page-header p {
+  max-width: 560px;
+  color: var(--color-text);
+}
+
+.software-status {
+  color: var(--color-text);
+}
+
+.software-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-lg);
+  margin-top: var(--space-xl);
+}
+
+.software-card {
+  position: relative;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-clay-sm);
+}
+
+/* Coming-soon connectors are intentionally dimmed: clearly future, never a
+   dead link (matches design decision D6). */
+.software-card-soon {
+  opacity: 0.72;
+}
+
+.software-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--heading);
+  font-weight: 700;
+  color: var(--color-primary-dark);
+  margin-bottom: var(--space-md);
+}
+
+.software-name {
+  font-family: var(--heading);
+  font-weight: 600;
+  color: var(--color-foreground);
+  font-size: 1.05rem;
+  margin-bottom: 0.2rem;
+}
+
+.software-cat {
+  font-size: 0.82rem;
+  color: var(--color-text);
+}
+
+.software-card-status {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+}
+
+.pill-live {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.pill-soon {
+  background: var(--color-muted);
+  color: var(--color-text);
+}
