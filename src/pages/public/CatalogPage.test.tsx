@@ -21,4 +21,13 @@ describe('CatalogPage', () => {
     render(<MemoryRouter><CatalogPage /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('No automations available yet.')).toBeInTheDocument())
   })
+
+  // Regression: a rejected fetch must NOT hang on "Loading catalog..." forever.
+  // Without the .catch()/.finally(), this test fails (the loading text never clears).
+  it('degrades to an error message instead of an infinite spinner when the fetch fails', async () => {
+    vi.mocked(listActiveAutomations).mockRejectedValue(new Error('network down'))
+    render(<MemoryRouter><CatalogPage /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText(/Katalog konnte gerade nicht geladen werden/i)).toBeInTheDocument())
+    expect(screen.queryByText('Loading catalog...')).not.toBeInTheDocument()
+  })
 })
