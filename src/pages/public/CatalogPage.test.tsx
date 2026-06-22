@@ -19,7 +19,7 @@ describe('CatalogPage', () => {
   it('shows an empty state when there are no automations', async () => {
     vi.mocked(listActiveAutomations).mockResolvedValue([])
     render(<MemoryRouter><CatalogPage /></MemoryRouter>)
-    await waitFor(() => expect(screen.getByText('No automations available yet.')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Noch keine Automatisierungen verfügbar.')).toBeInTheDocument())
   })
 
   // Regression: a rejected fetch must NOT hang on "Loading catalog..." forever.

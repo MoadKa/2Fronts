@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [0.2.1.2] - 2026-06-22
+
+### Changed
+- **Landing page translated to German.** The marketplace front door (hero, trust
+  strip, how-it-works, catalog headings, empty/loading states, final CTA) is now
+  German to match the connector flow and the German SMB audience. Other customer
+  pages (My Requests, checkout, detail) are a follow-up pass.
+
 ## [0.2.1.1] - 2026-06-22
 
 ### Fixed
