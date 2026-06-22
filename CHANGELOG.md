@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [0.2.1.0] - 2026-06-22
+
+Bug fixes found while taking the Google Sheets pipeline live end-to-end.
+
+### Fixed
+- **Mapping confirmation could never be saved.** The "Passt, los geht's" confirm
+  button wrote `automation_provisions` straight from the browser, but RLS only
+  permits server-side (admin) writes there — so the update was silently dropped
+  and no confirmed mapping was ever persisted, leaving every lead unfilable. The
+  confirm now routes through a new owner-checked `confirm-mapping` edge function
+  that writes via the admin client (same pattern as `connect-configure`).
+- **Catalog hung on "Loading catalog…" forever** when the automations fetch
+  failed (e.g. a transient blip during deploy) — `CatalogPage` had no `.catch()`,
+  so a rejected promise never cleared the loading flag. Now degrades to a "reload
+  the page" message. (Released earlier on `main`; recorded here.)
+
 ## [0.2.0.0] - 2026-06-21
 
 Connector fulfillment pipeline: the first step from "Wizard-of-Oz demand test"

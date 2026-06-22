@@ -40,24 +40,13 @@ export async function saveConfirmedMapping(
   provisionId: string,
   confirmedMapping: ConfirmedFieldMapping[]
 ): Promise<void> {
-  const { data, error: readError } = await supabase
-    .from('automation_provisions')
-    .select('config')
-    .eq('id', provisionId)
-    .single()
-  if (readError) throw readError
-
-  const existingConfig = (data?.config ?? {}) as ProvisionConfig
-  const nextConfig: ProvisionConfig = {
-    ...existingConfig,
-    // Write under `columnMapping` so the connector's run() actually finds it.
-    columnMapping: confirmedMapping,
-    mappingConfirmedAt: new Date().toISOString(),
-  }
-
-  const { error: updateError } = await supabase
-    .from('automation_provisions')
-    .update({ config: nextConfig, status: 'provisioning' })
-    .eq('id', provisionId)
-  if (updateError) throw updateError
+  // Writes to automation_provisions are server-side only (RLS allows admin
+  // updates, not the customer's browser). Route through the confirm-mapping edge
+  // function, which verifies ownership and writes config.columnMapping + status
+  // via the admin client. A direct client UPDATE here is silently dropped by RLS
+  // — the bug that left every confirmed lead unfilable.
+  const { error } = await supabase.functions.invoke('confirm-mapping', {
+    body: { provisionId, columnMapping: confirmedMapping },
+  })
+  if (error) throw error
 }
