@@ -63,6 +63,18 @@ describe('MyRequestsPage', () => {
     await waitFor(() => expect(screen.getByText("You haven't requested any automations yet.")).toBeInTheDocument())
   })
 
+  // Regression: a request whose automation can't be read (deactivated → RLS hides
+  // it, so the join returns null) must NOT crash the whole page. Without the
+  // null-guard, `request.automation.requires_provisioning` throws on render.
+  it('does not crash when the automation is null (deactivated / RLS-hidden)', async () => {
+    vi.mocked(listMyRequests).mockResolvedValue([
+      { ...baseRequest, status: 'paid', delivery_notes: null, automation: null } as never,
+    ])
+    render(<MyRequestsPage />)
+    await waitFor(() => expect(screen.getByText('paid')).toBeInTheDocument())
+    expect(screen.getByText('Automatisierung')).toBeInTheDocument()
+  })
+
   it('does not render any provisioning content for automations that do not require provisioning', async () => {
     vi.mocked(listMyRequests).mockResolvedValue([{ ...baseRequest, status: 'delivered', delivery_notes: null }])
     render(<MyRequestsPage />)

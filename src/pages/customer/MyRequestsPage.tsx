@@ -102,14 +102,18 @@ export function MyRequestsPage() {
         </div>
       )}
       {!loading && requests.map((request) => {
-        const provision = request.automation.requires_provisioning
+        // `automation` can be null when the customer can't read it — e.g. it was
+        // deactivated (RLS only exposes is_active=true automations to customers).
+        // Guard against it so the whole page doesn't crash on one stale request.
+        const automation = request.automation
+        const provision = automation?.requires_provisioning
           ? request.automation_provisions?.[0]
           : undefined
 
         return (
           <Card key={request.id} className="my-requests-card">
             <Badge tone={STATUS_TONE[request.status]}>{request.status}</Badge>
-            <h3>{request.automation.name}</h3>
+            <h3>{automation?.name ?? 'Automatisierung'}</h3>
             {request.status === 'delivered' && request.delivery_notes && <p>{request.delivery_notes}</p>}
             {provision && <ProvisionPanel provision={provision} />}
           </Card>
