@@ -56,8 +56,15 @@ describe('MappingService', () => {
       { field: 'source', column: 'C' },
     ])
     expect(updatePayload).not.toBeNull()
-    expect(updatePayload?.status).toBe('provisioning')
-    const config = updatePayload?.config as { confirmedMapping: unknown[]; proposedMapping: unknown }
+    // The vi.mock closure reassigns updatePayload at runtime, but TS's
+    // control-flow can't see a closure mutation across the awaited call and
+    // narrows it to `null` here — cast through `unknown` to read it back.
+    const payload = updatePayload as unknown as {
+      status: string
+      config: { confirmedMapping: unknown[]; proposedMapping: unknown }
+    }
+    expect(payload.status).toBe('provisioning')
+    const config = payload.config
     expect(config.confirmedMapping).toHaveLength(2)
     // existing config (the proposed mapping) is preserved, not overwritten.
     expect(config.proposedMapping).toBeDefined()
