@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [0.2.2.0] - 2026-06-22
+
+### Security
+- **OAuth connect is now CSRF-protected (#11).** The Google `state` is signed and
+  bound to a per-flow nonce that oauth-start sets as an HttpOnly cookie; the
+  callback requires the cookie nonce to equal the state nonce, so a connect an
+  attacker started cannot be completed in a victim's browser (which would have
+  stored the victim's Google token against the attacker's provision). State is
+  also tamper-proof and expires after 10 minutes. Adds the `OAUTH_STATE_SECRET`
+  secret.
+
 ## [0.2.1.2] - 2026-06-22
 
 ### Changed
