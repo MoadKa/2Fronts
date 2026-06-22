@@ -19,24 +19,22 @@ const proposedMapping: ProposedMapping = {
 
 const provisionRow = { config: { proposedMapping } }
 
-let updatePayload: Record<string, unknown> | null = null
+let invokePayload: { name: string; body: unknown } | null = null
+let invokeResult: { data: unknown; error: unknown } = { data: { ok: true }, error: null }
 
 vi.mock('../lib/supabaseClient', () => {
   const selectChain = {
     eq: () => ({ single: () => Promise.resolve({ data: provisionRow, error: null }) }),
   }
-  const updateChain = {
-    eq: () => Promise.resolve({ data: null, error: null }),
-  }
   return {
     supabase: {
-      from: () => ({
-        select: () => selectChain,
-        update: (payload: Record<string, unknown>) => {
-          updatePayload = payload
-          return updateChain
+      from: () => ({ select: () => selectChain }),
+      functions: {
+        invoke: (name: string, opts: { body: unknown }) => {
+          invokePayload = { name, body: opts.body }
+          return Promise.resolve(invokeResult)
         },
-      }),
+      },
     },
   }
 })
@@ -49,25 +47,31 @@ describe('MappingService', () => {
     expect(result?.fields.find((f) => f.field === 'source')?.confidence).toBe('low')
   })
 
-  it('saves the confirmed mapping and advances the provision to provisioning', async () => {
-    updatePayload = null
+  it('saves the confirmed mapping via the confirm-mapping edge function (server-side write)', async () => {
+    invokePayload = null
+    invokeResult = { data: { ok: true }, error: null }
     await saveConfirmedMapping('prov-1', [
       { field: 'name', column: 'B' },
       { field: 'source', column: 'C' },
     ])
-    expect(updatePayload).not.toBeNull()
-    // The vi.mock closure reassigns updatePayload at runtime, but TS's
-    // control-flow can't see a closure mutation across the awaited call and
-    // narrows it to `null` here — cast through `unknown` to read it back.
-    const payload = updatePayload as unknown as {
-      status: string
-      config: { columnMapping: unknown[]; proposedMapping: unknown }
-    }
-    expect(payload.status).toBe('provisioning')
-    const config = payload.config
-    // MUST be `columnMapping` — the exact key the Sheets connector's run() reads.
-    expect(config.columnMapping).toHaveLength(2)
-    // existing config (the proposed mapping) is preserved, not overwritten.
-    expect(config.proposedMapping).toBeDefined()
+    // Must go through the server (RLS blocks a client-side UPDATE), with the
+    // mapping under `columnMapping` — the exact key the connector's run() reads.
+    // TS narrows the closure-assigned let to `null` here; cast through unknown.
+    const sent = invokePayload as unknown as { name: string; body: unknown }
+    expect(sent.name).toBe('confirm-mapping')
+    expect(sent.body).toEqual({
+      provisionId: 'prov-1',
+      columnMapping: [
+        { field: 'name', column: 'B' },
+        { field: 'source', column: 'C' },
+      ],
+    })
+  })
+
+  it('throws when the confirm-mapping function returns an error', async () => {
+    invokeResult = { data: null, error: new Error('forbidden') }
+    await expect(
+      saveConfirmedMapping('prov-1', [{ field: 'name', column: 'B' }]),
+    ).rejects.toThrow()
   })
 })
