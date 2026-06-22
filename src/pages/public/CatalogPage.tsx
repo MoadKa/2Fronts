@@ -105,18 +105,18 @@ export function CatalogPage() {
           <span className="blob blob-3" />
         </div>
         <div className="hero-content">
-          <span className="hero-eyebrow">Automation marketplace for busy teams</span>
-          <h1>Skip the build. Buy the outcome.</h1>
+          <span className="hero-eyebrow">Automatisierungs-Marktplatz für Teams mit wenig Zeit</span>
+          <h1>Nicht selbst bauen. Das Ergebnis kaufen.</h1>
           <p className="hero-sub">
-            Browse ready-made automations built by specialists, pay securely, and get them delivered straight
-            into your stack — no scoping calls, no guesswork.
+            Entdecke fertige Automatisierungen von Spezialisten, bezahle sicher und erhalte sie direkt
+            in deinem System — ohne Beratungsgespräche, ohne Rätselraten.
           </p>
           <div className="hero-actions">
             <a href="#catalog" className="btn btn-primary">
-              Browse automations
+              Automatisierungen entdecken
             </a>
             <a href="#how-it-works" className="hero-link">
-              See how it works ↓
+              So funktioniert's ↓
             </a>
           </div>
         </div>
@@ -128,29 +128,29 @@ export function CatalogPage() {
             <span className="trust-icon">
               <ShieldCheckIcon />
             </span>
-            <h3>Outcome-based delivery</h3>
-            <p>You pay for a working result, not billable hours or vague promises.</p>
+            <h3>Ergebnis statt Aufwand</h3>
+            <p>Du zahlst für ein funktionierendes Ergebnis — nicht für Stunden oder vage Versprechen.</p>
           </div>
           <div className="trust-item">
             <span className="trust-icon">
               <LockIcon />
             </span>
-            <h3>Secured by Stripe checkout</h3>
-            <p>Every purchase runs through encrypted, PCI-compliant payment processing.</p>
+            <h3>Sichere Zahlung über Stripe</h3>
+            <p>Jeder Kauf läuft über verschlüsselte, PCI-konforme Zahlungsabwicklung.</p>
           </div>
           <div className="trust-item">
             <span className="trust-icon">
               <SparkleIcon />
             </span>
-            <h3>Built by automation specialists</h3>
-            <p>Each listing is designed and tested by people who build automations for a living.</p>
+            <h3>Von Spezialisten gebaut</h3>
+            <p>Jede Automatisierung wird von Profis entwickelt und getestet, die das täglich machen.</p>
           </div>
         </section>
       </Reveal>
 
       <section id="how-it-works" className="steps-section">
         <Reveal>
-          <h2>How it works</h2>
+          <h2>So funktioniert's</h2>
         </Reveal>
         <div className="steps-grid">
           <Reveal delay={0}>
@@ -159,8 +159,8 @@ export function CatalogPage() {
               <span className="trust-icon">
                 <SearchIcon />
               </span>
-              <h3>Find the right automation</h3>
-              <p>Browse by category and outcome until you find the automation that matches your workflow.</p>
+              <h3>Die passende Automatisierung finden</h3>
+              <p>Stöbere nach Kategorie und Ergebnis, bis du die Automatisierung findest, die zu deinem Ablauf passt.</p>
             </div>
           </Reveal>
           <Reveal delay={80}>
@@ -169,8 +169,8 @@ export function CatalogPage() {
               <span className="trust-icon">
                 <CardIcon />
               </span>
-              <h3>Request it and pay securely</h3>
-              <p>Submit a request and check out through Stripe — no calls, no back-and-forth on scope.</p>
+              <h3>Anfragen und sicher bezahlen</h3>
+              <p>Stelle eine Anfrage und bezahle über Stripe — ohne Anrufe, ohne langes Hin und Her.</p>
             </div>
           </Reveal>
           <Reveal delay={160}>
@@ -179,8 +179,8 @@ export function CatalogPage() {
               <span className="trust-icon">
                 <RocketIcon />
               </span>
-              <h3>Get it delivered and tracked</h3>
-              <p>We build and deliver it to your stack, with progress visible anytime in My Requests.</p>
+              <h3>Geliefert und nachverfolgbar</h3>
+              <p>Wir richten alles in deinem System ein — den Fortschritt siehst du jederzeit unter „Meine Anfragen".</p>
             </div>
           </Reveal>
         </div>
@@ -188,8 +188,8 @@ export function CatalogPage() {
 
       <section id="catalog" className="catalog-section">
         <div className="page-header">
-          <h2>Browse automations</h2>
-          <p>Ready-to-run automations from our catalog, delivered to your team.</p>
+          <h2>Automatisierungen entdecken</h2>
+          <p>Sofort einsatzbereite Automatisierungen aus unserem Katalog, geliefert an dein Team.</p>
         </div>
 
         {categories.length >= 2 && (
@@ -199,7 +199,7 @@ export function CatalogPage() {
               className={activeCategory === '' ? 'chip chip-active' : 'chip'}
               onClick={() => setActiveCategory('')}
             >
-              All
+              Alle
             </button>
             {categories.map((category) => (
               <button
@@ -214,7 +214,7 @@ export function CatalogPage() {
           </div>
         )}
 
-        {loading && <p>Loading catalog...</p>}
+        {loading && <p>Katalog wird geladen…</p>}
         {!loading && loadError && (
           <div className="empty-state">
             <p>Der Katalog konnte gerade nicht geladen werden. Bitte lade die Seite neu.</p>
@@ -222,7 +222,7 @@ export function CatalogPage() {
         )}
         {!loading && !loadError && automations.length === 0 && (
           <div className="empty-state">
-            <p>No automations available yet.</p>
+            <p>Noch keine Automatisierungen verfügbar.</p>
           </div>
         )}
 
@@ -230,7 +230,7 @@ export function CatalogPage() {
           <>
             {filteredAutomations.length === 0 ? (
               <div className="catalog-grid">
-                <p>No automations in this category yet.</p>
+                <p>In dieser Kategorie gibt es noch keine Automatisierungen.</p>
               </div>
             ) : (
               <div className="catalog-grid">
@@ -254,10 +254,10 @@ export function CatalogPage() {
 
       <Reveal>
         <section className="final-cta">
-          <h2>Ready to put your busywork on autopilot?</h2>
-          <p>Browse the catalog and find an automation that pays for itself in the first week.</p>
+          <h2>Bereit, deine Routinearbeit zu automatisieren?</h2>
+          <p>Durchstöbere den Katalog und finde eine Automatisierung, die sich schon in der ersten Woche bezahlt macht.</p>
           <a href="#catalog" className="btn btn-primary">
-            Browse automations
+            Automatisierungen entdecken
           </a>
         </section>
       </Reveal>
