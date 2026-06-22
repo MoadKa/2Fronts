@@ -3,11 +3,16 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { MappingConfirmationPage } from './MappingConfirmationPage'
 import { getProposedMapping, saveConfirmedMapping } from '../../services/MappingService'
+import { configureSheet } from '../../services/ConnectorService'
 import type { ProposedMapping } from '../../types/database'
 
 vi.mock('../../services/MappingService', () => ({
   getProposedMapping: vi.fn(),
   saveConfirmedMapping: vi.fn(),
+}))
+
+vi.mock('../../services/ConnectorService', () => ({
+  configureSheet: vi.fn(),
 }))
 
 const mapping: ProposedMapping = {
@@ -88,5 +93,33 @@ describe('MappingConfirmationPage', () => {
       { field: 'phone', column: 'D' },
       { field: 'source', column: 'C' },
     ])
+  })
+
+  it('shows the sheet picker when no mapping exists, then configures and shows the mapping', async () => {
+    // No proposal yet -> the picker is shown instead of the empty dead-end.
+    vi.mocked(getProposedMapping).mockResolvedValue(null)
+    vi.mocked(configureSheet).mockResolvedValue(mapping)
+
+    renderPage()
+
+    const input = await screen.findByLabelText(/Google-Sheet-Link/i)
+    fireEvent.change(input, { target: { value: 'https://docs.google.com/spreadsheets/d/abc/edit' } })
+    fireEvent.click(screen.getByRole('button', { name: /Tabelle lesen/i }))
+
+    // After configure resolves, the confirmation UI renders the proposed mapping.
+    await waitFor(() => expect(screen.getByText(/Leads 2026/)).toBeInTheDocument())
+    expect(configureSheet).toHaveBeenCalledWith('prov-1', 'https://docs.google.com/spreadsheets/d/abc/edit')
+  })
+
+  it('surfaces a configure error in the picker', async () => {
+    vi.mocked(getProposedMapping).mockResolvedValue(null)
+    vi.mocked(configureSheet).mockRejectedValue(new Error('Dieser Link sieht nicht wie ein Google-Sheet aus.'))
+
+    renderPage()
+    const input = await screen.findByLabelText(/Google-Sheet-Link/i)
+    fireEvent.change(input, { target: { value: 'nonsense' } })
+    fireEvent.click(screen.getByRole('button', { name: /Tabelle lesen/i }))
+
+    await waitFor(() => expect(screen.getByText(/Google-Sheet aus/)).toBeInTheDocument())
   })
 })

@@ -61,11 +61,12 @@ describe('MappingService', () => {
     // narrows it to `null` here — cast through `unknown` to read it back.
     const payload = updatePayload as unknown as {
       status: string
-      config: { confirmedMapping: unknown[]; proposedMapping: unknown }
+      config: { columnMapping: unknown[]; proposedMapping: unknown }
     }
     expect(payload.status).toBe('provisioning')
     const config = payload.config
-    expect(config.confirmedMapping).toHaveLength(2)
+    // MUST be `columnMapping` — the exact key the Sheets connector's run() reads.
+    expect(config.columnMapping).toHaveLength(2)
     // existing config (the proposed mapping) is preserved, not overwritten.
     expect(config.proposedMapping).toBeDefined()
   })

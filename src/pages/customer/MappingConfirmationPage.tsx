@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type SVGProps } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getProposedMapping, saveConfirmedMapping } from '../../services/MappingService'
+import { configureSheet } from '../../services/ConnectorService'
 import type { ConfirmedFieldMapping, ProposedMapping } from '../../types/database'
 import './MappingConfirmationPage.css'
 
@@ -44,6 +45,27 @@ export function MappingConfirmationPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Sheet-picker state: shown when no mapping has been proposed yet. The
+  // customer pastes their Google Sheet link; we read it and propose a mapping.
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState('')
+  const [configuring, setConfiguring] = useState(false)
+  const [configureError, setConfigureError] = useState<string | null>(null)
+
+  async function handleConfigure() {
+    if (!provisionId || !spreadsheetUrl.trim()) return
+    setConfiguring(true)
+    setConfigureError(null)
+    try {
+      const result = await configureSheet(provisionId, spreadsheetUrl.trim())
+      setMapping(result)
+      setChoices(seedChoices(result))
+    } catch (e) {
+      setConfigureError(e instanceof Error ? e.message : 'Die Tabelle konnte nicht gelesen werden.')
+    } finally {
+      setConfiguring(false)
+    }
+  }
 
   useEffect(() => {
     if (!provisionId) return
@@ -114,8 +136,36 @@ export function MappingConfirmationPage() {
   if (!mapping) {
     return (
       <div className="mapping-wrap">
-        <div className="empty-state">
-          <p>Für diese Verbindung liegt noch keine Spalten-Zuordnung vor.</p>
+        <div className="mapping-card">
+          <h1>Mit welcher Tabelle sollen wir arbeiten?</h1>
+          <p className="muted">
+            Füge den Link zu deinem Google Sheet ein. Wir lesen nur die
+            Spaltenüberschriften und schlagen dir die passende Zuordnung vor —
+            geschrieben wird noch nichts.
+          </p>
+
+          <input
+            className="sheet-url-input"
+            type="url"
+            inputMode="url"
+            placeholder="https://docs.google.com/spreadsheets/d/…"
+            value={spreadsheetUrl}
+            onChange={(e) => setSpreadsheetUrl(e.target.value)}
+            aria-label="Google-Sheet-Link"
+          />
+
+          {configureError && <p style={{ color: 'var(--color-destructive)' }}>{configureError}</p>}
+
+          <div className="mapping-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!spreadsheetUrl.trim() || configuring}
+              onClick={handleConfigure}
+            >
+              {configuring ? 'Tabelle wird gelesen…' : 'Tabelle lesen'}
+            </button>
+          </div>
         </div>
       </div>
     )

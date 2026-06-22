@@ -6,8 +6,12 @@ import type { ConfirmedFieldMapping, ProposedMapping } from '../types/database'
 // this reads from the same source so the screen has a single, simple origin.
 interface ProvisionConfig {
   proposedMapping?: ProposedMapping
-  confirmedMapping?: ConfirmedFieldMapping[]
+  // The human-confirmed field->column map the Sheets connector's run() files
+  // against. MUST stay named `columnMapping` — that is the exact key
+  // googleSheetsConnector.run() reads from the provision config.
+  columnMapping?: ConfirmedFieldMapping[]
   mappingConfirmedAt?: string
+  spreadsheetId?: string
   [key: string]: unknown
 }
 
@@ -46,7 +50,8 @@ export async function saveConfirmedMapping(
   const existingConfig = (data?.config ?? {}) as ProvisionConfig
   const nextConfig: ProvisionConfig = {
     ...existingConfig,
-    confirmedMapping,
+    // Write under `columnMapping` so the connector's run() actually finds it.
+    columnMapping: confirmedMapping,
     mappingConfirmedAt: new Date().toISOString(),
   }
 

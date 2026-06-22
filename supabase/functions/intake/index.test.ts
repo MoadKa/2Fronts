@@ -4,10 +4,12 @@ import { handleIntake } from './index.ts'
 interface CapturedInsert {
   table?: string
   patch?: unknown
+  updatePatch?: Record<string, unknown>
 }
 
 // Fake admin client modeled on fakeAdminClient in stripe-webhook/index.test.ts:
-// records .from(table).insert(patch) and resolves the inserted row's id.
+// records .from(table).insert(patch) and resolves the inserted row's id. Also
+// records .update(patch).eq(...) so the lead-status write can be asserted.
 function fakeAdminClient(captured: CapturedInsert, opts: { insertError?: unknown; id?: string } = {}) {
   const { insertError = null, id = 'lead-123' } = opts
   return () => ({
@@ -28,6 +30,10 @@ function fakeAdminClient(captured: CapturedInsert, opts: { insertError?: unknown
               }
             },
           }
+        },
+        update(patch: Record<string, unknown>) {
+          captured.updatePatch = patch
+          return { eq(_c: string, _v: string) { return Promise.resolve({ error: null }) } }
         },
       }
     },
@@ -128,6 +134,73 @@ Deno.test('OPTIONS preflight returns the CORS headers without touching the DB', 
   assertEquals(res.headers.get('Access-Control-Allow-Methods'), 'POST, OPTIONS')
   assertEquals(captured.table, undefined)
   await res.body?.cancel()
+})
+
+Deno.test('files the lead on intake: status -> filed, filed:true', async () => {
+  const captured: CapturedInsert = {}
+  const req = postReq(JSON.stringify({ customer_id: 'cust-1', payload: { Name: 'Jane' } }))
+
+  const res = await handleIntake(req, {
+    createAdminClient: fakeAdminClient(captured) as never,
+    fileLead: () => Promise.resolve({ outcome: 'filed' }),
+    leadFilingDeps: { getAccessToken: () => Promise.resolve('t') },
+  })
+
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.filed, true)
+  assertEquals(captured.updatePatch?.status, 'filed')
+  assertEquals(typeof captured.updatePatch?.filed_at, 'string')
+})
+
+Deno.test('needs_review outcome: status -> needs_review, filed:false, no filed_at', async () => {
+  const captured: CapturedInsert = {}
+  const req = postReq(JSON.stringify({ customer_id: 'cust-1', payload: { Name: 'Jane' } }))
+
+  const res = await handleIntake(req, {
+    createAdminClient: fakeAdminClient(captured) as never,
+    fileLead: () => Promise.resolve({ outcome: 'needs_review', reason: 'missing phone' }),
+    leadFilingDeps: { getAccessToken: () => Promise.resolve('t') },
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).filed, false)
+  assertEquals(captured.updatePatch?.status, 'needs_review')
+  assertEquals(captured.updatePatch?.filed_at, null)
+})
+
+Deno.test('a thrown filing error never breaks intake: lead recorded, still 200', async () => {
+  const captured: CapturedInsert = {}
+  const req = postReq(JSON.stringify({ customer_id: 'cust-1', payload: { Name: 'Jane' } }))
+
+  const res = await handleIntake(req, {
+    createAdminClient: fakeAdminClient(captured) as never,
+    fileLead: () => Promise.reject(new Error('sheets exploded')),
+    leadFilingDeps: { getAccessToken: () => Promise.resolve('t') },
+  })
+
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.received, true)
+  assertEquals(json.filed, false)
+  // The lead row was still inserted; intake stayed healthy.
+  assertEquals(captured.patch !== undefined, true)
+})
+
+Deno.test('skipped outcome (no mapping yet) leaves the lead at received', async () => {
+  const captured: CapturedInsert = {}
+  const req = postReq(JSON.stringify({ customer_id: 'cust-1', payload: { Name: 'Jane' } }))
+
+  const res = await handleIntake(req, {
+    createAdminClient: fakeAdminClient(captured) as never,
+    fileLead: () => Promise.resolve({ outcome: 'skipped' }),
+    leadFilingDeps: { getAccessToken: () => Promise.resolve('t') },
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).filed, false)
+  // No status update for 'skipped' — the lead waits at 'received'.
+  assertEquals(captured.updatePatch, undefined)
 })
 
 Deno.test('returns 500 when the admin insert returns an error', async () => {
