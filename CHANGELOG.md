@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [0.2.1.1] - 2026-06-22
+
+### Fixed
+- **My Requests crashed ("Something went wrong") for any request whose automation
+  can't be read.** Customers can only read `is_active=true` automations (RLS), so
+  a deactivated automation makes the joined `automation` null, and
+  `request.automation.requires_provisioning` threw, tripping the app-wide
+  ErrorBoundary. Now guarded — a null automation renders a graceful fallback
+  instead of taking the whole page down. (Surfaced by the redirect after
+  confirming a mapping for a test automation that is intentionally not public.)
+
 ## [0.2.1.0] - 2026-06-22
 
 Bug fixes found while taking the Google Sheets pipeline live end-to-end.
