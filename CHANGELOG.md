@@ -26,6 +26,21 @@ lead-filing as the first live connector.
 - **Lead intake endpoint** (`intake`) plus `leads`, `connector_connections`, and
   `connector_registry` tables. The public Supported-software page and the
   customer mapping-confirmation page are driven off these.
+- **The fulfillment loop now closes end-to-end** (issue #3): a real lead flows
+  intake → filed row.
+  - `connect-configure` edge function: the customer pastes their Google Sheet
+    link, we verify they own the provision (JWT uid == provision customer),
+    read the headers, propose the mapping, and store it.
+  - The confirm screen's dead empty state is now a paste-a-Sheet-URL picker.
+  - `intake` files each lead synchronously: it resolves the customer's confirmed
+    `google_sheets` provision and runs the connector, marking the lead
+    `filed` / `needs_review` / `failed`. Filing is best-effort and can never
+    break intake or lose the lead.
+  - `googleAuth` refreshes the stored encrypted refresh token into a live access
+    token, marking the connection `revoked` on `invalid_grant`.
+- **Bug fix:** the confirm screen wrote `config.confirmedMapping` but the
+  connector read `config.columnMapping` — every lead would have stuck in
+  `needs_review`. Both sides now use `columnMapping`.
 
 ### Security
 - **F3 trust guards.** The mapper never invents a column the sheet lacks (a
@@ -40,10 +55,12 @@ lead-filing as the first live connector.
   or request body, so it cannot land in logs.
 
 ### Known gaps
-- The `intake` endpoint is open when `INTAKE_SECRET` is unset; set it in
-  production (tracked in TODOS.md #10). Remaining go-live seams (OAuth
-  state-signing, Google app verification, the `configure()`/sheet-picker slice)
-  tracked in TODOS.md #9–#13.
+- Secrets are set on the live project and the sheet-picker/configure slice is
+  done (TODOS.md #9, #10, #13 closed). Remaining before public GA: deploy the
+  migration + edge functions to Supabase, OAuth `state`-signing (#11), and
+  Google OAuth app verification (#12, external Google review). The live Google
+  Sheets / Gemini / OAuth-exchange paths are still only exercised through test
+  fakes — first real connect happens at deploy.
 
 ## [0.1.0.0] - 2026-06-20
 

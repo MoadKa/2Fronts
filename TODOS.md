@@ -114,7 +114,9 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 
 **Depends on:** Nothing blocking, but should be designed before scaling past the pilot customer.
 
-## 9. Connector pipeline go-live: set the required secrets
+## 9. Connector pipeline go-live: set the required secrets ✅ DONE (2026-06-22)
+
+**Status:** All seven secrets set on live project `fettkrnajxbrfvwbenzf` from `.env` via `supabase secrets set --env-file`. Fixed a double-slash typo in `GOOGLE_OAUTH_REDIRECT_URI` (`.co//functions` → `.co/functions`) in `.env` before setting. Live Google Sheets / Gemini / OAuth-exchange paths are still untested against real APIs.
 
 **What:** Set the Supabase secrets the connector fulfillment pipeline reads: `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI` (→ the deployed google-oauth-callback URL), `CONNECTOR_TOKEN_KEY` (base64 32-byte AES-GCM key), `GEMINI_API_KEY`, `ALERT_WEBHOOK_URL`, and optionally `INTAKE_SECRET` (see #10).
 
@@ -128,7 +130,9 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 
 **Depends on:** A deployed google-oauth-callback URL (for the redirect URI) and Google/Gemini accounts.
 
-## 10. Decide the `INTAKE_SECRET` posture (intake endpoint is open by default)
+## 10. Decide the `INTAKE_SECRET` posture (intake endpoint is open by default) ✅ DECIDED + DONE (2026-06-22)
+
+**Status:** Decision = gate it. `INTAKE_SECRET` is set on the live project, so the intake endpoint now requires the `x-intake-secret` header. Any legitimate lead source must send that header. Value lives in `.env` (gitignored).
 
 **What:** Decide whether `INTAKE_SECRET` is mandatory in production. When it is unset, the `intake` endpoint accepts a lead for any existing `customer_id` with no authentication.
 
@@ -170,7 +174,9 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 
 **Depends on:** A published privacy policy and the production OAuth client configured.
 
-## 13. Spreadsheet picker → run `configure()` to populate the proposed mapping
+## 13. Spreadsheet picker → run `configure()` to populate the proposed mapping ✅ DONE (2026-06-22)
+
+**Status:** Built in the fulfillment-loop PR (closes issue #3). Paste-a-URL picker on the confirm screen → `connect-configure` edge function runs `googleSheetsConnector.configure()` and writes `config.proposedMapping` + `config.spreadsheetId`. Also closed the connect→configure→confirm→run loop: a token-refresh helper (`googleAuth`), lead filing wired into `intake` via `leadFiling`, and the `columnMapping`/`confirmedMapping` key-mismatch bug fixed. The live connect/file path is still untested against real Google APIs (happens at deploy). Remaining loop gap: deploy migration + functions to Supabase.
 
 **What:** Build the missing slice between "customer connected Google" and "customer sees a proposed mapping": a spreadsheet picker that runs `googleSheetsConnector.configure()` and writes the resulting `proposedMapping` into the provision's `config`.
 
