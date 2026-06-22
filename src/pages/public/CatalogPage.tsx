@@ -73,13 +73,17 @@ function RocketIcon(props: IconProps) {
 export function CatalogPage() {
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [activeCategory, setActiveCategory] = useState('')
 
   useEffect(() => {
-    listActiveAutomations().then((data) => {
-      setAutomations(data)
-      setLoading(false)
-    })
+    // A rejected fetch (network blip, a deploy in flight) must degrade to an
+    // error state, not hang on the spinner forever. `finally` guarantees the
+    // loading flag clears on both success and failure.
+    listActiveAutomations()
+      .then((data) => setAutomations(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false))
   }, [])
 
   const categories = useMemo(() => {
@@ -211,13 +215,18 @@ export function CatalogPage() {
         )}
 
         {loading && <p>Loading catalog...</p>}
-        {!loading && automations.length === 0 && (
+        {!loading && loadError && (
+          <div className="empty-state">
+            <p>Der Katalog konnte gerade nicht geladen werden. Bitte lade die Seite neu.</p>
+          </div>
+        )}
+        {!loading && !loadError && automations.length === 0 && (
           <div className="empty-state">
             <p>No automations available yet.</p>
           </div>
         )}
 
-        {!loading && automations.length > 0 && (
+        {!loading && !loadError && automations.length > 0 && (
           <>
             {filteredAutomations.length === 0 ? (
               <div className="catalog-grid">
