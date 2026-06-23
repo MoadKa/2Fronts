@@ -23,12 +23,12 @@ export function AppLayout() {
                   <Link to="/admin/requests">Admin Requests</Link>
                 </>
               )}
-              <Link to="/my-requests">My Requests</Link>
+              <Link to="/my-requests">Meine Anfragen</Link>
               <span className="app-nav-company">{profile?.company_name}</span>
-              <Button variant="secondary" onClick={() => signOut()}>Log out</Button>
+              <Button variant="secondary" onClick={() => signOut()}>Abmelden</Button>
             </>
           ) : (
-            <Button onClick={() => setAuthModalOpen(true)}>Log in / Sign up</Button>
+            <Button onClick={() => setAuthModalOpen(true)}>Anmelden / Registrieren</Button>
           )}
         </div>
       </nav>

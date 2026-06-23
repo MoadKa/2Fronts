@@ -24,25 +24,25 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
       } else {
         await signIn(email, password)
       }
-      showToast(mode === 'signUp' ? 'Account created' : 'Signed in')
+      showToast(mode === 'signUp' ? 'Konto erstellt' : 'Angemeldet')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(err instanceof Error ? err.message : 'Etwas ist schiefgelaufen')
     }
   }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <h2>{mode === 'signIn' ? 'Log in' : 'Sign up'}</h2>
+      <h2>{mode === 'signIn' ? 'Anmelden' : 'Registrieren'}</h2>
       {mode === 'signUp' && (
-        <Input label="Company name" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+        <Input label="Firmenname" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
       )}
-      <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <Input label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
+      <Input label="E-Mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Input label="Passwort" type="password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
       <div className="page-stack">
-        <Button onClick={handleSubmit}>{mode === 'signIn' ? 'Log in' : 'Sign up'}</Button>
+        <Button onClick={handleSubmit}>{mode === 'signIn' ? 'Anmelden' : 'Registrieren'}</Button>
         <Button variant="secondary" onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}>
-          {mode === 'signIn' ? 'Need an account? Sign up' : 'Already have an account? Log in'}
+          {mode === 'signIn' ? 'Noch kein Konto? Registrieren' : 'Schon ein Konto? Anmelden'}
         </Button>
       </div>
     </Modal>

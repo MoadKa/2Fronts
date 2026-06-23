@@ -36,7 +36,7 @@ export function AutomationDetailPage() {
   async function handleRequest() {
     if (!automation) return
     if (automation.requires_provisioning && !bookingLink.trim()) {
-      setBookingLinkError('Enter a booking link so customers can reach you.')
+      setBookingLinkError('Bitte gib einen Buchungslink an, über den dich Kunden erreichen.')
       return
     }
     setBookingLinkError('')
@@ -53,17 +53,17 @@ export function AutomationDetailPage() {
       const { url } = await createCheckoutSession(request.id)
       window.location.href = url
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Could not start checkout', 'error')
+      showToast(err instanceof Error ? err.message : 'Checkout konnte nicht gestartet werden', 'error')
       setRequesting(false)
     }
   }
 
-  if (loading) return <p>Loading...</p>
-  if (!automation) return <p>Automation not found.</p>
+  if (loading) return <p>Wird geladen…</p>
+  if (!automation) return <p>Automatisierung nicht gefunden.</p>
 
   return (
     <div className="page-stack">
-      <Link to="/">&larr; Back to catalog</Link>
+      <Link to="/">&larr; Zurück zum Katalog</Link>
       <Card>
         <Badge>{automation.category}</Badge>
         <h2>{automation.name}</h2>
@@ -74,12 +74,12 @@ export function AutomationDetailPage() {
             {automation.requires_provisioning && (
               <>
                 <Input
-                  label="Business name"
+                  label="Firmenname"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                 />
                 <Input
-                  label="Booking link"
+                  label="Buchungslink"
                   value={bookingLink}
                   onChange={(e) => setBookingLink(e.target.value)}
                   error={bookingLinkError}
@@ -87,11 +87,11 @@ export function AutomationDetailPage() {
               </>
             )}
             <Button onClick={handleRequest} disabled={requesting}>
-              {requesting ? 'Starting checkout...' : 'Request this automation'}
+              {requesting ? 'Checkout wird gestartet…' : 'Diese Automatisierung anfragen'}
             </Button>
           </>
         ) : (
-          <p>Log in to request this automation.</p>
+          <p>Melde dich an, um diese Automatisierung anzufragen.</p>
         )}
       </Card>
     </div>

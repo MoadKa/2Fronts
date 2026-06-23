@@ -60,7 +60,7 @@ describe('MyRequestsPage', () => {
   it('shows an empty state when there are no requests', async () => {
     vi.mocked(listMyRequests).mockResolvedValue([])
     render(<MyRequestsPage />)
-    await waitFor(() => expect(screen.getByText("You haven't requested any automations yet.")).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Du hast noch keine Automatisierungen angefragt.')).toBeInTheDocument())
   })
 
   // Regression: a request whose automation can't be read (deactivated → RLS hides
