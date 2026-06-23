@@ -4,6 +4,37 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [0.3.0.0] - 2026-06-23
+
+Launch-readiness bundle for the Google OAuth review (EPIC #15).
+
+### Added
+- **Bilingual site (DE/EN) with a language switcher (#10).** Full i18n via
+  react-i18next; German default, browser-detected, persisted to localStorage.
+  Every page and the new footer are translation-keyed.
+- **Waitlist landing + public product page (#12).** `/` is now an email-capture
+  waitlist; the marketplace moved to `/automations`; a public `/app` page
+  describes the product (the URL submitted to Google as the OAuth Application
+  home page). New `waitlist_signups` table (RLS: service-role insert only,
+  case-insensitive unique email) + `waitlist-signup` edge function.
+- **Legal pages (#11).** Impressum (§5 TMG), Datenschutzerklärung (incl. the
+  Google API Services User Data Policy / Limited Use clause verbatim), and a
+  lean B2B AGB — all DE/EN, public, linked from the footer. Vercel disclosed as host.
+- **Slack lead-notification connector — 3rd automation (#13).** OAuth v2 connect,
+  channel picker, posts new leads via `chat.postMessage`. Seeded inactive until
+  `SLACK_*` secrets are configured.
+- **Slack channel-picker UI (#16).** `/connect/:provisionId/confirm` branches by
+  `connector_type` (Google mapping vs Slack channel picker) via `ConnectConfirmRoute`.
+- **CI auto-deploy for the Supabase backend.** A GitHub Action runs `db push` +
+  `functions deploy` on every push to `main` touching `supabase/`, mirroring
+  Vercel's frontend deploy. `verify_jwt` per function is declared in `config.toml`.
+
+### Fixed
+- **All automations are now purchasable (#13).** `automation_provisions.connector_type`
+  defaulted to `twilio_missed_call` and nothing set it, so every purchase became a
+  Twilio provision. Added `automations.connector_type`; `createProvisionDetails` now
+  copies it onto the provision.
+
 ## [0.2.2.0] - 2026-06-22
 
 ### Security
