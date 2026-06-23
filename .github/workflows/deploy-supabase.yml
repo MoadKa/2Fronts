@@ -1,0 +1,50 @@
+name: Deploy Supabase backend
+
+# Auto-deploys the database migrations and edge functions to the live Supabase
+# project on every push to main that touches supabase/. This mirrors Vercel's
+# automatic frontend deploy, so no one ever hand-runs `supabase ... deploy`.
+#
+# One-time setup (GitHub repo → Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN  — https://supabase.com/dashboard/account/tokens
+#   SUPABASE_DB_PASSWORD   — the project's database password
+# Function runtime secrets (GOOGLE_*, SLACK_*, GEMINI_API_KEY, CONNECTOR_TOKEN_KEY,
+# INTAKE_SECRET, OAUTH_STATE_SECRET, ALERT_WEBHOOK_URL) are set once on the
+# project via `supabase secrets set` and persist across deploys — they are NOT
+# managed here, so they never touch CI logs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - '.github/workflows/deploy-supabase.yml'
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+concurrency:
+  group: supabase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: fettkrnajxbrfvwbenzf
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref "$PROJECT_REF"
+
+      - name: Apply database migrations
+        run: supabase db push
+
+      - name: Deploy edge functions
+        run: supabase functions deploy --project-ref "$PROJECT_REF"
