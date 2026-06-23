@@ -93,12 +93,12 @@ export function MyRequestsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>My requests</h1>
+        <h1>Meine Anfragen</h1>
       </div>
-      {loading && <p>Loading your requests...</p>}
+      {loading && <p>Deine Anfragen werden geladen…</p>}
       {!loading && requests.length === 0 && (
         <div className="empty-state">
-          <p>You haven't requested any automations yet.</p>
+          <p>Du hast noch keine Automatisierungen angefragt.</p>
         </div>
       )}
       {!loading && requests.map((request) => {

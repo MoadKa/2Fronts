@@ -10,7 +10,7 @@ describe('CheckoutResultPage', () => {
         <CheckoutResultPage />
       </MemoryRouter>
     )
-    expect(screen.getByText('Payment received')).toBeInTheDocument()
+    expect(screen.getByText('Zahlung erhalten')).toBeInTheDocument()
   })
 
   it('shows a cancellation message for status=cancelled', () => {
@@ -19,6 +19,6 @@ describe('CheckoutResultPage', () => {
         <CheckoutResultPage />
       </MemoryRouter>
     )
-    expect(screen.getByText('Checkout cancelled')).toBeInTheDocument()
+    expect(screen.getByText('Checkout abgebrochen')).toBeInTheDocument()
   })
 })

@@ -10,9 +10,9 @@ export function CheckoutResultPage() {
     return (
       <div className="empty-state">
         <Card>
-          <h2>Payment received</h2>
-          <p>We'll start fulfilling your automation shortly. Track its status in My Requests.</p>
-          <Link to="/"><Button>Back to catalog</Button></Link>
+          <h2>Zahlung erhalten</h2>
+          <p>Wir richten deine Automatisierung in Kürze ein. Den Status siehst du unter „Meine Anfragen".</p>
+          <Link to="/"><Button>Zurück zum Katalog</Button></Link>
         </Card>
       </div>
     )
@@ -21,9 +21,9 @@ export function CheckoutResultPage() {
   return (
     <div className="empty-state">
       <Card>
-        <h2>Checkout cancelled</h2>
-        <p>No payment was made. You can try again any time.</p>
-        <Link to="/"><Button variant="secondary">Back to catalog</Button></Link>
+        <h2>Checkout abgebrochen</h2>
+        <p>Es wurde keine Zahlung vorgenommen. Du kannst es jederzeit erneut versuchen.</p>
+        <Link to="/"><Button variant="secondary">Zurück zum Katalog</Button></Link>
       </Card>
     </div>
   )
