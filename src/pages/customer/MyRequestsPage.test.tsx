@@ -8,7 +8,7 @@ vi.mock('../../services/RequestService', () => ({ listMyRequests: vi.fn() }))
 const baseRequest = {
   id: 'req-1', automation_id: 'auto-1', customer_id: 'user-1',
   stripe_checkout_session_id: 'sess-1', requested_at: '2026-06-18T00:00:00Z', paid_at: null, delivered_at: null,
-  automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, created_at: '2026-06-01T00:00:00Z' },
+  automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, connector_type: 'google_sheets', created_at: '2026-06-01T00:00:00Z' },
 }
 
 const provisioningRequest = {

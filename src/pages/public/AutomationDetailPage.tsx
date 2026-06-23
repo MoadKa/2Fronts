@@ -45,13 +45,12 @@ export function AutomationDetailPage() {
     setRequesting(true)
     try {
       const request = await createRequest(automation.id)
-      if (automation.requires_provisioning) {
-        await createProvisionDetails(request.id, {
-          businessName,
-          bookingLink,
-          businessHours: undefined,
-        })
-      }
+      // Always create the provision so its connector_type derives from the
+      // automation; the Twilio booking details only apply to that connector.
+      await createProvisionDetails(request.id, automation.connector_type, {
+        businessName,
+        bookingLink,
+      })
       const { url } = await createCheckoutSession(request.id)
       window.location.href = url
     } catch (err) {
