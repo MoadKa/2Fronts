@@ -1,0 +1,198 @@
+{
+  "common": {
+    "language": "Language",
+    "german": "German",
+    "english": "English",
+    "loading": "Loading…",
+    "comingSoon": "Coming soon",
+    "automationFallback": "Automation"
+  },
+  "nav": {
+    "supportedSoftware": "Supported software",
+    "adminCatalog": "Admin catalog",
+    "adminRequests": "Admin requests",
+    "myRequests": "My requests",
+    "signOut": "Sign out",
+    "signInRegister": "Sign in / Register"
+  },
+  "footer": {
+    "impressum": "Imprint",
+    "datenschutz": "Privacy",
+    "agb": "Terms",
+    "rights": "© {{year}} 2Fronts. All rights reserved."
+  },
+  "errorBoundary": {
+    "message": "Something went wrong."
+  },
+  "protectedRoute": {
+    "loading": "Loading…"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "register": "Register",
+    "companyName": "Company name",
+    "email": "Email",
+    "password": "Password",
+    "noAccountRegister": "No account yet? Register",
+    "haveAccountSignIn": "Already have an account? Sign in",
+    "accountCreated": "Account created",
+    "signedIn": "Signed in",
+    "genericError": "Something went wrong"
+  },
+  "notFound": {
+    "title": "Page not found.",
+    "body": "The page you're looking for doesn't exist or has moved.",
+    "backToCatalog": "Back to catalog"
+  },
+  "catalog": {
+    "heroEyebrow": "Automation marketplace for teams short on time",
+    "heroTitle": "Don't build it yourself. Buy the outcome.",
+    "heroSub": "Discover ready-made automations from specialists, pay securely, and get them straight into your system — no consultation calls, no guesswork.",
+    "discoverAutomations": "Discover automations",
+    "howItWorksLink": "How it works ↓",
+    "trust1Title": "Outcome, not effort",
+    "trust1Body": "You pay for a working result — not for hours or vague promises.",
+    "trust2Title": "Secure payment via Stripe",
+    "trust2Body": "Every purchase runs through encrypted, PCI-compliant payment processing.",
+    "trust3Title": "Built by specialists",
+    "trust3Body": "Every automation is built and tested by professionals who do this every day.",
+    "howItWorks": "How it works",
+    "step1Title": "Find the right automation",
+    "step1Body": "Browse by category and outcome until you find the automation that fits your workflow.",
+    "step2Title": "Request and pay securely",
+    "step2Body": "Submit a request and pay via Stripe — no calls, no long back-and-forth.",
+    "step3Title": "Delivered and trackable",
+    "step3Body": "We set everything up in your system — you can track progress anytime under \"My requests\".",
+    "catalogSectionTitle": "Discover automations",
+    "catalogSectionSub": "Ready-to-use automations from our catalog, delivered to your team.",
+    "filterAll": "All",
+    "loadingCatalog": "Loading catalog…",
+    "loadError": "The catalog could not be loaded right now. Please reload the page.",
+    "emptyCatalog": "No automations available yet.",
+    "emptyCategory": "There are no automations in this category yet.",
+    "finalCtaTitle": "Ready to automate your routine work?",
+    "finalCtaBody": "Browse the catalog and find an automation that pays for itself in the first week."
+  },
+  "automationDetail": {
+    "loading": "Loading…",
+    "notFound": "Automation not found.",
+    "backToCatalog": "← Back to catalog",
+    "businessName": "Company name",
+    "bookingLink": "Booking link",
+    "bookingLinkRequired": "Please provide a booking link where customers can reach you.",
+    "checkoutStarting": "Starting checkout…",
+    "requestAutomation": "Request this automation",
+    "signInToRequest": "Sign in to request this automation.",
+    "checkoutError": "Checkout could not be started"
+  },
+  "checkoutResult": {
+    "successTitle": "Payment received",
+    "successBody": "We'll set up your automation shortly. You can track the status under \"My requests\".",
+    "cancelledTitle": "Checkout cancelled",
+    "cancelledBody": "No payment was made. You can try again at any time.",
+    "backToCatalog": "Back to catalog"
+  },
+  "supportedSoftware": {
+    "title": "Supported software",
+    "intro": "2Fronts connects these tools to your automations automatically — no tech, in one click. We're constantly adding more integrations.",
+    "loading": "Loading …",
+    "loadError": "The list could not be loaded. Please try again later.",
+    "empty": "No integrations available yet.",
+    "available": "● Available",
+    "soon": "Soon"
+  },
+  "myRequests": {
+    "title": "My requests",
+    "loading": "Loading your requests…",
+    "empty": "You haven't requested any automations yet.",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "settingUp": "Setting up your AI receptionist for {{businessName}} — usually ready within a few minutes.",
+    "failedPrefix": "We hit a snag setting this up for {{businessName}} — we're on it. Need help sooner?",
+    "contactSupport": "Contact support",
+    "active": "{{businessName}} is live — calls to {{phone}} are now answered by your AI receptionist.",
+    "forwardingSummary": "Want missed calls forwarded too? This step is optional — your new number works either way.",
+    "forwardingStep1": "Open the phone app on your existing business phone.",
+    "forwardingStep2": "Find the call forwarding setting (sometimes called \"forward when unanswered\" or \"forward when busy\").",
+    "forwardingStep3": "Enter your new number, {{phone}}, as the forwarding destination.",
+    "forwardingStep4": "Save. Now if you miss a call on your old number, your AI receptionist picks it up."
+  },
+  "mapping": {
+    "loading": "Loading column mapping…",
+    "loadError": "The column mapping could not be loaded.",
+    "pickerTitle": "Which spreadsheet should we work with?",
+    "pickerBody": "Paste the link to your Google Sheet. We only read the column headers and suggest the matching mapping — nothing is written yet.",
+    "sheetLinkLabel": "Google Sheet link",
+    "readErrorFallback": "The spreadsheet could not be read.",
+    "readingTable": "Reading spreadsheet…",
+    "readTable": "Read spreadsheet",
+    "confirmTitle": "We'll write new leads into these columns — does that work?",
+    "confirmBody": "We read your spreadsheet <bold>\"{{sheetTitle}}\"</bold> and detected the matching columns. Please confirm once before we start.",
+    "chooseColumnFor": "Choose column for {{label}}",
+    "pleaseChooseColumn": "Please choose a column ▾",
+    "confident": "● Confident",
+    "unsure": "● Unsure",
+    "exampleLabel": "Example:",
+    "exampleBody": "A new lead \"{{sample}}\" lands as a new row — {{mappings}}.",
+    "reassure": "We only add <bold>new rows</bold>. Your existing data is never overwritten or deleted.",
+    "saveError": "The confirmation could not be saved. Please try again.",
+    "saving": "Saving…",
+    "confirm": "Looks good, let's go",
+    "adjustColumns": "Adjust columns"
+  },
+  "adminCatalog": {
+    "loading": "Loading catalog…",
+    "title": "Admin catalog",
+    "addAutomation": "Add automation",
+    "name": "Name",
+    "summary": "Summary",
+    "outcomeDescription": "Outcome description",
+    "category": "Category",
+    "priceCents": "Price (cents)",
+    "automationAdded": "Automation added",
+    "active": "active",
+    "inactive": "inactive",
+    "deactivate": "Deactivate",
+    "activate": "Activate"
+  },
+  "adminRequests": {
+    "title": "Admin requests",
+    "status": "Status",
+    "all": "All",
+    "loading": "Loading requests…",
+    "empty": "No requests yet.",
+    "retry": "Retry",
+    "deliveryNotes": "Delivery notes",
+    "markStatus": "Mark {{status}}",
+    "requestMarked": "Request marked {{status}}",
+    "provisioning": "Provisioning {{status}}"
+  },
+  "marketplaceTest": {
+    "automations": "Automations",
+    "live": "Live",
+    "interested": "Interested? Tell us",
+    "email": "Email",
+    "businessName": "Business name",
+    "automationOfInterest": "Automation of interest",
+    "automationOfInterestPlaceholder": "Click 'Interested?' on a listing above, or describe what you're looking for",
+    "requestAutomation": "Request an automation",
+    "emailRequired": "Email is required",
+    "businessNameRequired": "Business name is required",
+    "thanks": "Thanks — we'll be in touch",
+    "sendError": "Could not send — please try again"
+  },
+  "legal": {
+    "impressumTitle": "Imprint",
+    "datenschutzTitle": "Privacy Policy",
+    "agbTitle": "Terms and Conditions",
+    "comingSoon": "This content will be available soon."
+  },
+  "appHome": {
+    "title": "2Fronts",
+    "comingSoon": "Coming soon."
+  },
+  "waitlist": {
+    "title": "2Fronts",
+    "comingSoon": "Coming soon."
+  }
+}

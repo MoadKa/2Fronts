@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type SVGProps } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { Trans, useTranslation } from 'react-i18next'
 import { getProposedMapping, saveConfirmedMapping } from '../../services/MappingService'
 import { configureSheet } from '../../services/ConnectorService'
 import type { ConfirmedFieldMapping, ProposedMapping } from '../../types/database'
@@ -39,6 +40,7 @@ function seedChoices(mapping: ProposedMapping): Choices {
 export function MappingConfirmationPage() {
   const { provisionId } = useParams<{ provisionId: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const [mapping, setMapping] = useState<ProposedMapping | null>(null)
   const [choices, setChoices] = useState<Choices>({})
@@ -61,7 +63,7 @@ export function MappingConfirmationPage() {
       setMapping(result)
       setChoices(seedChoices(result))
     } catch (e) {
-      setConfigureError(e instanceof Error ? e.message : 'Die Tabelle konnte nicht gelesen werden.')
+      setConfigureError(e instanceof Error ? e.message : t('mapping.readErrorFallback'))
     } finally {
       setConfiguring(false)
     }
@@ -74,9 +76,9 @@ export function MappingConfirmationPage() {
         setMapping(data)
         if (data) setChoices(seedChoices(data))
       })
-      .catch(() => setError('Die Spalten-Zuordnung konnte nicht geladen werden.'))
+      .catch(() => setError(t('mapping.loadError')))
       .finally(() => setLoading(false))
-  }, [provisionId])
+  }, [provisionId, t])
 
   // F3 guard #1: confirm stays disabled until EVERY low-confidence field has a
   // column chosen. High-confidence fields are pre-seeded, so this reduces to
@@ -110,7 +112,7 @@ export function MappingConfirmationPage() {
       await saveConfirmedMapping(provisionId, confirmed)
       navigate('/my-requests')
     } catch {
-      setError('Die Bestätigung konnte nicht gespeichert werden. Bitte erneut versuchen.')
+      setError(t('mapping.saveError'))
       setSaving(false)
     }
   }
@@ -118,7 +120,7 @@ export function MappingConfirmationPage() {
   if (loading) {
     return (
       <div className="mapping-wrap">
-        <p>Spalten-Zuordnung wird geladen…</p>
+        <p>{t('mapping.loading')}</p>
       </div>
     )
   }
@@ -137,12 +139,8 @@ export function MappingConfirmationPage() {
     return (
       <div className="mapping-wrap">
         <div className="mapping-card">
-          <h1>Mit welcher Tabelle sollen wir arbeiten?</h1>
-          <p className="muted">
-            Füge den Link zu deinem Google Sheet ein. Wir lesen nur die
-            Spaltenüberschriften und schlagen dir die passende Zuordnung vor —
-            geschrieben wird noch nichts.
-          </p>
+          <h1>{t('mapping.pickerTitle')}</h1>
+          <p className="muted">{t('mapping.pickerBody')}</p>
 
           <input
             className="sheet-url-input"
@@ -151,7 +149,7 @@ export function MappingConfirmationPage() {
             placeholder="https://docs.google.com/spreadsheets/d/…"
             value={spreadsheetUrl}
             onChange={(e) => setSpreadsheetUrl(e.target.value)}
-            aria-label="Google-Sheet-Link"
+            aria-label={t('mapping.sheetLinkLabel')}
           />
 
           {configureError && <p style={{ color: 'var(--color-destructive)' }}>{configureError}</p>}
@@ -163,7 +161,7 @@ export function MappingConfirmationPage() {
               disabled={!spreadsheetUrl.trim() || configuring}
               onClick={handleConfigure}
             >
-              {configuring ? 'Tabelle wird gelesen…' : 'Tabelle lesen'}
+              {configuring ? t('mapping.readingTable') : t('mapping.readTable')}
             </button>
           </div>
         </div>
@@ -174,10 +172,13 @@ export function MappingConfirmationPage() {
   return (
     <div className="mapping-wrap">
       <div className="mapping-card">
-        <h1>Wir schreiben neue Leads in diese Spalten — passt das?</h1>
+        <h1>{t('mapping.confirmTitle')}</h1>
         <p className="muted">
-          Wir haben Ihre Tabelle <b>„{mapping.sheetTitle}"</b> gelesen und die passenden Spalten erkannt.
-          Bitte einmal bestätigen, bevor wir starten.
+          <Trans
+            i18nKey="mapping.confirmBody"
+            values={{ sheetTitle: mapping.sheetTitle }}
+            components={{ bold: <b /> }}
+          />
         </p>
 
         <div className="mapping-rows">
@@ -198,12 +199,12 @@ export function MappingConfirmationPage() {
                 {showDropdown ? (
                   <select
                     className={needsPick ? 'col-chip col-needs' : 'col-chip'}
-                    aria-label={`Spalte für ${field.label} wählen`}
+                    aria-label={t('mapping.chooseColumnFor', { label: field.label })}
                     value={chosen ?? ''}
                     onChange={(e) => chooseColumn(field.field, e.target.value)}
                   >
                     <option value="" disabled>
-                      Bitte Spalte wählen ▾
+                      {t('mapping.pleaseChooseColumn')}
                     </option>
                     {mapping.availableColumns.map((col) => (
                       <option key={col.value} value={col.value}>
@@ -217,9 +218,9 @@ export function MappingConfirmationPage() {
 
                 <span className="pill-wrap">
                   {field.confidence === 'high' ? (
-                    <span className="pill pill-high">● Sicher</span>
+                    <span className="pill pill-high">{t('mapping.confident')}</span>
                   ) : (
-                    <span className="pill pill-mid">● Unsicher</span>
+                    <span className="pill pill-mid">{t('mapping.unsure')}</span>
                   )}
                 </span>
               </div>
@@ -228,23 +229,23 @@ export function MappingConfirmationPage() {
         </div>
 
         <div className="preview">
-          <b>Beispiel:</b> Ein neuer Lead{' '}
-          „{Object.values(mapping.sampleLead).join(' · ')}" landet als neue Zeile —{' '}
-          {mapping.fields
-            .filter((f) => choices[f.field])
-            .map((f) => {
-              const col = mapping.availableColumns.find((c) => c.value === choices[f.field])
-              return `${f.label} → ${col?.value ?? choices[f.field]}`
-            })
-            .join(', ')}
-          .
+          <b>{t('mapping.exampleLabel')}</b>{' '}
+          {t('mapping.exampleBody', {
+            sample: Object.values(mapping.sampleLead).join(' · '),
+            mappings: mapping.fields
+              .filter((f) => choices[f.field])
+              .map((f) => {
+                const col = mapping.availableColumns.find((c) => c.value === choices[f.field])
+                return `${f.label} → ${col?.value ?? choices[f.field]}`
+              })
+              .join(', '),
+          })}
         </div>
 
         <div className="reassure">
           <ShieldCheckIcon />
           <span>
-            Wir fügen <b>nur neue Zeilen</b> hinzu. Ihre bestehenden Daten werden nie überschrieben
-            oder gelöscht.
+            <Trans i18nKey="mapping.reassure" components={{ bold: <b /> }} />
           </span>
         </div>
 
@@ -257,10 +258,10 @@ export function MappingConfirmationPage() {
             disabled={!allChosen || saving}
             onClick={handleConfirm}
           >
-            {saving ? 'Wird gespeichert…' : "Passt, los geht's"}
+            {saving ? t('mapping.saving') : t('mapping.confirm')}
           </button>
           <button type="button" className="btn btn-secondary" onClick={handleAdjustColumns}>
-            Spalten anpassen
+            {t('mapping.adjustColumns')}
           </button>
         </div>
       </div>

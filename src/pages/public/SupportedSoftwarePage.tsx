@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listPublicConnectors } from '../../services/ConnectorService'
 import { Reveal } from '../../components/ui/Reveal'
 import type { Connector } from '../../types/database'
@@ -14,6 +15,7 @@ function monogram(displayName: string): string {
 }
 
 export function SupportedSoftwarePage() {
+  const { t } = useTranslation()
   const [connectors, setConnectors] = useState<Connector[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -28,19 +30,16 @@ export function SupportedSoftwarePage() {
   return (
     <div className="software-page">
       <div className="page-header">
-        <h1>Unterstützte Software</h1>
-        <p>
-          Diese Tools verbindet 2Fronts automatisch mit Ihren Automationen — ohne Technik, in einem Klick.
-          Wir bauen ständig weitere Anbindungen.
-        </p>
+        <h1>{t('supportedSoftware.title')}</h1>
+        <p>{t('supportedSoftware.intro')}</p>
       </div>
 
-      {loading && <p className="software-status">Wird geladen …</p>}
+      {loading && <p className="software-status">{t('supportedSoftware.loading')}</p>}
       {!loading && error && (
-        <p className="software-status">Die Liste konnte nicht geladen werden. Bitte später erneut versuchen.</p>
+        <p className="software-status">{t('supportedSoftware.loadError')}</p>
       )}
       {!loading && !error && connectors.length === 0 && (
-        <p className="software-status">Es sind noch keine Anbindungen verfügbar.</p>
+        <p className="software-status">{t('supportedSoftware.empty')}</p>
       )}
 
       {!loading && !error && connectors.length > 0 && (
@@ -52,9 +51,9 @@ export function SupportedSoftwarePage() {
                 <div className={isLive ? 'software-card' : 'software-card software-card-soon'}>
                   <span className="software-card-status">
                     {isLive ? (
-                      <span className="pill pill-live">● Verfügbar</span>
+                      <span className="pill pill-live">{t('supportedSoftware.available')}</span>
                     ) : (
-                      <span className="pill pill-soon">Bald</span>
+                      <span className="pill pill-soon">{t('supportedSoftware.soon')}</span>
                     )}
                   </span>
                   <div className="software-logo" aria-hidden="true">

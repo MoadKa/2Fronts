@@ -1,0 +1,198 @@
+{
+  "common": {
+    "language": "Sprache",
+    "german": "Deutsch",
+    "english": "Englisch",
+    "loading": "Wird geladen…",
+    "comingSoon": "Bald verfügbar",
+    "automationFallback": "Automatisierung"
+  },
+  "nav": {
+    "supportedSoftware": "Unterstützte Software",
+    "adminCatalog": "Admin-Katalog",
+    "adminRequests": "Admin-Anfragen",
+    "myRequests": "Meine Anfragen",
+    "signOut": "Abmelden",
+    "signInRegister": "Anmelden / Registrieren"
+  },
+  "footer": {
+    "impressum": "Impressum",
+    "datenschutz": "Datenschutz",
+    "agb": "AGB",
+    "rights": "© {{year}} 2Fronts. Alle Rechte vorbehalten."
+  },
+  "errorBoundary": {
+    "message": "Etwas ist schiefgelaufen."
+  },
+  "protectedRoute": {
+    "loading": "Wird geladen…"
+  },
+  "auth": {
+    "signIn": "Anmelden",
+    "register": "Registrieren",
+    "companyName": "Firmenname",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "noAccountRegister": "Noch kein Konto? Registrieren",
+    "haveAccountSignIn": "Schon ein Konto? Anmelden",
+    "accountCreated": "Konto erstellt",
+    "signedIn": "Angemeldet",
+    "genericError": "Etwas ist schiefgelaufen"
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden.",
+    "body": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "backToCatalog": "Zurück zum Katalog"
+  },
+  "catalog": {
+    "heroEyebrow": "Automatisierungs-Marktplatz für Teams mit wenig Zeit",
+    "heroTitle": "Nicht selbst bauen. Das Ergebnis kaufen.",
+    "heroSub": "Entdecke fertige Automatisierungen von Spezialisten, bezahle sicher und erhalte sie direkt in deinem System — ohne Beratungsgespräche, ohne Rätselraten.",
+    "discoverAutomations": "Automatisierungen entdecken",
+    "howItWorksLink": "So funktioniert's ↓",
+    "trust1Title": "Ergebnis statt Aufwand",
+    "trust1Body": "Du zahlst für ein funktionierendes Ergebnis — nicht für Stunden oder vage Versprechen.",
+    "trust2Title": "Sichere Zahlung über Stripe",
+    "trust2Body": "Jeder Kauf läuft über verschlüsselte, PCI-konforme Zahlungsabwicklung.",
+    "trust3Title": "Von Spezialisten gebaut",
+    "trust3Body": "Jede Automatisierung wird von Profis entwickelt und getestet, die das täglich machen.",
+    "howItWorks": "So funktioniert's",
+    "step1Title": "Die passende Automatisierung finden",
+    "step1Body": "Stöbere nach Kategorie und Ergebnis, bis du die Automatisierung findest, die zu deinem Ablauf passt.",
+    "step2Title": "Anfragen und sicher bezahlen",
+    "step2Body": "Stelle eine Anfrage und bezahle über Stripe — ohne Anrufe, ohne langes Hin und Her.",
+    "step3Title": "Geliefert und nachverfolgbar",
+    "step3Body": "Wir richten alles in deinem System ein — den Fortschritt siehst du jederzeit unter „Meine Anfragen\".",
+    "catalogSectionTitle": "Automatisierungen entdecken",
+    "catalogSectionSub": "Sofort einsatzbereite Automatisierungen aus unserem Katalog, geliefert an dein Team.",
+    "filterAll": "Alle",
+    "loadingCatalog": "Katalog wird geladen…",
+    "loadError": "Der Katalog konnte gerade nicht geladen werden. Bitte lade die Seite neu.",
+    "emptyCatalog": "Noch keine Automatisierungen verfügbar.",
+    "emptyCategory": "In dieser Kategorie gibt es noch keine Automatisierungen.",
+    "finalCtaTitle": "Bereit, deine Routinearbeit zu automatisieren?",
+    "finalCtaBody": "Durchstöbere den Katalog und finde eine Automatisierung, die sich schon in der ersten Woche bezahlt macht."
+  },
+  "automationDetail": {
+    "loading": "Wird geladen…",
+    "notFound": "Automatisierung nicht gefunden.",
+    "backToCatalog": "← Zurück zum Katalog",
+    "businessName": "Firmenname",
+    "bookingLink": "Buchungslink",
+    "bookingLinkRequired": "Bitte gib einen Buchungslink an, über den dich Kunden erreichen.",
+    "checkoutStarting": "Checkout wird gestartet…",
+    "requestAutomation": "Diese Automatisierung anfragen",
+    "signInToRequest": "Melde dich an, um diese Automatisierung anzufragen.",
+    "checkoutError": "Checkout konnte nicht gestartet werden"
+  },
+  "checkoutResult": {
+    "successTitle": "Zahlung erhalten",
+    "successBody": "Wir richten deine Automatisierung in Kürze ein. Den Status siehst du unter „Meine Anfragen\".",
+    "cancelledTitle": "Checkout abgebrochen",
+    "cancelledBody": "Es wurde keine Zahlung vorgenommen. Du kannst es jederzeit erneut versuchen.",
+    "backToCatalog": "Zurück zum Katalog"
+  },
+  "supportedSoftware": {
+    "title": "Unterstützte Software",
+    "intro": "Diese Tools verbindet 2Fronts automatisch mit Ihren Automationen — ohne Technik, in einem Klick. Wir bauen ständig weitere Anbindungen.",
+    "loading": "Wird geladen …",
+    "loadError": "Die Liste konnte nicht geladen werden. Bitte später erneut versuchen.",
+    "empty": "Es sind noch keine Anbindungen verfügbar.",
+    "available": "● Verfügbar",
+    "soon": "Bald"
+  },
+  "myRequests": {
+    "title": "Meine Anfragen",
+    "loading": "Deine Anfragen werden geladen…",
+    "empty": "Du hast noch keine Automatisierungen angefragt.",
+    "copy": "Kopieren",
+    "copied": "Kopiert!",
+    "settingUp": "Wir richten deinen KI-Telefonassistenten für {{businessName}} ein — in der Regel in wenigen Minuten bereit.",
+    "failedPrefix": "Beim Einrichten für {{businessName}} ist etwas schiefgelaufen — wir kümmern uns darum. Schneller Hilfe nötig?",
+    "contactSupport": "Support kontaktieren",
+    "active": "{{businessName}} ist aktiv — Anrufe an {{phone}} werden jetzt von deinem KI-Telefonassistenten beantwortet.",
+    "forwardingSummary": "Verpasste Anrufe ebenfalls weiterleiten? Dieser Schritt ist optional — deine neue Nummer funktioniert ohnehin.",
+    "forwardingStep1": "Öffne die Telefon-App auf deinem bestehenden Geschäftstelefon.",
+    "forwardingStep2": "Suche die Einstellung zur Anrufweiterleitung (manchmal „weiterleiten, wenn nicht angenommen\" oder „weiterleiten, wenn besetzt\").",
+    "forwardingStep3": "Gib deine neue Nummer, {{phone}}, als Weiterleitungsziel ein.",
+    "forwardingStep4": "Speichern. Wenn du jetzt einen Anruf auf deiner alten Nummer verpasst, übernimmt ihn dein KI-Telefonassistent."
+  },
+  "mapping": {
+    "loading": "Spalten-Zuordnung wird geladen…",
+    "loadError": "Die Spalten-Zuordnung konnte nicht geladen werden.",
+    "pickerTitle": "Mit welcher Tabelle sollen wir arbeiten?",
+    "pickerBody": "Füge den Link zu deinem Google Sheet ein. Wir lesen nur die Spaltenüberschriften und schlagen dir die passende Zuordnung vor — geschrieben wird noch nichts.",
+    "sheetLinkLabel": "Google-Sheet-Link",
+    "readErrorFallback": "Die Tabelle konnte nicht gelesen werden.",
+    "readingTable": "Tabelle wird gelesen…",
+    "readTable": "Tabelle lesen",
+    "confirmTitle": "Wir schreiben neue Leads in diese Spalten — passt das?",
+    "confirmBody": "Wir haben Ihre Tabelle <bold>„{{sheetTitle}}\"</bold> gelesen und die passenden Spalten erkannt. Bitte einmal bestätigen, bevor wir starten.",
+    "chooseColumnFor": "Spalte für {{label}} wählen",
+    "pleaseChooseColumn": "Bitte Spalte wählen ▾",
+    "confident": "● Sicher",
+    "unsure": "● Unsicher",
+    "exampleLabel": "Beispiel:",
+    "exampleBody": "Ein neuer Lead „{{sample}}\" landet als neue Zeile — {{mappings}}.",
+    "reassure": "Wir fügen <bold>nur neue Zeilen</bold> hinzu. Ihre bestehenden Daten werden nie überschrieben oder gelöscht.",
+    "saveError": "Die Bestätigung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "saving": "Wird gespeichert…",
+    "confirm": "Passt, los geht's",
+    "adjustColumns": "Spalten anpassen"
+  },
+  "adminCatalog": {
+    "loading": "Katalog wird geladen…",
+    "title": "Admin-Katalog",
+    "addAutomation": "Automatisierung hinzufügen",
+    "name": "Name",
+    "summary": "Kurzbeschreibung",
+    "outcomeDescription": "Ergebnisbeschreibung",
+    "category": "Kategorie",
+    "priceCents": "Preis (Cent)",
+    "automationAdded": "Automatisierung hinzugefügt",
+    "active": "aktiv",
+    "inactive": "inaktiv",
+    "deactivate": "Deaktivieren",
+    "activate": "Aktivieren"
+  },
+  "adminRequests": {
+    "title": "Admin-Anfragen",
+    "status": "Status",
+    "all": "Alle",
+    "loading": "Anfragen werden geladen…",
+    "empty": "Noch keine Anfragen.",
+    "retry": "Erneut versuchen",
+    "deliveryNotes": "Lieferhinweise",
+    "markStatus": "Als {{status}} markieren",
+    "requestMarked": "Anfrage als {{status}} markiert",
+    "provisioning": "Bereitstellung {{status}}"
+  },
+  "marketplaceTest": {
+    "automations": "Automatisierungen",
+    "live": "Live",
+    "interested": "Interessiert? Sag es uns",
+    "email": "E-Mail",
+    "businessName": "Firmenname",
+    "automationOfInterest": "Gewünschte Automatisierung",
+    "automationOfInterestPlaceholder": "Klicke oben bei einem Eintrag auf „Interessiert?\" oder beschreibe, wonach du suchst",
+    "requestAutomation": "Automatisierung anfragen",
+    "emailRequired": "E-Mail ist erforderlich",
+    "businessNameRequired": "Firmenname ist erforderlich",
+    "thanks": "Danke — wir melden uns",
+    "sendError": "Konnte nicht gesendet werden — bitte erneut versuchen"
+  },
+  "legal": {
+    "impressumTitle": "Impressum",
+    "datenschutzTitle": "Datenschutz",
+    "agbTitle": "AGB",
+    "comingSoon": "Dieser Inhalt wird in Kürze verfügbar sein."
+  },
+  "appHome": {
+    "title": "2Fronts",
+    "comingSoon": "Bald verfügbar."
+  },
+  "waitlist": {
+    "title": "2Fronts",
+    "comingSoon": "Bald verfügbar."
+  }
+}

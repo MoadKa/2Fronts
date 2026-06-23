@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listMyRequests } from '../../services/RequestService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -23,6 +24,7 @@ const PROVISION_TONE: Record<AutomationProvision['status'], 'neutral' | 'success
 }
 
 function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
   const handleCopy = () => {
@@ -39,7 +41,7 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
           <span className="provision-phone">
             <a href={`tel:${provision.twilio_phone_number}`}>{provision.twilio_phone_number}</a>
             <button type="button" className="provision-copy-btn" onClick={handleCopy}>
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? t('myRequests.copied') : t('myRequests.copy')}
             </button>
           </span>
         )}
@@ -47,30 +49,32 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
 
       {(provision.status === 'pending' || provision.status === 'provisioning') && (
         <p className="provision-message">
-          Setting up your AI receptionist for {provision.business_name} — usually ready within a few minutes.
+          {t('myRequests.settingUp', { businessName: provision.business_name })}
         </p>
       )}
 
       {provision.status === 'failed' && (
         <p className="provision-message">
-          We hit a snag setting this up for {provision.business_name} — we're on it. Need help sooner?{' '}
-          <a href="mailto:support@2fronts.com">Contact support</a>.
+          {t('myRequests.failedPrefix', { businessName: provision.business_name })}{' '}
+          <a href="mailto:support@2fronts.com">{t('myRequests.contactSupport')}</a>.
         </p>
       )}
 
       {provision.status === 'active' && provision.twilio_phone_number && (
         <>
           <p className="provision-message">
-            {provision.business_name} is live — calls to {provision.twilio_phone_number} are now answered by your AI
-            receptionist.
+            {t('myRequests.active', {
+              businessName: provision.business_name,
+              phone: provision.twilio_phone_number,
+            })}
           </p>
           <details className="provision-forwarding">
-            <summary>Want missed calls forwarded too? This step is optional — your new number works either way.</summary>
+            <summary>{t('myRequests.forwardingSummary')}</summary>
             <ol>
-              <li>Open the phone app on your existing business phone.</li>
-              <li>Find the call forwarding setting (sometimes called "forward when unanswered" or "forward when busy").</li>
-              <li>Enter your new number, {provision.twilio_phone_number}, as the forwarding destination.</li>
-              <li>Save. Now if you miss a call on your old number, your AI receptionist picks it up.</li>
+              <li>{t('myRequests.forwardingStep1')}</li>
+              <li>{t('myRequests.forwardingStep2')}</li>
+              <li>{t('myRequests.forwardingStep3', { phone: provision.twilio_phone_number })}</li>
+              <li>{t('myRequests.forwardingStep4')}</li>
             </ol>
           </details>
         </>
@@ -80,6 +84,7 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
 }
 
 export function MyRequestsPage() {
+  const { t } = useTranslation()
   const [requests, setRequests] = useState<AutomationRequestWithAutomation[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -93,12 +98,12 @@ export function MyRequestsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Meine Anfragen</h1>
+        <h1>{t('myRequests.title')}</h1>
       </div>
-      {loading && <p>Deine Anfragen werden geladen…</p>}
+      {loading && <p>{t('myRequests.loading')}</p>}
       {!loading && requests.length === 0 && (
         <div className="empty-state">
-          <p>Du hast noch keine Automatisierungen angefragt.</p>
+          <p>{t('myRequests.empty')}</p>
         </div>
       )}
       {!loading && requests.map((request) => {
@@ -113,7 +118,7 @@ export function MyRequestsPage() {
         return (
           <Card key={request.id} className="my-requests-card">
             <Badge tone={STATUS_TONE[request.status]}>{request.status}</Badge>
-            <h3>{automation?.name ?? 'Automatisierung'}</h3>
+            <h3>{automation?.name ?? t('common.automationFallback')}</h3>
             {request.status === 'delivered' && request.delivery_notes && <p>{request.delivery_notes}</p>}
             {provision && <ProvisionPanel provision={provision} />}
           </Card>

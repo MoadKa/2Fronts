@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listAllAutomations, createAutomation, updateAutomation, type NewAutomationInput } from '../../services/AutomationService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -11,6 +12,7 @@ const EMPTY_FORM: NewAutomationInput = { name: '', summary: '', outcome_descript
 
 export function AdminCatalogPage() {
   const { showToast } = useToast()
+  const { t } = useTranslation()
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<NewAutomationInput>(EMPTY_FORM)
@@ -35,7 +37,7 @@ export function AdminCatalogPage() {
   async function handleCreate() {
     await createAutomation(form)
     setForm(EMPTY_FORM)
-    showToast('Automation added')
+    showToast(t('adminCatalog.automationAdded'))
     await refresh()
   }
 
@@ -44,30 +46,30 @@ export function AdminCatalogPage() {
     await refresh()
   }
 
-  if (loading) return <p>Loading catalog...</p>
+  if (loading) return <p>{t('adminCatalog.loading')}</p>
 
   return (
     <div>
       <div className="page-header">
-        <h1>Admin catalog</h1>
+        <h1>{t('adminCatalog.title')}</h1>
       </div>
 
       <Card>
-        <h3>Add automation</h3>
-        <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <Input label="Summary" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
-        <Input label="Outcome description" value={form.outcome_description} onChange={(e) => setForm({ ...form, outcome_description: e.target.value })} />
-        <Input label="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-        <Input label="Price (cents)" type="number" value={form.price_cents} onChange={(e) => setForm({ ...form, price_cents: Number(e.target.value) })} />
-        <Button onClick={handleCreate}>Add automation</Button>
+        <h3>{t('adminCatalog.addAutomation')}</h3>
+        <Input label={t('adminCatalog.name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <Input label={t('adminCatalog.summary')} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
+        <Input label={t('adminCatalog.outcomeDescription')} value={form.outcome_description} onChange={(e) => setForm({ ...form, outcome_description: e.target.value })} />
+        <Input label={t('adminCatalog.category')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+        <Input label={t('adminCatalog.priceCents')} type="number" value={form.price_cents} onChange={(e) => setForm({ ...form, price_cents: Number(e.target.value) })} />
+        <Button onClick={handleCreate}>{t('adminCatalog.addAutomation')}</Button>
       </Card>
 
       {automations.map((automation) => (
         <Card key={automation.id} className="my-requests-card">
-          <Badge tone={automation.is_active ? 'success' : 'neutral'}>{automation.is_active ? 'active' : 'inactive'}</Badge>
+          <Badge tone={automation.is_active ? 'success' : 'neutral'}>{automation.is_active ? t('adminCatalog.active') : t('adminCatalog.inactive')}</Badge>
           <h3>{automation.name}</h3>
           <Button variant="secondary" onClick={() => toggleActive(automation)}>
-            {automation.is_active ? 'Deactivate' : 'Activate'}
+            {automation.is_active ? t('adminCatalog.deactivate') : t('adminCatalog.activate')}
           </Button>
         </Card>
       ))}

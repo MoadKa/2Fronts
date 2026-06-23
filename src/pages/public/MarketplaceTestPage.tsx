@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -49,6 +50,7 @@ function useNoindexMeta() {
 export function MarketplaceTestPage() {
   useNoindexMeta()
   const { showToast } = useToast()
+  const { t } = useTranslation()
 
   const [email, setEmail] = useState('')
   const [businessName, setBusinessName] = useState('')
@@ -67,8 +69,8 @@ export function MarketplaceTestPage() {
 
     const trimmedEmail = email.trim()
     const trimmedBusinessName = businessName.trim()
-    setEmailError(trimmedEmail === '' ? 'Email is required' : '')
-    setBusinessNameError(trimmedBusinessName === '' ? 'Business name is required' : '')
+    setEmailError(trimmedEmail === '' ? t('marketplaceTest.emailRequired') : '')
+    setBusinessNameError(trimmedBusinessName === '' ? t('marketplaceTest.businessNameRequired') : '')
     if (trimmedEmail === '' || trimmedBusinessName === '') return
 
     setSubmitting(true)
@@ -78,12 +80,12 @@ export function MarketplaceTestPage() {
         businessName: trimmedBusinessName,
         automationOfInterest,
       })
-      showToast("Thanks — we'll be in touch", 'success')
+      showToast(t('marketplaceTest.thanks'), 'success')
       setEmail('')
       setBusinessName('')
       setAutomationOfInterest('')
     } catch {
-      showToast('Could not send — please try again', 'error')
+      showToast(t('marketplaceTest.sendError'), 'error')
     } finally {
       setSubmitting(false)
     }
@@ -91,40 +93,40 @@ export function MarketplaceTestPage() {
 
   return (
     <div>
-      <h2>Automations</h2>
+      <h2>{t('marketplaceTest.automations')}</h2>
       {LISTINGS.map((listing) => (
         <Card key={listing.id}>
           <h3>{listing.name}</h3>
           <p>{listing.outcomeDescription}</p>
-          {listing.featured && <Badge tone="success">Live</Badge>}
+          {listing.featured && <Badge tone="success">{t('marketplaceTest.live')}</Badge>}
           <Button variant="secondary" type="button" onClick={() => handleInterested(listing.name)}>
-            Interested? Tell us
+            {t('marketplaceTest.interested')}
           </Button>
         </Card>
       ))}
 
       <form onSubmit={handleSubmit}>
         <Input
-          label="Email"
+          label={t('marketplaceTest.email')}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={emailError}
         />
         <Input
-          label="Business name"
+          label={t('marketplaceTest.businessName')}
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
           error={businessNameError}
         />
         <Input
-          label="Automation of interest"
-          placeholder="Click 'Interested?' on a listing above, or describe what you're looking for"
+          label={t('marketplaceTest.automationOfInterest')}
+          placeholder={t('marketplaceTest.automationOfInterestPlaceholder')}
           value={automationOfInterest}
           onChange={(e) => setAutomationOfInterest(e.target.value)}
         />
         <Button type="submit" disabled={submitting}>
-          Request an automation
+          {t('marketplaceTest.requestAutomation')}
         </Button>
       </form>
     </div>

@@ -86,7 +86,7 @@ describe('MyRequestsPage', () => {
     vi.mocked(listMyRequests).mockResolvedValue([withProvision('pending')])
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
-    expect(screen.getByText(/setting up your ai receptionist/i)).toBeInTheDocument()
+    expect(screen.getByText(/richten deinen KI-Telefonassistenten/i)).toBeInTheDocument()
     expect(screen.queryByText('+15551234567')).not.toBeInTheDocument()
   })
 
@@ -94,7 +94,7 @@ describe('MyRequestsPage', () => {
     vi.mocked(listMyRequests).mockResolvedValue([withProvision('failed')])
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
-    const message = screen.getByText(/hit a snag/i)
+    const message = screen.getByText(/etwas schiefgelaufen/i)
     expect(message).toBeInTheDocument()
     expect(message.textContent).not.toMatch(/failed|error|status code/i)
     const mailLink = screen.getByText(/support/i, { selector: 'a' })
@@ -122,7 +122,7 @@ describe('MyRequestsPage', () => {
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /copy/i }))
+    fireEvent.click(screen.getByRole('button', { name: /kopieren/i }))
     expect(writeText).toHaveBeenCalledWith('+15551234567')
   })
 
@@ -131,7 +131,7 @@ describe('MyRequestsPage', () => {
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
 
-    const disclosure = screen.getByText(/forwarding destination/i).closest('details')
+    const disclosure = screen.getByText(/Weiterleitungsziel/i).closest('details')
     expect(disclosure).not.toBeNull()
     expect((disclosure as HTMLDetailsElement).open).toBe(false)
 
