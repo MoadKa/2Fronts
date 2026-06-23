@@ -140,6 +140,22 @@
     "confirm": "Looks good, let's go",
     "adjustColumns": "Adjust columns"
   },
+  "slackConnect": {
+    "loading": "Loading your Slack channels…",
+    "title": "Which channel should we post leads to?",
+    "body": "Pick the channel where your new lead notifications should appear. You can only choose channels your connected Slack workspace gives us access to.",
+    "emptyBody": "We couldn't find any channels we can post to. Make sure the 2Fronts app is added to at least one channel in Slack, then try again.",
+    "retry": "Try again",
+    "confirm": "Use this channel",
+    "saving": "Saving…",
+    "successTitle": "All set!",
+    "successBody": "New leads will now post to #{{channel}}.",
+    "errors": {
+      "connection": "Your Slack connection has expired. Please reconnect Slack and try again.",
+      "permission": "We don't have permission to read your channels. Re-add the 2Fronts app in Slack and try again.",
+      "generic": "Your Slack channels couldn't be loaded. Please try again."
+    }
+  },
   "adminCatalog": {
     "loading": "Loading catalog…",
     "title": "Admin catalog",

@@ -140,6 +140,22 @@
     "confirm": "Passt, los geht's",
     "adjustColumns": "Spalten anpassen"
   },
+  "slackConnect": {
+    "loading": "Deine Slack-Kanäle werden geladen…",
+    "title": "In welchen Kanal sollen wir Leads posten?",
+    "body": "Wähle den Kanal, in dem deine neuen Lead-Benachrichtigungen erscheinen sollen. Wählbar sind nur Kanäle, auf die uns dein verbundener Slack-Workspace Zugriff gibt.",
+    "emptyBody": "Wir konnten keine Kanäle finden, in die wir posten dürfen. Bitte füge die 2Fronts-App in Slack mindestens einem Kanal hinzu und versuche es erneut.",
+    "retry": "Erneut versuchen",
+    "confirm": "Diesen Kanal verwenden",
+    "saving": "Wird gespeichert…",
+    "successTitle": "Alles erledigt!",
+    "successBody": "Neue Leads werden ab jetzt in #{{channel}} gepostet.",
+    "errors": {
+      "connection": "Deine Slack-Verbindung ist abgelaufen. Bitte verbinde Slack erneut und versuche es noch einmal.",
+      "permission": "Wir haben keine Berechtigung, deine Kanäle zu lesen. Bitte füge die 2Fronts-App in Slack erneut hinzu und versuche es noch einmal.",
+      "generic": "Deine Slack-Kanäle konnten nicht geladen werden. Bitte versuche es erneut."
+    }
+  },
   "adminCatalog": {
     "loading": "Katalog wird geladen…",
     "title": "Admin-Katalog",

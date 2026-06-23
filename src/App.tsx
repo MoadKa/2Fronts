@@ -11,7 +11,7 @@ import { CheckoutResultPage } from './pages/public/CheckoutResultPage'
 import { MarketplaceTestPage } from './pages/public/MarketplaceTestPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { MyRequestsPage } from './pages/customer/MyRequestsPage'
-import { MappingConfirmationPage } from './pages/customer/MappingConfirmationPage'
+import { ConnectConfirmRoute } from './pages/customer/ConnectConfirmRoute'
 import { AdminCatalogPage } from './pages/admin/AdminCatalogPage'
 import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
 import { WaitlistLandingPage } from './pages/public/WaitlistLandingPage'
@@ -40,7 +40,7 @@ export default function App() {
                 <Route path="/marketplace-test" element={<MarketplaceTestPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route path="/my-requests" element={<MyRequestsPage />} />
-                  <Route path="/connect/:provisionId/confirm" element={<MappingConfirmationPage />} />
+                  <Route path="/connect/:provisionId/confirm" element={<ConnectConfirmRoute />} />
                 </Route>
                 <Route element={<ProtectedRoute requireRole="admin" />}>
                   <Route path="/admin/automations" element={<AdminCatalogPage />} />
