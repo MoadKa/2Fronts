@@ -189,10 +189,42 @@
   },
   "appHome": {
     "title": "2Fronts",
-    "comingSoon": "Bald verfügbar."
+    "eyebrow": "Automatisierungs-Marktplatz für kleine Unternehmen",
+    "heroTitle": "Kaufe eine fertige Automatisierung. In unter einer Minute live.",
+    "heroSub": "2Fronts ist ein Marktplatz für fertige Geschäfts-Automatisierungen. Wähle eine aus, bezahle sicher, verbinde deine Tools — Google Sheets, Slack, dein Telefon — und sie läuft los. Kein Einrichtungsprojekt, keine Entwickler.",
+    "browseAutomations": "Automatisierungen ansehen",
+    "signInCta": "Anmelden",
+    "whatTitle": "Was 2Fronts macht",
+    "whatBody": "Jede Automatisierung liefert ein echtes Ergebnis — ein verpasster Anruf wird per SMS zurückgeholt und gebucht, ein neuer Lead landet direkt in deiner Tabelle, eine Benachrichtigung erscheint im Slack deines Teams. Du verbindest deine eigenen Konten mit einem einzigen Autorisierungsschritt und behältst die Kontrolle über deine Daten.",
+    "feature1Title": "Verbinde dein Google-Konto",
+    "feature1Body": "Mit deiner Erlaubnis schreibt 2Fronts neue Leads in ein Google Sheet deiner Wahl. Wir fügen nur neue Zeilen hinzu — wir lesen oder ändern deine bestehenden Daten außerhalb der bestätigten Spalten nicht.",
+    "feature2Title": "Einsatzbereit in unter einer Minute",
+    "feature2Body": "Autorisieren, die Spalten-Zuordnung einmal bestätigen, und die Automatisierung läuft. Keine Onboarding-Gespräche, keine Einrichtungsgebühren.",
+    "feature3Title": "Du behältst die Kontrolle",
+    "feature3Body": "Jederzeit trennbar. Deine Zugriffstoken sind verschlüsselt und werden nie im Browser angezeigt. Wir nutzen Google-Daten ausschließlich, um die gekaufte Automatisierung bereitzustellen.",
+    "privacyLine": "Wir verarbeiten deine Daten gemäß unserer",
+    "privacyLink": "Datenschutzerklärung",
+    "signInPrompt": "Bereits Kunde oder zum Testen eingeladen?",
+    "footerNote": "2Fronts richtet sich an Geschäftskunden. Verkäufe erfolgen B2B."
   },
   "waitlist": {
     "title": "2Fronts",
-    "comingSoon": "Bald verfügbar."
+    "eyebrow": "Automatisierungen, die in unter einer Minute einsatzbereit sind",
+    "heroTitle": "Schluss mit der Fleißarbeit. Kauf die Automatisierung.",
+    "heroSub": "2Fronts ist ein Marktplatz mit fertigen Automatisierungen für kleine Unternehmen — Rückgewinnung verpasster Anrufe, Lead-Erfassung in deiner Tabelle, Slack-Benachrichtigungen und mehr. Verbinde deine Tools mit einem Klick, und die Arbeit erledigt sich von selbst. Trag dich in die Warteliste ein und sichere dir frühen Zugang.",
+    "emailLabel": "Geschäftliche E-Mail",
+    "emailPlaceholder": "du@firma.de",
+    "submit": "Auf die Warteliste",
+    "submitting": "Wird eingetragen…",
+    "emailRequired": "Bitte gib deine E-Mail ein",
+    "emailInvalid": "Bitte gib eine gültige E-Mail-Adresse ein",
+    "success": "Du stehst auf der Liste — wir melden uns.",
+    "alreadySubscribed": "Du stehst bereits auf der Liste — danke!",
+    "error": "Etwas ist schiefgelaufen — bitte erneut versuchen.",
+    "benefit1": "Fertig statt Bauprojekt",
+    "benefit2": "Verbindet sich mit deinen bestehenden Tools",
+    "benefit3": "Sichere Zahlung über Stripe",
+    "privacyNote": "Wir schreiben dir nur zum frühen Zugang. Siehe unsere",
+    "privacyLink": "Datenschutzerklärung"
   }
 }

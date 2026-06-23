@@ -1,0 +1,86 @@
+.app-home-hero {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-md);
+  margin-bottom: var(--space-2xl);
+}
+
+.app-home-eyebrow {
+  display: inline-block;
+  margin-bottom: var(--space-md);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.app-home-hero h1 {
+  margin: 0 auto var(--space-md);
+  max-width: 20ch;
+}
+
+.app-home-sub {
+  margin: 0 auto var(--space-xl);
+  max-width: 60ch;
+  color: var(--color-text-muted);
+}
+
+.app-home-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+}
+
+.app-home-what {
+  max-width: 64ch;
+  margin: 0 auto var(--space-2xl);
+  text-align: center;
+}
+
+.app-home-what p {
+  color: var(--color-text-muted);
+}
+
+.app-home-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-2xl);
+}
+
+.app-home-feature {
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, var(--color-background));
+}
+
+.app-home-feature h3 {
+  margin-top: 0;
+}
+
+.app-home-feature p {
+  margin-bottom: 0;
+  color: var(--color-text-muted);
+}
+
+.app-home-signin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted, rgba(37, 99, 235, 0.06));
+  text-align: center;
+}
+
+.app-home-privacy {
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.app-home-note {
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
