@@ -7,6 +7,7 @@ import {
   DEFAULT_LEAD_FIELDS,
   proposeColumnMapping,
 } from './columnMapping.ts'
+import { slackConnector, type SlackFetcher } from './slackConnector.ts'
 
 // A connector is the unit of "reach into one tool and make the automation
 // real". The whole pipeline is generic over this interface; adding a tool is
@@ -44,6 +45,9 @@ export interface ConnectorDeps {
   // tests. Both default to the real implementations when omitted.
   sheetsFetcher?: SheetsFetcher
   complete?: ColumnMappingDeps['complete']
+  // Injectable Slack Web API fetch for the slack_notifications connector, so its
+  // configure/run run with no network in tests (mirrors sheetsFetcher).
+  slackFetcher?: SlackFetcher
 }
 
 export interface ProvisionContext {
@@ -263,6 +267,7 @@ export const googleSheetsConnector: Connector = {
 const defaultRegistry: Record<string, Connector> = {
   [twilioMissedCallConnector.connectorType]: twilioMissedCallConnector,
   [googleSheetsConnector.connectorType]: googleSheetsConnector,
+  [slackConnector.connectorType]: slackConnector,
 }
 
 // Dispatch by connector_type. A null/undefined type (legacy rows written before

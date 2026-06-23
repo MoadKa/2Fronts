@@ -15,17 +15,28 @@ export async function createRequest(automationId: string): Promise<AutomationReq
   return data as AutomationRequest
 }
 
+// Create the provision row for a paid request. Its connector_type DERIVES from
+// the purchased automation (passed in) instead of defaulting to the Twilio
+// missed-call product — that is what makes Sheets, Slack, and Twilio all
+// purchasable. The Twilio-only business details (name / booking link) are only
+// written for the missed-call connector; other connectors carry their settings
+// in `config`, populated later at connect/confirm time.
 export async function createProvisionDetails(
   requestId: string,
-  details: { businessName: string; bookingLink: string; businessHours?: string }
+  connectorType: string,
+  details?: { businessName?: string; bookingLink?: string; businessHours?: string }
 ): Promise<void> {
-  const { error } = await supabase.from('automation_provisions').insert({
+  const row: Record<string, unknown> = {
     request_id: requestId,
-    business_name: details.businessName,
-    booking_link: details.bookingLink,
-    business_hours: details.businessHours ?? null,
+    connector_type: connectorType,
     status: 'pending',
-  })
+  }
+  if (connectorType === 'twilio_missed_call') {
+    row.business_name = details?.businessName ?? ''
+    row.booking_link = details?.bookingLink ?? ''
+    row.business_hours = details?.businessHours ?? null
+  }
+  const { error } = await supabase.from('automation_provisions').insert(row)
   if (error) throw error
 }
 
