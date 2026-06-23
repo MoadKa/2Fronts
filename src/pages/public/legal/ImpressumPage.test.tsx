@@ -13,11 +13,11 @@ afterEach(() => {
 })
 
 describe('Legal pages render publicly (DE)', () => {
-  it('Impressum renders the German heading and is marked DRAFT', () => {
+  it('Impressum renders the German heading without the DRAFT banner', () => {
     i18n.changeLanguage('de')
     render(<ImpressumPage />)
     expect(screen.getByRole('heading', { level: 1, name: 'Impressum' })).toBeInTheDocument()
-    expect(screen.getByText(/ENTWURF/)).toBeInTheDocument()
+    expect(screen.queryByText(/ENTWURF/)).toBeNull()
     // Real provider data from the eRecht24 Impressum is filled in (appears in
     // both the Diensteanbieter and Verantwortlich sections).
     expect(screen.getAllByText(/Moad Kaoukab/).length).toBeGreaterThan(0)
@@ -49,7 +49,7 @@ describe('Legal pages render publicly (EN)', () => {
     i18n.changeLanguage('en')
     render(<ImpressumPage />)
     expect(screen.getByRole('heading', { level: 1, name: 'Imprint' })).toBeInTheDocument()
-    expect(screen.getByText(/DRAFT/)).toBeInTheDocument()
+    expect(screen.queryByText(/DRAFT/)).toBeNull()
   })
 
   it('Datenschutz renders in English and keeps the Google Limited Use clause verbatim', () => {

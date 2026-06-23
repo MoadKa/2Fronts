@@ -7,7 +7,7 @@ import { LegalLayout, LegalSection } from './LegalLayout'
 export function ImpressumPage() {
   const { t } = useTranslation()
   return (
-    <LegalLayout title={t('legal.impressum.title')} draft>
+    <LegalLayout title={t('legal.impressum.title')}>
       <p>{t('legal.impressum.intro')}</p>
 
       <LegalSection

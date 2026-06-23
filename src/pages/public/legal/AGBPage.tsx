@@ -7,7 +7,7 @@ import { LegalLayout, LegalSection } from './LegalLayout'
 export function AGBPage() {
   const { t } = useTranslation()
   return (
-    <LegalLayout title={t('legal.agb.title')} draft>
+    <LegalLayout title={t('legal.agb.title')}>
       <p>{t('legal.agb.intro')}</p>
 
       <LegalSection heading={t('legal.agb.scopeHeading')} body={t('legal.agb.scopeBody')} />

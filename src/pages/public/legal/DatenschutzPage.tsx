@@ -7,7 +7,7 @@ import { LegalLayout, LegalSection } from './LegalLayout'
 export function DatenschutzPage() {
   const { t } = useTranslation()
   return (
-    <LegalLayout title={t('legal.datenschutz.title')} draft>
+    <LegalLayout title={t('legal.datenschutz.title')}>
       <p>{t('legal.datenschutz.intro')}</p>
 
       <LegalSection
