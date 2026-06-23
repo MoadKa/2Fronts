@@ -289,10 +289,42 @@
   },
   "appHome": {
     "title": "2Fronts",
-    "comingSoon": "Coming soon."
+    "eyebrow": "Automation marketplace for small businesses",
+    "heroTitle": "Buy a working automation. Live in under a minute.",
+    "heroSub": "2Fronts is a marketplace for ready-made business automations. Pick one, pay securely, connect your tools — Google Sheets, Slack, your phone — and it starts working. No setup project, no developers.",
+    "browseAutomations": "Browse automations",
+    "signInCta": "Sign in",
+    "whatTitle": "What 2Fronts does",
+    "whatBody": "Each automation captures a real outcome — a missed call texted back and booked, a new lead written straight into your spreadsheet, a notification posted to your team's Slack. You connect your own accounts with a single authorization step and stay in control of your data.",
+    "feature1Title": "Connect your Google account",
+    "feature1Body": "With your permission, 2Fronts writes new leads into a Google Sheet you choose. We only append new rows — we never read or change your existing data beyond the columns you confirm.",
+    "feature2Title": "Installs in under a minute",
+    "feature2Body": "Authorize, confirm the column mapping once, and the automation runs. No onboarding calls, no implementation fees.",
+    "feature3Title": "You stay in control",
+    "feature3Body": "Disconnect any time. Your access tokens are encrypted and never shown in the browser. We use Google data only to deliver the automation you bought.",
+    "privacyLine": "We handle your data in line with our",
+    "privacyLink": "Privacy Policy",
+    "signInPrompt": "Already a customer or invited to test?",
+    "footerNote": "2Fronts is operated for business customers. Sales are B2B."
   },
   "waitlist": {
     "title": "2Fronts",
-    "comingSoon": "Coming soon."
+    "eyebrow": "Automations that install in under a minute",
+    "heroTitle": "Stop doing the busywork. Buy the automation.",
+    "heroSub": "2Fronts is a marketplace of ready-made automations for small businesses — missed-call recovery, lead capture into your spreadsheet, Slack notifications and more. Connect your tools in one click and the work runs itself. Join the waitlist to get early access.",
+    "emailLabel": "Work email",
+    "emailPlaceholder": "you@company.com",
+    "submit": "Join the waitlist",
+    "submitting": "Joining…",
+    "emailRequired": "Please enter your email",
+    "emailInvalid": "Please enter a valid email address",
+    "success": "You're on the list — we'll be in touch.",
+    "alreadySubscribed": "You're already on the list — thanks!",
+    "error": "Something went wrong — please try again.",
+    "benefit1": "Ready-made, not a build project",
+    "benefit2": "Connects to your existing tools",
+    "benefit3": "Secure payment via Stripe",
+    "privacyNote": "We'll only email you about early access. See our",
+    "privacyLink": "Privacy Policy"
   }
 }
