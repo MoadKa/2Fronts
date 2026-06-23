@@ -1,3 +1,9 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 .app-nav {
   display: flex;
   align-items: center;

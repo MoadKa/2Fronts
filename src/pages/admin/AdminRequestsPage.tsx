@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listAllRequests, updateRequestStatus, retryProvisioning } from '../../services/RequestService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -25,6 +26,7 @@ const ALL_STATUSES: RequestStatus[] = [
 
 export function AdminRequestsPage() {
   const { showToast } = useToast()
+  const { t } = useTranslation()
   const [requests, setRequests] = useState<AutomationRequestWithAutomation[]>([])
   const [loading, setLoading] = useState(true)
   const [notesByRequest, setNotesByRequest] = useState<Record<string, string>>({})
@@ -51,13 +53,13 @@ export function AdminRequestsPage() {
     const nextStatus = NEXT_STATUS[request.status]
     if (!nextStatus) return
     await updateRequestStatus(request.id, nextStatus, notesByRequest[request.id])
-    showToast(`Request marked ${nextStatus}`)
+    showToast(t('adminRequests.requestMarked', { status: nextStatus }))
     await refresh()
   }
 
   async function retry(request: AutomationRequestWithAutomation) {
     const { status } = await retryProvisioning(request.id)
-    showToast(`Provisioning ${status}`)
+    showToast(t('adminRequests.provisioning', { status }))
     await refresh()
   }
 
@@ -69,16 +71,16 @@ export function AdminRequestsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Admin requests</h1>
+        <h1>{t('adminRequests.title')}</h1>
       </div>
       <div className="input-field" style={{ maxWidth: 240 }}>
-        <label htmlFor="status-filter">Status</label>
+        <label htmlFor="status-filter">{t('adminRequests.status')}</label>
         <select
           id="status-filter"
           value={statusFilter}
           onChange={(e) => handleStatusFilterChange(e.target.value)}
         >
-          <option value="">All</option>
+          <option value="">{t('adminRequests.all')}</option>
           {ALL_STATUSES.map((status) => (
             <option key={status} value={status}>
               {status}
@@ -86,8 +88,8 @@ export function AdminRequestsPage() {
           ))}
         </select>
       </div>
-      {loading && <p>Loading requests...</p>}
-      {!loading && requests.length === 0 && <p>No requests yet.</p>}
+      {loading && <p>{t('adminRequests.loading')}</p>}
+      {!loading && requests.length === 0 && <p>{t('adminRequests.empty')}</p>}
       {!loading && requests.map((request) => {
         const nextStatus = NEXT_STATUS[request.status]
         const provision = request.automation.requires_provisioning
@@ -104,18 +106,18 @@ export function AdminRequestsPage() {
                   <span> {provision.twilio_phone_number}</span>
                 )}
                 {provision.status === 'failed' && (
-                  <Button onClick={() => retry(request)}>Retry</Button>
+                  <Button onClick={() => retry(request)}>{t('adminRequests.retry')}</Button>
                 )}
               </p>
             )}
             {nextStatus === 'delivered' && (
               <Input
-                label="Delivery notes"
+                label={t('adminRequests.deliveryNotes')}
                 value={notesByRequest[request.id] ?? ''}
                 onChange={(e) => setNotesByRequest({ ...notesByRequest, [request.id]: e.target.value })}
               />
             )}
-            {nextStatus && <Button onClick={() => advance(request)}>Mark {nextStatus}</Button>}
+            {nextStatus && <Button onClick={() => advance(request)}>{t('adminRequests.markStatus', { status: nextStatus })}</Button>}
           </Card>
         )
       })}

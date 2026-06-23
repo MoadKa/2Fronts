@@ -40,7 +40,7 @@ describe('AdminRequestsPage', () => {
     vi.mocked(listAllRequests).mockResolvedValue([{ ...baseRequest, status: 'paid' }])
     renderPage()
     await waitFor(() => expect(screen.getByText('Invoice Sync')).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'Mark in_progress' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Als in_progress markieren' })).toBeInTheDocument()
   })
 
   it('shows a delivery notes field and advances to delivered with notes', async () => {
@@ -48,8 +48,8 @@ describe('AdminRequestsPage', () => {
     vi.mocked(updateRequestStatus).mockResolvedValue({ ...baseRequest, status: 'delivered' })
     renderPage()
     await waitFor(() => expect(screen.getByText('Invoice Sync')).toBeInTheDocument())
-    fireEvent.change(screen.getByLabelText('Delivery notes'), { target: { value: 'Connected Gmail + HubSpot' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Mark delivered' }))
+    fireEvent.change(screen.getByLabelText('Lieferhinweise'), { target: { value: 'Connected Gmail + HubSpot' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Als delivered markieren' }))
     await waitFor(() =>
       expect(updateRequestStatus).toHaveBeenCalledWith('req-1', 'delivered', 'Connected Gmail + HubSpot')
     )
@@ -65,7 +65,7 @@ describe('AdminRequestsPage', () => {
   it('shows an empty state when there are no requests', async () => {
     vi.mocked(listAllRequests).mockResolvedValue([])
     renderPage()
-    await waitFor(() => expect(screen.getByText('No requests yet.')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Noch keine Anfragen.')).toBeInTheDocument())
   })
 
   it('re-fetches with the selected status filter', async () => {
@@ -86,7 +86,7 @@ describe('AdminRequestsPage', () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Invoice Sync')).toBeInTheDocument())
     expect(screen.queryByText('failed')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).not.toBeInTheDocument()
   })
 
   it('shows the provisioning status for a provisioned request', async () => {
@@ -96,7 +96,7 @@ describe('AdminRequestsPage', () => {
     renderPage()
     await waitFor(() => expect(screen.getByText('Invoice Sync')).toBeInTheDocument())
     expect(screen.getByText('provisioning')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).not.toBeInTheDocument()
   })
 
   it('shows the twilio phone number when provisioning is active', async () => {
@@ -127,9 +127,9 @@ describe('AdminRequestsPage', () => {
       ])
     vi.mocked(retryProvisioning).mockResolvedValue({ status: 'active' })
     renderPage()
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Erneut versuchen' })).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut versuchen' }))
 
     await waitFor(() => expect(retryProvisioning).toHaveBeenCalledWith('req-1'))
     await waitFor(() => expect(screen.getByText('active')).toBeInTheDocument())

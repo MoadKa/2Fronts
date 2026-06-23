@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type SVGProps } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { listActiveAutomations } from '../../services/AutomationService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -71,6 +72,7 @@ function RocketIcon(props: IconProps) {
 }
 
 export function CatalogPage() {
+  const { t } = useTranslation()
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -105,18 +107,15 @@ export function CatalogPage() {
           <span className="blob blob-3" />
         </div>
         <div className="hero-content">
-          <span className="hero-eyebrow">Automatisierungs-Marktplatz für Teams mit wenig Zeit</span>
-          <h1>Nicht selbst bauen. Das Ergebnis kaufen.</h1>
-          <p className="hero-sub">
-            Entdecke fertige Automatisierungen von Spezialisten, bezahle sicher und erhalte sie direkt
-            in deinem System — ohne Beratungsgespräche, ohne Rätselraten.
-          </p>
+          <span className="hero-eyebrow">{t('catalog.heroEyebrow')}</span>
+          <h1>{t('catalog.heroTitle')}</h1>
+          <p className="hero-sub">{t('catalog.heroSub')}</p>
           <div className="hero-actions">
             <a href="#catalog" className="btn btn-primary">
-              Automatisierungen entdecken
+              {t('catalog.discoverAutomations')}
             </a>
             <a href="#how-it-works" className="hero-link">
-              So funktioniert's ↓
+              {t('catalog.howItWorksLink')}
             </a>
           </div>
         </div>
@@ -128,29 +127,29 @@ export function CatalogPage() {
             <span className="trust-icon">
               <ShieldCheckIcon />
             </span>
-            <h3>Ergebnis statt Aufwand</h3>
-            <p>Du zahlst für ein funktionierendes Ergebnis — nicht für Stunden oder vage Versprechen.</p>
+            <h3>{t('catalog.trust1Title')}</h3>
+            <p>{t('catalog.trust1Body')}</p>
           </div>
           <div className="trust-item">
             <span className="trust-icon">
               <LockIcon />
             </span>
-            <h3>Sichere Zahlung über Stripe</h3>
-            <p>Jeder Kauf läuft über verschlüsselte, PCI-konforme Zahlungsabwicklung.</p>
+            <h3>{t('catalog.trust2Title')}</h3>
+            <p>{t('catalog.trust2Body')}</p>
           </div>
           <div className="trust-item">
             <span className="trust-icon">
               <SparkleIcon />
             </span>
-            <h3>Von Spezialisten gebaut</h3>
-            <p>Jede Automatisierung wird von Profis entwickelt und getestet, die das täglich machen.</p>
+            <h3>{t('catalog.trust3Title')}</h3>
+            <p>{t('catalog.trust3Body')}</p>
           </div>
         </section>
       </Reveal>
 
       <section id="how-it-works" className="steps-section">
         <Reveal>
-          <h2>So funktioniert's</h2>
+          <h2>{t('catalog.howItWorks')}</h2>
         </Reveal>
         <div className="steps-grid">
           <Reveal delay={0}>
@@ -159,8 +158,8 @@ export function CatalogPage() {
               <span className="trust-icon">
                 <SearchIcon />
               </span>
-              <h3>Die passende Automatisierung finden</h3>
-              <p>Stöbere nach Kategorie und Ergebnis, bis du die Automatisierung findest, die zu deinem Ablauf passt.</p>
+              <h3>{t('catalog.step1Title')}</h3>
+              <p>{t('catalog.step1Body')}</p>
             </div>
           </Reveal>
           <Reveal delay={80}>
@@ -169,8 +168,8 @@ export function CatalogPage() {
               <span className="trust-icon">
                 <CardIcon />
               </span>
-              <h3>Anfragen und sicher bezahlen</h3>
-              <p>Stelle eine Anfrage und bezahle über Stripe — ohne Anrufe, ohne langes Hin und Her.</p>
+              <h3>{t('catalog.step2Title')}</h3>
+              <p>{t('catalog.step2Body')}</p>
             </div>
           </Reveal>
           <Reveal delay={160}>
@@ -179,8 +178,8 @@ export function CatalogPage() {
               <span className="trust-icon">
                 <RocketIcon />
               </span>
-              <h3>Geliefert und nachverfolgbar</h3>
-              <p>Wir richten alles in deinem System ein — den Fortschritt siehst du jederzeit unter „Meine Anfragen".</p>
+              <h3>{t('catalog.step3Title')}</h3>
+              <p>{t('catalog.step3Body')}</p>
             </div>
           </Reveal>
         </div>
@@ -188,8 +187,8 @@ export function CatalogPage() {
 
       <section id="catalog" className="catalog-section">
         <div className="page-header">
-          <h2>Automatisierungen entdecken</h2>
-          <p>Sofort einsatzbereite Automatisierungen aus unserem Katalog, geliefert an dein Team.</p>
+          <h2>{t('catalog.catalogSectionTitle')}</h2>
+          <p>{t('catalog.catalogSectionSub')}</p>
         </div>
 
         {categories.length >= 2 && (
@@ -199,7 +198,7 @@ export function CatalogPage() {
               className={activeCategory === '' ? 'chip chip-active' : 'chip'}
               onClick={() => setActiveCategory('')}
             >
-              Alle
+              {t('catalog.filterAll')}
             </button>
             {categories.map((category) => (
               <button
@@ -214,15 +213,15 @@ export function CatalogPage() {
           </div>
         )}
 
-        {loading && <p>Katalog wird geladen…</p>}
+        {loading && <p>{t('catalog.loadingCatalog')}</p>}
         {!loading && loadError && (
           <div className="empty-state">
-            <p>Der Katalog konnte gerade nicht geladen werden. Bitte lade die Seite neu.</p>
+            <p>{t('catalog.loadError')}</p>
           </div>
         )}
         {!loading && !loadError && automations.length === 0 && (
           <div className="empty-state">
-            <p>Noch keine Automatisierungen verfügbar.</p>
+            <p>{t('catalog.emptyCatalog')}</p>
           </div>
         )}
 
@@ -230,7 +229,7 @@ export function CatalogPage() {
           <>
             {filteredAutomations.length === 0 ? (
               <div className="catalog-grid">
-                <p>In dieser Kategorie gibt es noch keine Automatisierungen.</p>
+                <p>{t('catalog.emptyCategory')}</p>
               </div>
             ) : (
               <div className="catalog-grid">
@@ -254,10 +253,10 @@ export function CatalogPage() {
 
       <Reveal>
         <section className="final-cta">
-          <h2>Bereit, deine Routinearbeit zu automatisieren?</h2>
-          <p>Durchstöbere den Katalog und finde eine Automatisierung, die sich schon in der ersten Woche bezahlt macht.</p>
+          <h2>{t('catalog.finalCtaTitle')}</h2>
+          <p>{t('catalog.finalCtaBody')}</p>
           <a href="#catalog" className="btn btn-primary">
-            Automatisierungen entdecken
+            {t('catalog.discoverAutomations')}
           </a>
         </section>
       </Reveal>
