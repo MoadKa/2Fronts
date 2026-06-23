@@ -40,7 +40,7 @@ describe('AutomationService', () => {
 
   it('creates a new automation defaulting currency to eur', async () => {
     const result = await createAutomation({
-      name: 'Invoice Sync', summary: 'Syncs invoices', outcome_description: 'Saves time', category: 'finance', price_cents: 49900,
+      name: 'Invoice Sync', summary: 'Syncs invoices', outcome_description: 'Saves time', category: 'finance', price_cents: 49900, connector_type: 'google_sheets',
     })
     expect(result.id).toBe('auto-1')
   })

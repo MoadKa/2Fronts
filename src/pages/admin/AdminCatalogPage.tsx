@@ -8,7 +8,25 @@ import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/Toast'
 import type { Automation } from '../../types/database'
 
-const EMPTY_FORM: NewAutomationInput = { name: '', summary: '', outcome_description: '', category: '', price_cents: 0 }
+// The connectors an automation can be fulfilled by. Keep in sync with the
+// connector_registry table; the value is written to automations.connector_type
+// and copied onto each provision at purchase.
+const CONNECTOR_OPTIONS = [
+  { value: 'google_sheets', label: 'Google Sheets' },
+  { value: 'twilio_missed_call', label: 'Twilio Missed-Call SMS' },
+  { value: 'slack_notifications', label: 'Slack' },
+]
+
+const EMPTY_FORM: NewAutomationInput = {
+  name: '',
+  summary: '',
+  outcome_description: '',
+  category: '',
+  price_cents: 0,
+  connector_type: 'google_sheets',
+  requires_provisioning: false,
+  is_active: true,
+}
 
 export function AdminCatalogPage() {
   const { showToast } = useToast()
@@ -61,6 +79,33 @@ export function AdminCatalogPage() {
         <Input label={t('adminCatalog.outcomeDescription')} value={form.outcome_description} onChange={(e) => setForm({ ...form, outcome_description: e.target.value })} />
         <Input label={t('adminCatalog.category')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
         <Input label={t('adminCatalog.priceCents')} type="number" value={form.price_cents} onChange={(e) => setForm({ ...form, price_cents: Number(e.target.value) })} />
+        <label className="admin-field">
+          <span>{t('adminCatalog.connectorType')}</span>
+          <select
+            value={form.connector_type}
+            onChange={(e) => setForm({ ...form, connector_type: e.target.value })}
+          >
+            {CONNECTOR_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="admin-checkbox">
+          <input
+            type="checkbox"
+            checked={form.requires_provisioning ?? false}
+            onChange={(e) => setForm({ ...form, requires_provisioning: e.target.checked })}
+          />
+          <span>{t('adminCatalog.requiresProvisioning')}</span>
+        </label>
+        <label className="admin-checkbox">
+          <input
+            type="checkbox"
+            checked={form.is_active ?? true}
+            onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
+          />
+          <span>{t('adminCatalog.activeOnCreate')}</span>
+        </label>
         <Button onClick={handleCreate}>{t('adminCatalog.addAutomation')}</Button>
       </Card>
 

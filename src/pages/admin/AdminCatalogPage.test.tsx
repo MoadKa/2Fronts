@@ -37,10 +37,16 @@ describe('AdminCatalogPage', () => {
     fireEvent.change(screen.getByLabelText('Ergebnisbeschreibung'), { target: { value: 'y' } })
     fireEvent.change(screen.getByLabelText('Kategorie'), { target: { value: 'finance' } })
     fireEvent.change(screen.getByLabelText('Preis (Cent)'), { target: { value: '49900' } })
+    // Pick a non-default connector + mark it as requiring provisioning, to prove
+    // these flow into the create payload (the old form couldn't set them, so every
+    // automation silently became twilio_missed_call).
+    fireEvent.change(screen.getByLabelText('Connector (Fulfillment)'), { target: { value: 'twilio_missed_call' } })
+    fireEvent.click(screen.getByLabelText('Einrichtung erforderlich (z. B. Twilio-Buchungslink)'))
     fireEvent.click(screen.getByRole('button', { name: 'Automatisierung hinzufügen' }))
     await waitFor(() =>
       expect(createAutomation).toHaveBeenCalledWith({
         name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900,
+        connector_type: 'twilio_missed_call', requires_provisioning: true, is_active: true,
       })
     )
   })
