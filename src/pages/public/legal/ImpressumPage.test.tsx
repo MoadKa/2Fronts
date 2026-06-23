@@ -18,8 +18,10 @@ describe('Legal pages render publicly (DE)', () => {
     render(<ImpressumPage />)
     expect(screen.getByRole('heading', { level: 1, name: 'Impressum' })).toBeInTheDocument()
     expect(screen.getByText(/ENTWURF/)).toBeInTheDocument()
-    // Founder placeholder is present for eRecht24 data (appears in multiple sections).
-    expect(screen.getAllByText(/\[NAME\]/).length).toBeGreaterThan(0)
+    // Real provider data from the eRecht24 Impressum is filled in (appears in
+    // both the Diensteanbieter and Verantwortlich sections).
+    expect(screen.getAllByText(/Moad Kaoukab/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/support@2fronts\.de/)).toBeInTheDocument()
   })
 
   it('Datenschutz renders in German and contains the Google Limited Use clause verbatim', () => {

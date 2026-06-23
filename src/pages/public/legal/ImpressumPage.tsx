@@ -26,10 +26,6 @@ export function ImpressumPage() {
       </section>
 
       <LegalSection
-        heading={t('legal.impressum.vatHeading')}
-        body={t('legal.impressum.vatBody')}
-      />
-      <LegalSection
         heading={t('legal.impressum.responsibleHeading')}
         body={t('legal.impressum.responsibleBody')}
       />
