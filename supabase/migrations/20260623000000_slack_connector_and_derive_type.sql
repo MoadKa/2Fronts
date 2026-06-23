@@ -42,7 +42,7 @@ select
   'communication',
   4900,
   'eur',
-  true,
+  false, -- inactive until Slack OAuth secrets (SLACK_*) are set; flip on via AdminCatalogPage
   false,
   'slack_notifications'
 where not exists (select 1 from automations where connector_type = 'slack_notifications');
