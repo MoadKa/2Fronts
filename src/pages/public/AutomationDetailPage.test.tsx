@@ -18,12 +18,12 @@ vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn() }))
 const sampleAutomation = {
   id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'Saves 5 hours/week',
   category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false,
-  created_at: '2026-06-01T00:00:00Z',
+  connector_type: 'google_sheets', created_at: '2026-06-01T00:00:00Z',
 }
 
 const provisionedAutomation = {
   ...sampleAutomation,
-  id: 'auto-2', name: 'AI Missed-Call Recovery', requires_provisioning: true,
+  id: 'auto-2', name: 'AI Missed-Call Recovery', requires_provisioning: true, connector_type: 'twilio_missed_call',
 }
 
 function renderAt(id: string) {
@@ -120,7 +120,7 @@ describe('AutomationDetailPage', () => {
     fireEvent.change(screen.getByLabelText('Buchungslink'), { target: { value: 'https://cal.com/acme' } })
     fireEvent.click(screen.getByRole('button', { name: 'Diese Automatisierung anfragen' }))
     await waitFor(() =>
-      expect(createProvisionDetails).toHaveBeenCalledWith('req-2', { businessName: '', bookingLink: 'https://cal.com/acme', businessHours: undefined })
+      expect(createProvisionDetails).toHaveBeenCalledWith('req-2', 'twilio_missed_call', { businessName: '', bookingLink: 'https://cal.com/acme' })
     )
     await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledWith('req-2'))
   })

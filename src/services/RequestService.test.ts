@@ -8,7 +8,7 @@ vi.mock('../lib/supabaseClient', () => {
   }
   const sampleRequestWithAutomation = {
     ...sampleRequest,
-    automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, created_at: '2026-06-01T00:00:00Z' },
+    automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, connector_type: 'google_sheets', created_at: '2026-06-01T00:00:00Z' },
     automation_provisions: [],
   }
 
@@ -93,7 +93,7 @@ describe('RequestService', () => {
   it('creates a pending provision row with the business details for a request', async () => {
     const { supabase } = await import('../lib/supabaseClient')
     const fromSpy = vi.spyOn(supabase, 'from')
-    await createProvisionDetails('req-1', { businessName: 'Acme Plumbing', bookingLink: 'https://cal.com/acme' })
+    await createProvisionDetails('req-1', 'twilio_missed_call', { businessName: 'Acme Plumbing', bookingLink: 'https://cal.com/acme' })
     expect(fromSpy).toHaveBeenCalledWith('automation_provisions')
   })
 

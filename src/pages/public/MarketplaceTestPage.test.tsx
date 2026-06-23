@@ -38,48 +38,48 @@ describe('MarketplaceTestPage', () => {
   // guidance on what to type. Found by /qa on 2026-06-21.
   it('shows placeholder guidance on the automation-of-interest field for visitors who land directly on the form', () => {
     renderPage()
-    expect(screen.getByLabelText('Automation of interest')).toHaveAttribute(
+    expect(screen.getByLabelText('Gewünschte Automatisierung')).toHaveAttribute(
       'placeholder',
-      expect.stringContaining('Interested?')
+      expect.stringContaining('Interessiert?')
     )
   })
 
   it('pre-fills the automation of interest when a listing\'s "Interested? Tell us" link is clicked', () => {
     renderPage()
-    fireEvent.click(screen.getAllByText('Interested? Tell us')[0])
-    expect(screen.getByLabelText('Automation of interest')).toHaveValue('AI Missed-Call Recovery')
+    fireEvent.click(screen.getAllByText('Interessiert? Sag es uns')[0])
+    expect(screen.getByLabelText('Gewünschte Automatisierung')).toHaveValue('AI Missed-Call Recovery')
   })
 
   it('blocks submit with an inline error when required fields are empty', async () => {
     renderPage()
-    fireEvent.click(screen.getByRole('button', { name: /request/i }))
-    expect(await screen.findByText('Email is required')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /anfragen/i }))
+    expect(await screen.findByText('E-Mail ist erforderlich')).toBeInTheDocument()
     expect(submitMarketplaceCapture).not.toHaveBeenCalled()
   })
 
   it('submits the form and shows a success toast on valid input', async () => {
     renderPage()
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
-    fireEvent.change(screen.getByLabelText('Business name'), { target: { value: 'Acme Plumbing' } })
-    fireEvent.click(screen.getByRole('button', { name: /request/i }))
+    fireEvent.change(screen.getByLabelText('E-Mail'), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByLabelText('Firmenname'), { target: { value: 'Acme Plumbing' } })
+    fireEvent.click(screen.getByRole('button', { name: /anfragen/i }))
 
     await waitFor(() => expect(submitMarketplaceCapture).toHaveBeenCalledWith({
       email: 'a@b.com',
       businessName: 'Acme Plumbing',
       automationOfInterest: '',
     }))
-    expect(await screen.findByText("Thanks — we'll be in touch")).toBeInTheDocument()
+    expect(await screen.findByText('Danke — wir melden uns')).toBeInTheDocument()
   })
 
   it('shows an error toast and re-enables the button when the submission fails', async () => {
     vi.mocked(submitMarketplaceCapture).mockRejectedValueOnce(new Error('network error'))
     renderPage()
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
-    fireEvent.change(screen.getByLabelText('Business name'), { target: { value: 'Acme Plumbing' } })
-    const button = screen.getByRole('button', { name: /request/i })
+    fireEvent.change(screen.getByLabelText('E-Mail'), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByLabelText('Firmenname'), { target: { value: 'Acme Plumbing' } })
+    const button = screen.getByRole('button', { name: /anfragen/i })
     fireEvent.click(button)
 
-    expect(await screen.findByText('Could not send — please try again')).toBeInTheDocument()
+    expect(await screen.findByText('Konnte nicht gesendet werden — bitte erneut versuchen')).toBeInTheDocument()
     expect(button).not.toBeDisabled()
   })
 
@@ -87,9 +87,9 @@ describe('MarketplaceTestPage', () => {
     let resolveSubmit: () => void = () => {}
     vi.mocked(submitMarketplaceCapture).mockReturnValueOnce(new Promise((resolve) => { resolveSubmit = () => resolve(undefined) }))
     renderPage()
-    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
-    fireEvent.change(screen.getByLabelText('Business name'), { target: { value: 'Acme Plumbing' } })
-    const button = screen.getByRole('button', { name: /request/i })
+    fireEvent.change(screen.getByLabelText('E-Mail'), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByLabelText('Firmenname'), { target: { value: 'Acme Plumbing' } })
+    const button = screen.getByRole('button', { name: /anfragen/i })
     fireEvent.click(button)
 
     expect(button).toBeDisabled()

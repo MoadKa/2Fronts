@@ -3,7 +3,7 @@ import { listActiveAutomations, getAutomationById, listAllAutomations, createAut
 
 const sample = {
   id: 'auto-1', name: 'Invoice Sync', summary: 'Syncs invoices', outcome_description: 'Saves 5 hours/week',
-  category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, created_at: '2026-06-01T00:00:00Z',
+  category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, connector_type: 'google_sheets', created_at: '2026-06-01T00:00:00Z',
 }
 
 vi.mock('../lib/supabaseClient', () => {
@@ -40,7 +40,7 @@ describe('AutomationService', () => {
 
   it('creates a new automation defaulting currency to eur', async () => {
     const result = await createAutomation({
-      name: 'Invoice Sync', summary: 'Syncs invoices', outcome_description: 'Saves time', category: 'finance', price_cents: 49900,
+      name: 'Invoice Sync', summary: 'Syncs invoices', outcome_description: 'Saves time', category: 'finance', price_cents: 49900, connector_type: 'google_sheets',
     })
     expect(result.id).toBe('auto-1')
   })

@@ -8,7 +8,7 @@ vi.mock('../../services/RequestService', () => ({ listMyRequests: vi.fn() }))
 const baseRequest = {
   id: 'req-1', automation_id: 'auto-1', customer_id: 'user-1',
   stripe_checkout_session_id: 'sess-1', requested_at: '2026-06-18T00:00:00Z', paid_at: null, delivered_at: null,
-  automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, created_at: '2026-06-01T00:00:00Z' },
+  automation: { id: 'auto-1', name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900, currency: 'eur', is_active: true, requires_provisioning: false, connector_type: 'google_sheets', created_at: '2026-06-01T00:00:00Z' },
 }
 
 const provisioningRequest = {
@@ -86,7 +86,7 @@ describe('MyRequestsPage', () => {
     vi.mocked(listMyRequests).mockResolvedValue([withProvision('pending')])
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
-    expect(screen.getByText(/setting up your ai receptionist/i)).toBeInTheDocument()
+    expect(screen.getByText(/richten deinen KI-Telefonassistenten/i)).toBeInTheDocument()
     expect(screen.queryByText('+15551234567')).not.toBeInTheDocument()
   })
 
@@ -94,7 +94,7 @@ describe('MyRequestsPage', () => {
     vi.mocked(listMyRequests).mockResolvedValue([withProvision('failed')])
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
-    const message = screen.getByText(/hit a snag/i)
+    const message = screen.getByText(/etwas schiefgelaufen/i)
     expect(message).toBeInTheDocument()
     expect(message.textContent).not.toMatch(/failed|error|status code/i)
     const mailLink = screen.getByText(/support/i, { selector: 'a' })
@@ -122,7 +122,7 @@ describe('MyRequestsPage', () => {
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /copy/i }))
+    fireEvent.click(screen.getByRole('button', { name: /kopieren/i }))
     expect(writeText).toHaveBeenCalledWith('+15551234567')
   })
 
@@ -131,7 +131,7 @@ describe('MyRequestsPage', () => {
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
 
-    const disclosure = screen.getByText(/forwarding destination/i).closest('details')
+    const disclosure = screen.getByText(/Weiterleitungsziel/i).closest('details')
     expect(disclosure).not.toBeNull()
     expect((disclosure as HTMLDetailsElement).open).toBe(false)
 

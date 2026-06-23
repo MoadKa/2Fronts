@@ -14,6 +14,6 @@ describe('ErrorBoundary', () => {
         <Boom />
       </ErrorBoundary>
     )
-    expect(screen.getByText('Something went wrong.')).toBeInTheDocument()
+    expect(screen.getByText('Etwas ist schiefgelaufen.')).toBeInTheDocument()
   })
 })

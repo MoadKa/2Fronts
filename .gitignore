@@ -12,3 +12,6 @@ group_test.html
 gs_test.html
 tmp_page.html
 .gstack/
+
+# Legal source PDFs (contain personal address/phone — keep local)
+*.pdf

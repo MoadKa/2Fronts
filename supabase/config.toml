@@ -412,3 +412,29 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# --- Public edge functions (no Supabase JWT) ---
+# Codifies the manual --no-verify-jwt flags so a blanket `functions deploy`
+# (e.g. from CI) keeps these reachable by external callers / browsers.
+# JWT-verified functions (connect-configure, confirm-mapping, slack-configure,
+# create-checkout-session, retry-provision) keep the default verify_jwt = true.
+[functions.intake]
+verify_jwt = false
+[functions.google-oauth-start]
+verify_jwt = false
+[functions.google-oauth-callback]
+verify_jwt = false
+[functions.slack-oauth-start]
+verify_jwt = false
+[functions.slack-oauth-callback]
+verify_jwt = false
+[functions.stripe-webhook]
+verify_jwt = false
+[functions.twilio-sms-webhook]
+verify_jwt = false
+[functions.twilio-voice-webhook]
+verify_jwt = false
+[functions.marketplace-test-capture]
+verify_jwt = false
+[functions.waitlist-signup]
+verify_jwt = false

@@ -17,6 +17,9 @@ export interface Automation {
   currency: string
   is_active: boolean
   requires_provisioning: boolean
+  // Which connector fulfils this automation. The purchase flow copies this onto
+  // the provision row so its type DERIVES from the automation (not hardcoded).
+  connector_type: string
   created_at: string
 }
 

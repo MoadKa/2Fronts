@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Modal } from '../ui/Modal'
 import { Input } from '../ui/Input'
 import { Button } from '../ui/Button'
@@ -10,6 +11,7 @@ type Mode = 'signIn' | 'signUp'
 export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { signIn, signUp } = useAuth()
   const { showToast } = useToast()
+  const { t } = useTranslation()
   const [mode, setMode] = useState<Mode>('signIn')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -24,25 +26,25 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
       } else {
         await signIn(email, password)
       }
-      showToast(mode === 'signUp' ? 'Konto erstellt' : 'Angemeldet')
+      showToast(mode === 'signUp' ? t('auth.accountCreated') : t('auth.signedIn'))
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Etwas ist schiefgelaufen')
+      setError(err instanceof Error ? err.message : t('auth.genericError'))
     }
   }
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <h2>{mode === 'signIn' ? 'Anmelden' : 'Registrieren'}</h2>
+      <h2>{mode === 'signIn' ? t('auth.signIn') : t('auth.register')}</h2>
       {mode === 'signUp' && (
-        <Input label="Firmenname" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+        <Input label={t('auth.companyName')} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
       )}
-      <Input label="E-Mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <Input label="Passwort" type="password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
+      <Input label={t('auth.email')} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Input label={t('auth.password')} type="password" value={password} onChange={(e) => setPassword(e.target.value)} error={error} />
       <div className="page-stack">
-        <Button onClick={handleSubmit}>{mode === 'signIn' ? 'Anmelden' : 'Registrieren'}</Button>
+        <Button onClick={handleSubmit}>{mode === 'signIn' ? t('auth.signIn') : t('auth.register')}</Button>
         <Button variant="secondary" onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}>
-          {mode === 'signIn' ? 'Noch kein Konto? Registrieren' : 'Schon ein Konto? Anmelden'}
+          {mode === 'signIn' ? t('auth.noAccountRegister') : t('auth.haveAccountSignIn')}
         </Button>
       </div>
     </Modal>
