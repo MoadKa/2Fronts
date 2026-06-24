@@ -34,6 +34,9 @@ export function AdminCatalogPage() {
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<NewAutomationInput>(EMPTY_FORM)
+  // Which automation is being edited inline, and the working copy of its fields.
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState<Partial<NewAutomationInput>>({})
 
   useEffect(() => {
     let mounted = true
@@ -61,6 +64,33 @@ export function AdminCatalogPage() {
 
   async function toggleActive(automation: Automation) {
     await updateAutomation(automation.id, { is_active: !automation.is_active })
+    await refresh()
+  }
+
+  // Open the inline editor for one automation, pre-filled with its current
+  // content + price (the fields admins actually change; connector_type is left
+  // alone because changing it on a live listing would re-route its provisions).
+  function startEdit(automation: Automation) {
+    setEditingId(automation.id)
+    setEditForm({
+      name: automation.name,
+      summary: automation.summary,
+      outcome_description: automation.outcome_description,
+      category: automation.category,
+      price_cents: automation.price_cents,
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm({})
+  }
+
+  async function saveEdit(id: string) {
+    await updateAutomation(id, editForm)
+    setEditingId(null)
+    setEditForm({})
+    showToast(t('adminCatalog.saved'))
     await refresh()
   }
 
@@ -113,9 +143,25 @@ export function AdminCatalogPage() {
         <Card key={automation.id} className="my-requests-card">
           <Badge tone={automation.is_active ? 'success' : 'neutral'}>{automation.is_active ? t('adminCatalog.active') : t('adminCatalog.inactive')}</Badge>
           <h3>{automation.name}</h3>
-          <Button variant="secondary" onClick={() => toggleActive(automation)}>
-            {automation.is_active ? t('adminCatalog.deactivate') : t('adminCatalog.activate')}
-          </Button>
+
+          {editingId === automation.id ? (
+            <>
+              <Input label={t('adminCatalog.name')} value={editForm.name ?? ''} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+              <Input label={t('adminCatalog.summary')} value={editForm.summary ?? ''} onChange={(e) => setEditForm({ ...editForm, summary: e.target.value })} />
+              <Input label={t('adminCatalog.outcomeDescription')} value={editForm.outcome_description ?? ''} onChange={(e) => setEditForm({ ...editForm, outcome_description: e.target.value })} />
+              <Input label={t('adminCatalog.category')} value={editForm.category ?? ''} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
+              <Input label={t('adminCatalog.priceCents')} type="number" value={editForm.price_cents ?? 0} onChange={(e) => setEditForm({ ...editForm, price_cents: Number(e.target.value) })} />
+              <Button onClick={() => saveEdit(automation.id)}>{t('adminCatalog.save')}</Button>
+              <Button variant="secondary" onClick={cancelEdit}>{t('adminCatalog.cancel')}</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => startEdit(automation)}>{t('adminCatalog.edit')}</Button>
+              <Button variant="secondary" onClick={() => toggleActive(automation)}>
+                {automation.is_active ? t('adminCatalog.deactivate') : t('adminCatalog.activate')}
+              </Button>
+            </>
+          )}
         </Card>
       ))}
     </div>

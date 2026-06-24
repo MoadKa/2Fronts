@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.0.1] - 2026-06-24
+
+### Added
+- **Edit existing automations in the Admin catalog.** Each listing now has an Edit button that opens an inline form (name, summary, outcome description, category, price) with Save/Cancel. Previously the Admin catalog could only create listings and toggle active/inactive — price and copy could not be changed without SQL. Connector type is intentionally not editable (changing it on a live listing would re-route its provisions).
+
 ## [1.0.0.0] - 2026-06-24
 
 First flagship product: the **AI Booking Concierge**, built natively into the platform (epic #22).

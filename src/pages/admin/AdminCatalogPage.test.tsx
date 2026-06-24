@@ -59,4 +59,22 @@ describe('AdminCatalogPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Deaktivieren' }))
     await waitFor(() => expect(updateAutomation).toHaveBeenCalledWith('auto-1', { is_active: false }))
   })
+
+  it('edits an existing automation price inline and saves the patch', async () => {
+    vi.mocked(listAllAutomations).mockResolvedValue([sample])
+    vi.mocked(updateAutomation).mockResolvedValue({ ...sample, price_cents: 0 })
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Invoice Sync')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Bearbeiten' }))
+    // The edit form pre-fills the current price. Two "Preis (Cent)" inputs now
+    // exist (the create form + this edit form); the edit one is the last.
+    const priceInputs = screen.getAllByLabelText('Preis (Cent)')
+    const editPrice = priceInputs[priceInputs.length - 1] as HTMLInputElement
+    expect(editPrice.value).toBe('49900')
+    fireEvent.change(editPrice, { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+    await waitFor(() =>
+      expect(updateAutomation).toHaveBeenCalledWith('auto-1', expect.objectContaining({ price_cents: 0 }))
+    )
+  })
 })
