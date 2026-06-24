@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { MyRequestsPage } from './MyRequestsPage'
 import { listMyRequests } from '../../services/RequestService'
 
@@ -124,6 +125,30 @@ describe('MyRequestsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /kopieren/i }))
     expect(writeText).toHaveBeenCalledWith('+15551234567')
+  })
+
+  // Concierge has no OAuth step, so My Requests is the entry into setup: an
+  // un-configured booking_concierge provision must show a button into the wizard.
+  it('shows a concierge setup button into the wizard when not yet configured', async () => {
+    vi.mocked(listMyRequests).mockResolvedValue([
+      withProvision('pending', { connector_type: 'booking_concierge', config: null, twilio_phone_number: null }),
+    ])
+    render(<MemoryRouter><MyRequestsPage /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
+    const link = screen.getByRole('link', { name: /concierge einrichten/i })
+    expect(link).toHaveAttribute('href', '/connect/prov-1/confirm')
+    // It must NOT fall back to the Twilio "setting up" message.
+    expect(screen.queryByText(/KI-Telefonassistenten/i)).not.toBeInTheDocument()
+  })
+
+  it('shows a ready note and no setup button once the concierge is configured', async () => {
+    vi.mocked(listMyRequests).mockResolvedValue([
+      withProvision('active', { connector_type: 'booking_concierge', config: { concierge_id: 'c-1' }, twilio_phone_number: null }),
+    ])
+    render(<MemoryRouter><MyRequestsPage /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
+    expect(screen.getByText(/eingerichtet und live/i)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /concierge einrichten/i })).not.toBeInTheDocument()
   })
 
   it('keeps forwarding instructions collapsed by default and reveals them on demand', async () => {

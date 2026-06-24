@@ -90,6 +90,7 @@
     "successBody": "Wir richten deine Automatisierung in Kürze ein. Den Status siehst du unter „Meine Anfragen\".",
     "cancelledTitle": "Checkout abgebrochen",
     "cancelledBody": "Es wurde keine Zahlung vorgenommen. Du kannst es jederzeit erneut versuchen.",
+    "setUpNow": "Jetzt einrichten",
     "backToCatalog": "Zurück zum Katalog"
   },
   "supportedSoftware": {
@@ -108,6 +109,8 @@
     "copy": "Kopieren",
     "copied": "Kopiert!",
     "settingUp": "Wir richten deinen KI-Telefonassistenten für {{businessName}} ein — in der Regel in wenigen Minuten bereit.",
+    "setUpConcierge": "Concierge einrichten",
+    "conciergeReady": "Dein Concierge ist eingerichtet und live.",
     "failedPrefix": "Beim Einrichten für {{businessName}} ist etwas schiefgelaufen — wir kümmern uns darum. Schneller Hilfe nötig?",
     "contactSupport": "Support kontaktieren",
     "active": "{{businessName}} ist aktiv — Anrufe an {{phone}} werden jetzt von deinem KI-Telefonassistenten beantwortet.",

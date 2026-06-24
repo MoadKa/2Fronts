@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.0.2] - 2026-06-25
+
+### Fixed
+- **Concierge setup was unreachable after purchase.** The AI Booking Concierge has no OAuth step, so after payment the buyer landed on a generic "being set up" message with no way into the onboarding wizard. Now: My Requests shows a "Set up your concierge" button (→ `/connect/:provisionId/confirm`) for an unconfigured `booking_concierge` provision, and a "set up and live" note once configured. The checkout success page adds a primary "Set it up now" button to My Requests. (`AutomationProvision` type gains `connector_type` + `config`.)
+
 ## [1.0.0.1] - 2026-06-24
 
 ### Added

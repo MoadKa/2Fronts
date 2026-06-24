@@ -90,6 +90,7 @@
     "successBody": "We'll set up your automation shortly. You can track the status under \"My requests\".",
     "cancelledTitle": "Checkout cancelled",
     "cancelledBody": "No payment was made. You can try again at any time.",
+    "setUpNow": "Set it up now",
     "backToCatalog": "Back to catalog"
   },
   "supportedSoftware": {
@@ -108,6 +109,8 @@
     "copy": "Copy",
     "copied": "Copied!",
     "settingUp": "Setting up your AI receptionist for {{businessName}} — usually ready within a few minutes.",
+    "setUpConcierge": "Set up your concierge",
+    "conciergeReady": "Your concierge is set up and live.",
     "failedPrefix": "We hit a snag setting this up for {{businessName}} — we're on it. Need help sooner?",
     "contactSupport": "Contact support",
     "active": "{{businessName}} is live — calls to {{phone}} are now answered by your AI receptionist.",
