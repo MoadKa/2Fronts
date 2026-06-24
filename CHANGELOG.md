@@ -4,6 +4,21 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.0.0] - 2026-06-24
+
+First flagship product: the **AI Booking Concierge**, built natively into the platform (epic #22).
+
+### Added
+- **AI Booking Concierge.** A coach buys it from the catalog, is walked through an Apple-style onboarding wizard, and gets a public link (`/c/<slug>`) where their audience chats with an AI that answers only from the coach's own content and books a call via the coach's calendar.
+  - Runtime (#23): `concierges` / `concierge_conversations` / `concierge_messages` tables with strict RLS (the coach's offer + Q&A never reach the browser); the public `concierge-chat` edge function (multi-turn Gemini, "never invent, fall back when unsure" guardrail); the public `/c/:slug` chat page.
+  - Platform buy + activate (#24): `booking_concierge` connector type + catalog SKU, provision flow, post-purchase setup via `ConnectConfirmRoute`.
+  - Subscription billing (#25): Stripe `mode:'subscription'` checkout for the concierge SKU (€79/mo); webhook lifecycle (`customer.subscription.deleted` deactivates the concierge, `invoice.payment_failed` alerts). The one-time checkout path is unchanged.
+  - Onboarding wizard (#26): Apple-style guided setup, one question per step, progress bar, EN/DE, with an optional "paste your website" AI-draft accelerator.
+
+### Notes
+- `concierge-chat` is public; deploy it with `--no-verify-jwt`. `GEMINI_API_KEY` is already set.
+- Pilot-acceptable gaps (tracked in TODOS): the public chat endpoint has no rate limiting or message-length cap (cost-abuse risk at scale).
+
 ## [0.3.0.0] - 2026-06-23
 
 Launch-readiness bundle for the Google OAuth review (EPIC #15).

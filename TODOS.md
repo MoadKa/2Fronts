@@ -189,3 +189,23 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 **Context:** Build seam #5 — the one genuinely unfinished functional gap in the v0.2.0.0 pipeline (every other connector verb is wired and tested).
 
 **Depends on:** A live Google connection (#9) to read a real header row against.
+
+## 14. Rate-limit the public `concierge-chat` endpoint
+
+**What:** Add per-IP / per-session rate limiting (and a sane request cap) to `supabase/functions/concierge-chat/index.ts`, which is public (`--no-verify-jwt`) and calls Gemini on every request.
+
+**Why:** A public, unauthenticated endpoint that hits an LLM per call is a cost-abuse vector — someone could hammer it and run up the Gemini bill. Low risk at pilot volume, real risk at scale.
+
+**Context:** Flagged by `/ship`'s pre-landing review of the AI Booking Concierge (epic #22, v1.0.0.0). Acceptable for the pilot; close before broad launch.
+
+**Depends on:** Nothing blocking.
+
+## 15. Cap visitor message length in `concierge-chat`
+
+**What:** Reject or truncate oversized `message` input in the concierge chat handler before it goes into the Gemini prompt.
+
+**Why:** Same cost-abuse category as #14 — an unbounded message inflates the prompt and the bill. Cheap to fix (one length check next to the existing input validation).
+
+**Context:** Flagged by `/ship`'s pre-landing review (epic #22, v1.0.0.0).
+
+**Depends on:** Nothing blocking.
