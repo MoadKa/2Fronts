@@ -438,3 +438,5 @@ verify_jwt = false
 verify_jwt = false
 [functions.waitlist-signup]
 verify_jwt = false
+[functions.concierge-chat]
+verify_jwt = false
