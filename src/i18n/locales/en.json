@@ -172,7 +172,11 @@
     "active": "active",
     "inactive": "inactive",
     "deactivate": "Deactivate",
-    "activate": "Activate"
+    "activate": "Activate",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Saved"
   },
   "adminRequests": {
     "title": "Admin requests",

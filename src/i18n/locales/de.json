@@ -172,7 +172,11 @@
     "active": "aktiv",
     "inactive": "inaktiv",
     "deactivate": "Deaktivieren",
-    "activate": "Aktivieren"
+    "activate": "Aktivieren",
+    "edit": "Bearbeiten",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "saved": "Gespeichert"
   },
   "adminRequests": {
     "title": "Admin-Anfragen",
