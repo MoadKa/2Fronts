@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects, assertStringIncludes, assertThrows } from 'jsr:@std/assert@1'
 import {
+  bookingConciergeConnector,
   getConnector,
   googleSheetsConnector,
   twilioMissedCallConnector,
@@ -268,4 +269,20 @@ Deno.test('google_sheets configure fails loudly when getAccessToken is missing',
     Error,
     'getAccessToken',
   )
+})
+
+Deno.test('booking_concierge connector provisions as a no-op success', async () => {
+  // No external resource to claim at paid->active: the concierge row is created
+  // during setup. provision just succeeds (active).
+  const result = await bookingConciergeConnector.provision({
+    adminClient: {} as never,
+    row: { id: 'prov-1', connector_type: 'booking_concierge' },
+    fromStatus: 'pending',
+    deps: {},
+  })
+  assertEquals(result, 'active')
+})
+
+Deno.test('getConnector resolves the booking_concierge connector by type', () => {
+  assertEquals(getConnector('booking_concierge'), bookingConciergeConnector)
 })

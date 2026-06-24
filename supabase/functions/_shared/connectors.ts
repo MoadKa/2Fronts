@@ -264,10 +264,23 @@ export const googleSheetsConnector: Connector = {
   },
 }
 
+// The AI Booking Concierge connector (#24). There is nothing external to claim
+// at paid->active: the concierge itself is created during setup (the coach fills
+// the form, which inserts the concierges row and links it via config.concierge_id).
+// So provision is a no-op success, exactly like google_sheets — fulfillment just
+// advances the provision to 'active' and the setup screen does the real work.
+export const bookingConciergeConnector: Connector = {
+  connectorType: 'booking_concierge',
+  provision() {
+    return Promise.resolve('active')
+  },
+}
+
 const defaultRegistry: Record<string, Connector> = {
   [twilioMissedCallConnector.connectorType]: twilioMissedCallConnector,
   [googleSheetsConnector.connectorType]: googleSheetsConnector,
   [slackConnector.connectorType]: slackConnector,
+  [bookingConciergeConnector.connectorType]: bookingConciergeConnector,
 }
 
 // Dispatch by connector_type. A null/undefined type (legacy rows written before

@@ -327,5 +327,124 @@
     "benefit3": "Secure payment via Stripe",
     "privacyNote": "We'll only email you about early access. See our",
     "privacyLink": "Privacy Policy"
+  },
+  "conciergePublic": {
+    "greeting": "Hi! I'm here to answer your questions and help you book a call. What would you like to know?",
+    "inputPlaceholder": "Type your message…",
+    "send": "Send",
+    "sending": "…",
+    "bookCta": "Book a call",
+    "unavailableTitle": "This page isn't available",
+    "unavailableBody": "This concierge link is inactive or doesn't exist. Please check the link and try again.",
+    "thinking": "Typing…"
+  },
+  "conciergeChat": {
+    "unavailable": "This concierge is not available right now.",
+    "error": "Something went wrong — please try again."
+  },
+  "conciergeSetup": {
+    "title": "Set up your AI Booking Concierge",
+    "intro": "Give your concierge its content. It will answer your audience from this — and nothing else.",
+    "businessName": "Business name",
+    "offerDescription": "What you offer",
+    "offerHint": "One paragraph: what it is, who it's for, the outcome.",
+    "qa": "Common questions & answers",
+    "qaHint": "Paste FAQs and objections with your answers. The AI answers only from this.",
+    "tone": "Tone",
+    "toneFriendly": "Friendly",
+    "toneProfessional": "Professional",
+    "toneCasual": "Casual",
+    "language": "Language the AI speaks",
+    "languageDe": "German",
+    "languageEn": "English",
+    "calendarUrl": "Your booking link (Calendly / Cal.com)",
+    "slug": "Your link name",
+    "slugHint": "Your public page will be at /c/<name>. Letters, numbers and dashes only.",
+    "submit": "Create my concierge",
+    "saving": "Creating…",
+    "required": "Please fill in this field.",
+    "slugInvalid": "Use only lowercase letters, numbers and dashes.",
+    "slugTaken": "That link name is already taken — please choose another.",
+    "mustSignIn": "Please sign in to set up your concierge.",
+    "saveFailed": "We couldn't save your concierge — please try again.",
+    "successTitle": "Your concierge is live!",
+    "successBody": "Share this link with your audience. They can chat with your AI and book a call 24/7.",
+    "copyLink": "Copy link",
+    "copied": "Copied!",
+    "openLink": "Open page"
+  },
+  "conciergeOnboarding": {
+    "stepLabel": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "welcome": {
+      "title": "Let's set up your AI booking assistant.",
+      "body": "Five quick questions and you'll have an assistant that answers your audience and books calls for you — around the clock. This takes about a minute.",
+      "languageLabel": "Which language should your assistant speak?",
+      "languageDe": "German",
+      "languageEn": "English",
+      "start": "Let's go"
+    },
+    "business": {
+      "title": "What's your business called?",
+      "hint": "This is how your assistant introduces itself.",
+      "placeholder": "e.g. Acme Coaching",
+      "momentum": "Great start. Let's keep going."
+    },
+    "offer": {
+      "title": "What do you offer?",
+      "hint": "One short paragraph: what it is, who it's for, the outcome. Your assistant answers only from this.",
+      "placeholder": "We help early-stage founders land their first 10 customers through weekly 1:1 coaching…",
+      "scrapePrompt": "In a hurry? Paste your website and we'll draft this for you.",
+      "scrapePlaceholder": "https://your-site.com",
+      "scrapeButton": "Draft from my website",
+      "scrapeLoading": "Reading your site…",
+      "scrapeDone": "Here's a first draft — tweak anything that's off.",
+      "scrapeFailed": "We couldn't read that page — no worries, just type it in below.",
+      "momentum": "Nice. Halfway there."
+    },
+    "questions": {
+      "title": "What do people usually ask before booking?",
+      "hint": "Paste the questions and objections you hear most, with your answers. Optional — you can add these later.",
+      "placeholder": "How much does it cost? — Plans start at €200/month.\nHow long are sessions? — 45 minutes, weekly.",
+      "chipsLabel": "Common ones:",
+      "chipPrice": "What does it cost?",
+      "chipDuration": "How long does it take?",
+      "chipResults": "What results can I expect?",
+      "chipStart": "How do we get started?",
+      "momentum": "Two to go."
+    },
+    "booking": {
+      "title": "Paste your booking link.",
+      "hint": "Calendly, Cal.com, or any scheduling link. This is where your assistant sends ready-to-book visitors.",
+      "placeholder": "https://cal.com/your-name",
+      "momentum": "Almost done. One last thing."
+    },
+    "tone": {
+      "title": "How should it sound?",
+      "hint": "Pick the voice that fits your brand.",
+      "friendly": "Friendly",
+      "friendlyDesc": "Warm and approachable.",
+      "professional": "Professional",
+      "professionalDesc": "Polished and to the point.",
+      "casual": "Casual",
+      "casualDesc": "Relaxed and conversational.",
+      "finish": "Finish setup"
+    },
+    "done": {
+      "title": "You're live.",
+      "body": "Your AI assistant is ready. Share this link with your audience — they can chat and book a call any time.",
+      "copyLink": "Copy link",
+      "copied": "Copied!",
+      "test": "Test it yourself"
+    },
+    "errors": {
+      "required": "Please fill this in to continue.",
+      "invalidUrl": "That doesn't look like a valid link. It should start with https://",
+      "slugInvalid": "Please use a business name with letters or numbers.",
+      "slugTaken": "That name is already taken — try a slightly different one.",
+      "saveFailed": "We couldn't finish setup — please try again.",
+      "mustSignIn": "Please sign in to set up your assistant."
+    }
   }
 }

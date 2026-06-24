@@ -9,6 +9,7 @@ import { AutomationDetailPage } from './pages/public/AutomationDetailPage'
 import { SupportedSoftwarePage } from './pages/public/SupportedSoftwarePage'
 import { CheckoutResultPage } from './pages/public/CheckoutResultPage'
 import { MarketplaceTestPage } from './pages/public/MarketplaceTestPage'
+import { ConciergePublicPage } from './pages/public/ConciergePublicPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { MyRequestsPage } from './pages/customer/MyRequestsPage'
 import { ConnectConfirmRoute } from './pages/customer/ConnectConfirmRoute'
@@ -38,6 +39,7 @@ export default function App() {
                 <Route path="/supported-software" element={<SupportedSoftwarePage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
                 <Route path="/marketplace-test" element={<MarketplaceTestPage />} />
+                <Route path="/c/:slug" element={<ConciergePublicPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route path="/my-requests" element={<MyRequestsPage />} />
                   <Route path="/connect/:provisionId/confirm" element={<ConnectConfirmRoute />} />
