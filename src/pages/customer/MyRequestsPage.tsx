@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { listMyRequests } from '../../services/RequestService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
 import type { AutomationProvision, AutomationRequestWithAutomation, RequestStatus } from '../../types/database'
 import './MyRequestsPage.css'
 
@@ -31,6 +33,28 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
     if (!provision.twilio_phone_number) return
     navigator.clipboard.writeText(provision.twilio_phone_number)
     setCopied(true)
+  }
+
+  // The AI Booking Concierge has no OAuth step, so nothing redirects the buyer
+  // into setup after payment. Surface the entry point here: a button into the
+  // onboarding wizard (/connect/:provisionId/confirm) until the concierge row
+  // has been created (config.concierge_id set), then a "you're set up" note.
+  if (provision.connector_type === 'booking_concierge') {
+    const configured = Boolean((provision.config as { concierge_id?: string } | null)?.concierge_id)
+    return (
+      <div className="provision-panel">
+        <div className="provision-status-row" aria-live="polite">
+          <Badge tone={PROVISION_TONE[provision.status]}>{provision.status}</Badge>
+        </div>
+        {configured ? (
+          <p className="provision-message">{t('myRequests.conciergeReady')}</p>
+        ) : (
+          <Link to={`/connect/${provision.id}/confirm`}>
+            <Button>{t('myRequests.setUpConcierge')}</Button>
+          </Link>
+        )}
+      </div>
+    )
   }
 
   return (

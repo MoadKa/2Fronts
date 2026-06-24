@@ -14,7 +14,8 @@ export function CheckoutResultPage() {
         <Card>
           <h2>{t('checkoutResult.successTitle')}</h2>
           <p>{t('checkoutResult.successBody')}</p>
-          <Link to="/automations"><Button>{t('checkoutResult.backToCatalog')}</Button></Link>
+          <Link to="/my-requests"><Button>{t('checkoutResult.setUpNow')}</Button></Link>
+          <Link to="/automations"><Button variant="secondary">{t('checkoutResult.backToCatalog')}</Button></Link>
         </Card>
       </div>
     )

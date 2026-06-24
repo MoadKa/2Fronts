@@ -34,6 +34,13 @@ export interface AutomationProvision {
   twilio_phone_number: string | null
   twilio_phone_number_sid: string | null
   status: AutomationProvisionStatus
+  // Which connector fulfils this provision (e.g. 'booking_concierge'); drives
+  // which post-purchase setup screen My Requests links to. Optional: legacy rows
+  // and some fixtures predate the column (DB default is 'twilio_missed_call').
+  connector_type?: string
+  // Connector-specific settings written at setup time (e.g. concierge_id once
+  // the concierge has been configured via the wizard).
+  config?: Record<string, unknown> | null
   created_at: string
   updated_at: string
 }
