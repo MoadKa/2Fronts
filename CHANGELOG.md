@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.0.3] - 2026-06-25
+
+### Fixed
+- **Provisions never reached customers in My Requests (and Admin requests).** `automation_provisions.request_id` is UNIQUE, so PostgREST returns the `automation_provisions` embed as a single object (a to-one relationship), not an array. The UI read `request.automation_provisions[0]`, and `[0]` on an object is `undefined`, so the provision panel never rendered — meaning no concierge "Set up" button (and the Twilio number panel never showed either). Fix: `RequestService.normalizeProvisions()` coerces the embed (object | null) to an array in `listMyRequests` + `listAllRequests`. Unit tests previously mocked the embed as an array, which is why this only ever failed against live PostgREST.
+
 ## [1.0.0.2] - 2026-06-25
 
 ### Fixed

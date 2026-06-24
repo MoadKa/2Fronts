@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createRequest, createCheckoutSession, createProvisionDetails, listMyRequests, listAllRequests, updateRequestStatus, retryProvisioning } from './RequestService'
+import { createRequest, createCheckoutSession, createProvisionDetails, listMyRequests, listAllRequests, updateRequestStatus, retryProvisioning, normalizeProvisions } from './RequestService'
 
 vi.mock('../lib/supabaseClient', () => {
   const sampleRequest = {
@@ -95,6 +95,25 @@ describe('RequestService', () => {
     const fromSpy = vi.spyOn(supabase, 'from')
     await createProvisionDetails('req-1', 'twilio_missed_call', { businessName: 'Acme Plumbing', bookingLink: 'https://cal.com/acme' })
     expect(fromSpy).toHaveBeenCalledWith('automation_provisions')
+  })
+
+  // Regression: PostgREST returns the to-one automation_provisions embed as a
+  // single OBJECT (request_id is UNIQUE), but the UI reads it as an array via
+  // [0]. Without normalization the embedded provision is dropped -> no provision
+  // panel, no concierge setup button. This is the exact shape live returns; the
+  // other tests mock it as an array, which is why the bug never surfaced.
+  it('normalizes a to-one provision object into an array (live PostgREST shape)', () => {
+    const out = normalizeProvisions({ id: 'r1', automation_provisions: { id: 'p1', connector_type: 'booking_concierge', status: 'pending' } })
+    const provs = out.automation_provisions as unknown as Array<{ id: string }>
+    expect(Array.isArray(provs)).toBe(true)
+    expect(provs).toHaveLength(1)
+    expect(provs[0].id).toBe('p1')
+  })
+
+  it('passes an existing provisions array through unchanged, and null/undefined -> []', () => {
+    expect(normalizeProvisions({ automation_provisions: [{ id: 'p1' }] }).automation_provisions as unknown[]).toHaveLength(1)
+    expect(normalizeProvisions({ automation_provisions: null }).automation_provisions).toEqual([])
+    expect(normalizeProvisions({ automation_provisions: undefined }).automation_provisions).toEqual([])
   })
 
   it('invokes the retry-provision function with the request id and returns the new status', async () => {

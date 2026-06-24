@@ -50,13 +50,25 @@ export async function createCheckoutSession(requestId: string): Promise<{ url: s
 
 const REQUEST_WITH_AUTOMATION_SELECT = '*, automation:automations(*), automation_provisions(*)'
 
+// automation_provisions.request_id is UNIQUE, so PostgREST treats the embed as a
+// to-ONE relationship and returns it as a single object (or null), NOT an array.
+// The UI treats it as an array (request.automation_provisions[0]), so without
+// this an embedded provision was silently dropped -> no provision panel, no
+// concierge setup button. Normalize object|null -> array so every consumer sees
+// the same shape. (Unit tests mock it as an array, which is why this never
+// surfaced before live.)
+export function normalizeProvisions<T extends { automation_provisions?: unknown }>(row: T): T {
+  const p = (row as { automation_provisions?: unknown }).automation_provisions
+  return { ...row, automation_provisions: Array.isArray(p) ? p : p ? [p] : [] }
+}
+
 export async function listMyRequests(): Promise<AutomationRequestWithAutomation[]> {
   const { data, error } = await supabase
     .from('automation_requests')
     .select(REQUEST_WITH_AUTOMATION_SELECT)
     .order('requested_at', { ascending: false })
   if (error) throw error
-  return (data as AutomationRequestWithAutomation[]) ?? []
+  return ((data as AutomationRequestWithAutomation[]) ?? []).map(normalizeProvisions)
 }
 
 export async function listAllRequests(filter?: { status?: RequestStatus }): Promise<AutomationRequestWithAutomation[]> {
@@ -69,7 +81,7 @@ export async function listAllRequests(filter?: { status?: RequestStatus }): Prom
   }
   const { data, error } = await query
   if (error) throw error
-  return (data as AutomationRequestWithAutomation[]) ?? []
+  return ((data as AutomationRequestWithAutomation[]) ?? []).map(normalizeProvisions)
 }
 
 export async function retryProvisioning(requestId: string): Promise<{ status: string }> {
