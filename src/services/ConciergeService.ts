@@ -31,6 +31,15 @@ export interface Concierge {
   slug: string
 }
 
+// A draft profile the wizard's scrape accelerator returns. Every field is
+// optional: the coach edits whatever came back and fills the rest.
+export interface ConciergeDraft {
+  offer_description?: string
+  qa?: string
+  tone?: 'friendly' | 'professional' | 'casual'
+  calendar_url?: string
+}
+
 // A throwaway per-visitor id so the AI can follow the thread across messages. No
 // PII, never persisted beyond the conversation row. crypto.randomUUID when
 // available; a timestamp+random fallback keeps it working in older browsers/SSR.
@@ -122,4 +131,23 @@ export async function linkProvisionToConcierge(provisionId: string, conciergeId:
     body: { provisionId, conciergeId },
   })
   if (error) throw new Error('conciergeSetup.saveFailed')
+}
+
+/**
+ * Optional onboarding accelerator (#26): scrape the coach's website and have the
+ * server draft a first concierge profile they can edit. Calls the authed
+ * concierge-draft-from-url edge function. This is best-effort — on ANY failure
+ * the caller falls back to manual entry — so it throws a single generic Error
+ * and never blocks the wizard.
+ */
+export async function draftConciergeFromUrl(
+  url: string,
+  language: ConciergeLanguage,
+): Promise<ConciergeDraft> {
+  const { data, error } = await supabase.functions.invoke('concierge-draft-from-url', {
+    body: { url, language },
+  })
+  if (error) throw new Error('conciergeOnboarding.errors.scrapeFailed')
+  const draft = (data as { draft?: ConciergeDraft } | null)?.draft
+  return draft ?? {}
 }

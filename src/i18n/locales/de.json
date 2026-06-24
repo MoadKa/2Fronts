@@ -372,5 +372,79 @@
     "copyLink": "Link kopieren",
     "copied": "Kopiert!",
     "openLink": "Seite öffnen"
+  },
+  "conciergeOnboarding": {
+    "stepLabel": "Schritt {{current}} von {{total}}",
+    "back": "Zurück",
+    "next": "Weiter",
+    "welcome": {
+      "title": "Richten wir deinen KI-Buchungsassistenten ein.",
+      "body": "Fünf kurze Fragen, und du hast einen Assistenten, der deinem Publikum antwortet und rund um die Uhr Termine für dich bucht. Dauert etwa eine Minute.",
+      "languageLabel": "In welcher Sprache soll dein Assistent sprechen?",
+      "languageDe": "Deutsch",
+      "languageEn": "Englisch",
+      "start": "Los geht's"
+    },
+    "business": {
+      "title": "Wie heißt dein Unternehmen?",
+      "hint": "So stellt sich dein Assistent vor.",
+      "placeholder": "z. B. Acme Coaching",
+      "momentum": "Guter Start. Weiter so."
+    },
+    "offer": {
+      "title": "Was bietest du an?",
+      "hint": "Ein kurzer Absatz: was es ist, für wen, welches Ergebnis. Dein Assistent antwortet ausschließlich daraus.",
+      "placeholder": "Wir helfen Gründer:innen in der Frühphase, ihre ersten 10 Kund:innen zu gewinnen — mit wöchentlichem 1:1-Coaching…",
+      "scrapePrompt": "Wenig Zeit? Füge deine Website ein, wir entwerfen es für dich.",
+      "scrapePlaceholder": "https://deine-website.de",
+      "scrapeButton": "Aus meiner Website entwerfen",
+      "scrapeLoading": "Wir lesen deine Seite…",
+      "scrapeDone": "Hier ist ein erster Entwurf — passe an, was nicht stimmt.",
+      "scrapeFailed": "Wir konnten die Seite nicht lesen — kein Problem, gib es einfach unten ein.",
+      "momentum": "Schön. Schon die Hälfte geschafft."
+    },
+    "questions": {
+      "title": "Was fragen Leute meistens vor einer Buchung?",
+      "hint": "Füge die häufigsten Fragen und Einwände mit deinen Antworten ein. Optional — du kannst das später ergänzen.",
+      "placeholder": "Was kostet es? — Pakete ab 200 €/Monat.\nWie lange dauert eine Sitzung? — 45 Minuten, wöchentlich.",
+      "chipsLabel": "Häufige Fragen:",
+      "chipPrice": "Was kostet es?",
+      "chipDuration": "Wie lange dauert es?",
+      "chipResults": "Welche Ergebnisse kann ich erwarten?",
+      "chipStart": "Wie fangen wir an?",
+      "momentum": "Noch zwei."
+    },
+    "booking": {
+      "title": "Füge deinen Buchungslink ein.",
+      "hint": "Calendly, Cal.com oder ein beliebiger Terminlink. Dorthin schickt dein Assistent buchungsbereite Besucher:innen.",
+      "placeholder": "https://cal.com/dein-name",
+      "momentum": "Fast fertig. Nur noch eins."
+    },
+    "tone": {
+      "title": "Wie soll es klingen?",
+      "hint": "Wähle die Stimme, die zu deiner Marke passt.",
+      "friendly": "Freundlich",
+      "friendlyDesc": "Warm und zugänglich.",
+      "professional": "Professionell",
+      "professionalDesc": "Souverän und auf den Punkt.",
+      "casual": "Locker",
+      "casualDesc": "Entspannt und im Plauderton.",
+      "finish": "Einrichtung abschließen"
+    },
+    "done": {
+      "title": "Du bist live.",
+      "body": "Dein KI-Assistent ist startklar. Teile diesen Link mit deinem Publikum — es kann jederzeit chatten und einen Termin buchen.",
+      "copyLink": "Link kopieren",
+      "copied": "Kopiert!",
+      "test": "Selbst ausprobieren"
+    },
+    "errors": {
+      "required": "Bitte fülle dies aus, um fortzufahren.",
+      "invalidUrl": "Das sieht nicht nach einem gültigen Link aus. Er sollte mit https:// beginnen.",
+      "slugInvalid": "Bitte verwende einen Firmennamen mit Buchstaben oder Zahlen.",
+      "slugTaken": "Dieser Name ist bereits vergeben — versuche eine leicht andere Variante.",
+      "saveFailed": "Wir konnten die Einrichtung nicht abschließen — bitte erneut versuchen.",
+      "mustSignIn": "Bitte melde dich an, um deinen Assistenten einzurichten."
+    }
   }
 }
