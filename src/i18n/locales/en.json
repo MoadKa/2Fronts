@@ -327,5 +327,50 @@
     "benefit3": "Secure payment via Stripe",
     "privacyNote": "We'll only email you about early access. See our",
     "privacyLink": "Privacy Policy"
+  },
+  "conciergePublic": {
+    "greeting": "Hi! I'm here to answer your questions and help you book a call. What would you like to know?",
+    "inputPlaceholder": "Type your message…",
+    "send": "Send",
+    "sending": "…",
+    "bookCta": "Book a call",
+    "unavailableTitle": "This page isn't available",
+    "unavailableBody": "This concierge link is inactive or doesn't exist. Please check the link and try again.",
+    "thinking": "Typing…"
+  },
+  "conciergeChat": {
+    "unavailable": "This concierge is not available right now.",
+    "error": "Something went wrong — please try again."
+  },
+  "conciergeSetup": {
+    "title": "Set up your AI Booking Concierge",
+    "intro": "Give your concierge its content. It will answer your audience from this — and nothing else.",
+    "businessName": "Business name",
+    "offerDescription": "What you offer",
+    "offerHint": "One paragraph: what it is, who it's for, the outcome.",
+    "qa": "Common questions & answers",
+    "qaHint": "Paste FAQs and objections with your answers. The AI answers only from this.",
+    "tone": "Tone",
+    "toneFriendly": "Friendly",
+    "toneProfessional": "Professional",
+    "toneCasual": "Casual",
+    "language": "Language the AI speaks",
+    "languageDe": "German",
+    "languageEn": "English",
+    "calendarUrl": "Your booking link (Calendly / Cal.com)",
+    "slug": "Your link name",
+    "slugHint": "Your public page will be at /c/<name>. Letters, numbers and dashes only.",
+    "submit": "Create my concierge",
+    "saving": "Creating…",
+    "required": "Please fill in this field.",
+    "slugInvalid": "Use only lowercase letters, numbers and dashes.",
+    "slugTaken": "That link name is already taken — please choose another.",
+    "mustSignIn": "Please sign in to set up your concierge.",
+    "saveFailed": "We couldn't save your concierge — please try again.",
+    "successTitle": "Your concierge is live!",
+    "successBody": "Share this link with your audience. They can chat with your AI and book a call 24/7.",
+    "copyLink": "Copy link",
+    "copied": "Copied!",
+    "openLink": "Open page"
   }
 }

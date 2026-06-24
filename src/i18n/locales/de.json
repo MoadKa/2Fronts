@@ -327,5 +327,50 @@
     "benefit3": "Sichere Zahlung über Stripe",
     "privacyNote": "Wir schreiben dir nur zum frühen Zugang. Siehe unsere",
     "privacyLink": "Datenschutzerklärung"
+  },
+  "conciergePublic": {
+    "greeting": "Hallo! Ich beantworte deine Fragen und helfe dir, einen Termin zu buchen. Was möchtest du wissen?",
+    "inputPlaceholder": "Nachricht eingeben…",
+    "send": "Senden",
+    "sending": "…",
+    "bookCta": "Termin buchen",
+    "unavailableTitle": "Diese Seite ist nicht verfügbar",
+    "unavailableBody": "Dieser Concierge-Link ist inaktiv oder existiert nicht. Bitte überprüfe den Link und versuche es erneut.",
+    "thinking": "Schreibt…"
+  },
+  "conciergeChat": {
+    "unavailable": "Dieser Concierge ist gerade nicht verfügbar.",
+    "error": "Etwas ist schiefgelaufen — bitte erneut versuchen."
+  },
+  "conciergeSetup": {
+    "title": "Richte deinen KI-Buchungs-Concierge ein",
+    "intro": "Gib deinem Concierge seine Inhalte. Er antwortet deinem Publikum ausschließlich auf dieser Grundlage — und sonst nichts.",
+    "businessName": "Firmenname",
+    "offerDescription": "Was du anbietest",
+    "offerHint": "Ein Absatz: was es ist, für wen, welches Ergebnis.",
+    "qa": "Häufige Fragen & Antworten",
+    "qaHint": "Füge FAQs und Einwände mit deinen Antworten ein. Die KI antwortet nur daraus.",
+    "tone": "Tonalität",
+    "toneFriendly": "Freundlich",
+    "toneProfessional": "Professionell",
+    "toneCasual": "Locker",
+    "language": "Sprache der KI",
+    "languageDe": "Deutsch",
+    "languageEn": "Englisch",
+    "calendarUrl": "Dein Buchungslink (Calendly / Cal.com)",
+    "slug": "Dein Link-Name",
+    "slugHint": "Deine öffentliche Seite ist unter /c/<name> erreichbar. Nur Buchstaben, Zahlen und Bindestriche.",
+    "submit": "Concierge erstellen",
+    "saving": "Wird erstellt…",
+    "required": "Bitte fülle dieses Feld aus.",
+    "slugInvalid": "Nur Kleinbuchstaben, Zahlen und Bindestriche.",
+    "slugTaken": "Dieser Link-Name ist bereits vergeben — bitte wähle einen anderen.",
+    "mustSignIn": "Bitte melde dich an, um deinen Concierge einzurichten.",
+    "saveFailed": "Wir konnten deinen Concierge nicht speichern — bitte erneut versuchen.",
+    "successTitle": "Dein Concierge ist live!",
+    "successBody": "Teile diesen Link mit deinem Publikum. Es kann rund um die Uhr mit deiner KI chatten und einen Termin buchen.",
+    "copyLink": "Link kopieren",
+    "copied": "Kopiert!",
+    "openLink": "Seite öffnen"
   }
 }
