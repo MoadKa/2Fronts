@@ -1,0 +1,35 @@
+/* Basic concierge setup form (#24). Reuses the mapping page shell
+   (.mapping-wrap/.mapping-card/.btn) from MappingConfirmationPage.css; only the
+   form fields + the live-link block are page-specific. Replaced by the guided
+   wizard in #26. */
+
+.concierge-setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  text-align: left;
+}
+
+.concierge-setup-form textarea,
+.concierge-setup-form select {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md, 12px);
+  font: inherit;
+  color: var(--color-foreground);
+  background: var(--color-background, #fff);
+  resize: vertical;
+}
+
+.input-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.85em;
+  color: var(--color-muted-foreground, #6b7280);
+}
+
+.concierge-live-link {
+  word-break: break-all;
+  font-weight: 600;
+}
