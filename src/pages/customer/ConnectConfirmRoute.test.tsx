@@ -23,6 +23,7 @@ vi.mock('../../services/ConnectorService', () => ({
 vi.mock('../../services/ConciergeService', () => ({
   createConcierge: vi.fn(),
   linkProvisionToConcierge: vi.fn(),
+  draftConciergeFromUrl: vi.fn(),
 }))
 
 function renderRoute() {
@@ -59,11 +60,12 @@ describe('ConnectConfirmRoute', () => {
     expect(listSlackChannels).not.toHaveBeenCalled()
   })
 
-  it('renders the concierge setup form for a booking_concierge provision', async () => {
+  it('renders the concierge onboarding wizard for a booking_concierge provision', async () => {
     vi.mocked(getProvisionConnectorType).mockResolvedValue('booking_concierge')
     renderRoute()
+    // The wizard opens on its welcome screen (#26 replaced the basic form).
     await waitFor(() =>
-      expect(screen.getByText('Richte deinen KI-Buchungs-Concierge ein')).toBeInTheDocument(),
+      expect(screen.getByText('Richten wir deinen KI-Buchungsassistenten ein.')).toBeInTheDocument(),
     )
     expect(listSlackChannels).not.toHaveBeenCalled()
   })
