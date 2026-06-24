@@ -8,7 +8,7 @@ import { provisionIfNeeded } from '../_shared/provisionFulfillment.ts'
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 
 interface CheckoutDeps {
-  stripe: Pick<Stripe, 'checkout'>
+  stripe: Pick<Stripe, 'checkout' | 'customers'>
   createUserClient: (authHeader: string) => SupabaseClient
   createAdminClient: () => SupabaseClient
   // Server-side fulfillment, shared with the stripe-webhook so the free and paid
@@ -55,16 +55,28 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
   }
 
   // RLS on automation_requests ("customers read own requests") guarantees this
-  // only returns a row if the authenticated caller owns it.
+  // only returns a row if the authenticated caller owns it. We also pull the
+  // pricing model (one_time vs subscription) and the owning customer's email so
+  // a subscription checkout can attach a named Stripe Customer.
   const { data: requestRow, error: requestError } = await userClient
     .from('automation_requests')
-    .select('id, automations(name, price_cents, currency)')
+    .select('id, automations(name, price_cents, currency, pricing_model, recurring_interval), profiles(email)')
     .eq('id', requestId)
     .single()
 
   if (requestError || !requestRow) return json({ error: 'Request not found' }, 404)
 
-  const automation = requestRow.automations as unknown as { name: string; price_cents: number; currency: string }
+  const automation = requestRow.automations as unknown as {
+    name: string
+    price_cents: number
+    currency: string
+    // Defaulted by the DB to 'one_time'; older clients/tests may omit it, so we
+    // treat anything other than 'subscription' as the existing one-time path.
+    pricing_model?: string | null
+    recurring_interval?: string | null
+  }
+  const profile = (requestRow as { profiles?: unknown }).profiles
+  const customerEmail = ((Array.isArray(profile) ? profile[0] : profile) as { email?: string } | null)?.email
   const adminClient = deps.createAdminClient()
 
   // Free automations (price 0) skip Stripe entirely: Stripe rejects zero-amount
@@ -78,6 +90,55 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
       .eq('id', requestId)
     await deps.fulfill(adminClient, requestId)
     return json({ url: `${appBaseUrl}/checkout/result?status=success` })
+  }
+
+  // Subscription automations (the AI Booking Concierge) bill monthly, so they
+  // need a mode:'subscription' session with a RECURRING inline price_data and a
+  // named Stripe Customer (so the subscription is attributable and a future
+  // billing-portal link has a customer to point at). One-time SKUs fall through
+  // to the unchanged mode:'payment' path below.
+  if (automation.pricing_model === 'subscription') {
+    // Create the Customer up front so we can store the id even before the
+    // subscription exists; Stripe will reuse it for the subscription's invoices.
+    const customer = await deps.stripe.customers.create({
+      email: customerEmail,
+      metadata: { request_id: requestId },
+    })
+
+    const session = await deps.stripe.checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      customer: customer.id,
+      line_items: [{
+        price_data: {
+          currency: automation.currency,
+          unit_amount: automation.price_cents,
+          product_data: { name: automation.name },
+          recurring: { interval: (automation.recurring_interval ?? 'month') as Stripe.PriceCreateParams.Recurring.Interval },
+        },
+        quantity: 1,
+      }],
+      // request_id rides on both the session and the subscription so the webhook
+      // can map either back to this request without a DB lookup.
+      metadata: { request_id: requestId },
+      subscription_data: { metadata: { request_id: requestId } },
+      success_url: `${appBaseUrl}/checkout/result?status=success`,
+      cancel_url: `${appBaseUrl}/checkout/result?status=cancelled`,
+    })
+
+    // Persist the Stripe customer id now; the subscription id is stored on
+    // checkout.session.completed by the webhook. Service-role client because
+    // customers have no UPDATE policy on these tables by design.
+    await adminClient
+      .from('automation_requests')
+      .update({ status: 'payment_pending', stripe_checkout_session_id: session.id })
+      .eq('id', requestId)
+    await adminClient
+      .from('automation_provisions')
+      .update({ stripe_customer_id: customer.id })
+      .eq('request_id', requestId)
+
+    return json({ url: session.url })
   }
 
   const session = await deps.stripe.checkout.sessions.create({
