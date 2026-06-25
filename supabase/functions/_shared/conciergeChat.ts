@@ -5,10 +5,14 @@
 //
 // TRUST CORE (mirrors the F3 guardrail in columnMapping.ts:9-16): the AI answers
 // ONLY from the coach's offer/qa. It must NEVER invent prices, policies, or
-// dates. When it can't answer from the provided content it falls back to
-// "I'll have {business_name} follow up", and it surfaces the calendar link on
-// booking intent. A confidently-wrong answer to a coach's prospect is
-// trust-destroying, so "fall back when unsure" beats "guess".
+// dates. When it can't answer from the provided content it must NOT invent an
+// answer AND must NOT promise any follow-up -- there is no mechanism here that
+// notifies the coach or calls anyone back, so promising one would be a lie. The
+// only real next step the system can offer is the booking link, so the honest
+// fallback is "I can't answer that one here -- get it answered on a quick call:
+// {calendar_url}". A confidently-wrong answer (or a promise the system can't
+// keep) to a coach's prospect is trust-destroying, so "route to the booking
+// link, promise nothing the system can't do" beats "guess" or "fake a callback".
 //
 // The LLM call is an injectable dep (`complete`) -- like columnMapping's -- so
 // tests pin it with canned replies and run with no network. The real Gemini
@@ -63,9 +67,26 @@ function languageName(language: ConciergeLanguage): string {
   return language === 'en' ? 'English' : 'German'
 }
 
+// Graceful, honest fallback for when the model returns nothing usable (Gemini can
+// emit an empty/SAFETY-blocked response -> empty string -> a blank bubble to the
+// visitor). Same spirit as the prompt's honest-handoff rule: admit we can't
+// answer that one here and point to the only real next step -- the booking link.
+// Promises nothing the system can't keep (no follow-up, no callback).
+function emptyReplyFallback(c: ConciergeKnowledge): string {
+  if (c.calendar_url && c.calendar_url.trim() !== '') {
+    return c.language === 'en'
+      ? `Sorry, I can't answer that one here. The quickest way to get it answered is a short call — you can book one here: ${c.calendar_url}`
+      : `Entschuldige, das kann ich hier nicht beantworten. Am schnellsten klärst du das in einem kurzen Gespräch — hier kannst du einen Termin buchen: ${c.calendar_url}`
+  }
+  return c.language === 'en'
+    ? "Sorry, I can't answer that one here."
+    : 'Entschuldige, das kann ich hier nicht beantworten.'
+}
+
 // Build the system prompt that grounds the AI in this coach's content and pins
 // its behaviour. Everything the AI is allowed to say comes from offer + qa; the
-// rest of the prompt is guardrails (never invent, fall back, surface booking).
+// rest of the prompt is guardrails (never invent, honestly route to the booking
+// link when it can't answer -- never a fake follow-up, surface booking).
 export function buildConciergeSystemPrompt(c: ConciergeKnowledge): string {
   return [
     `You are the AI booking assistant for "${c.business_name}". You chat with`,
@@ -85,8 +106,15 @@ export function buildConciergeSystemPrompt(c: ConciergeKnowledge): string {
     '- Answer ONLY from the offer and Q&A above. This is your entire knowledge.',
     '- NEVER invent or guess prices, policies, dates, availability, or facts that',
     '  are not stated above. A wrong answer to a prospect destroys trust.',
-    `- If you cannot answer from the content above, say (in ${languageName(c.language)})`,
-    `  that you'll have ${c.business_name} follow up — do not make something up.`,
+    `- If you cannot answer from the content above, do NOT make something up. Say`,
+    `  honestly (in ${languageName(c.language)}) that you can't answer that specific`,
+    '  thing here, and invite the visitor to get it answered on a quick call by',
+    `  sharing the booking link verbatim: ${c.calendar_url}`,
+    "- NEVER promise anything the system cannot do. You CANNOT notify anyone, you",
+    `  CANNOT let ${c.business_name} know, you CANNOT have someone follow up, reach`,
+    '  out, call back, or get back to the visitor, and you CANNOT collect contact',
+    '  details for follow-up. Do not imply any of these. The ONLY real next step',
+    '  you can offer is booking the call via the link above.',
     '- When the visitor wants to book, is ready, or asks how to get started, share',
     `  the booking link verbatim: ${c.calendar_url}`,
     '- Keep replies short, warm, and conversational. One idea at a time.',
@@ -95,10 +123,14 @@ export function buildConciergeSystemPrompt(c: ConciergeKnowledge): string {
 
 // show_booking is true when the reply actually contains the booking link, so the
 // page only renders the CTA when the AI decided to offer it. An empty calendar
-// url can never trigger booking (guards a misconfigured concierge).
+// url can never trigger booking (guards a misconfigured concierge). The URL must
+// be followed by a word boundary (end of string, whitespace, or one of ) ] . , !
+// ?) so a configured url that is a strict prefix of a longer url in the reply
+// (e.g. .../intro vs .../intro-vip) does not falsely trigger booking.
 export function detectShowBooking(reply: string, calendarUrl: string): boolean {
   if (!calendarUrl || calendarUrl.trim() === '') return false
-  return reply.includes(calendarUrl)
+  const escaped = calendarUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`${escaped}(?=$|[\\s)\\].,!?])`).test(reply)
 }
 
 // Generate the concierge's next reply. Builds the grounded system prompt, hands
@@ -112,6 +144,20 @@ export async function generateConciergeReply(
   const system = buildConciergeSystemPrompt(input.concierge)
   const turns: ChatTurn[] = [...input.history, { role: 'user', content: input.message }]
   const reply = await deps.complete(system, turns)
+
+  // An empty/whitespace-only reply (e.g. a SAFETY-blocked Gemini response) would
+  // render as a blank bubble. Substitute the honest localized fallback, and --
+  // since that fallback itself offers the booking link -- surface booking when a
+  // calendar url is configured so the visitor still has a real path forward.
+  if (reply.trim() === '') {
+    const hasCalendar =
+      !!input.concierge.calendar_url && input.concierge.calendar_url.trim() !== ''
+    return {
+      reply: emptyReplyFallback(input.concierge),
+      show_booking: hasCalendar,
+      calendar_url: hasCalendar ? input.concierge.calendar_url : undefined,
+    }
+  }
 
   const show_booking = detectShowBooking(reply, input.concierge.calendar_url)
   return {
