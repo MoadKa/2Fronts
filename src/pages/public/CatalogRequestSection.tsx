@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
-import { submitWaitlistSignup } from '../../services/WaitlistService'
+import { submitWish } from '../../services/WishService'
+import { INDUSTRIES, industryLabel } from '../../lib/industries'
 
 // The "didn't find what you're looking for?" capture at the bottom of the
 // catalog (replaces the old standalone waitlist landing). Email + free-text
@@ -17,6 +18,7 @@ export function CatalogRequestSection() {
   const { t, i18n } = useTranslation()
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
+  const [industry, setIndustry] = useState('')
   const [consent, setConsent] = useState(false)
   const [emailError, setEmailError] = useState('')
   const [consentError, setConsentError] = useState('')
@@ -43,16 +45,17 @@ export function CatalogRequestSection() {
     setConsentError('')
     setStatus('submitting')
     try {
-      const { alreadySubscribed } = await submitWaitlistSignup({
+      await submitWish({
         email: trimmed,
         locale: i18n.language,
-        source: 'catalog_request',
         message: message.trim() || undefined,
+        industry: industry || undefined,
         marketingConsent: true,
       })
-      setStatus(alreadySubscribed ? 'already' : 'success')
+      setStatus('success')
       setEmail('')
       setMessage('')
+      setIndustry('')
       setConsent(false)
     } catch {
       setStatus('error')
@@ -90,6 +93,21 @@ export function CatalogRequestSection() {
               onChange={(e) => setMessage(e.target.value)}
               placeholder={t('catalogRequest.messagePlaceholder')}
             />
+          </div>
+          <div className="input-field">
+            <label htmlFor="catalog-request-industry">{t('catalogRequest.industryLabel')}</label>
+            <select
+              id="catalog-request-industry"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+            >
+              <option value="">{t('catalogRequest.industryPlaceholder')}</option>
+              {INDUSTRIES.map((i) => (
+                <option key={i.value} value={i.value}>
+                  {industryLabel(i.value, i18n.language)}
+                </option>
+              ))}
+            </select>
           </div>
           <label className="catalog-request-consent">
             <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />

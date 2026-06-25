@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
+import { industryLabel } from '../../lib/industries'
 import { CatalogRequestSection } from './CatalogRequestSection'
 
-const submitWaitlistSignup = vi.fn()
-vi.mock('../../services/WaitlistService', () => ({
-  submitWaitlistSignup: (...a: unknown[]) => submitWaitlistSignup(...a),
+const submitWish = vi.fn()
+vi.mock('../../services/WishService', () => ({
+  submitWish: (...a: unknown[]) => submitWish(...a),
 }))
 
 function renderSection() {
@@ -19,7 +20,7 @@ function renderSection() {
 
 describe('CatalogRequestSection', () => {
   beforeEach(async () => {
-    submitWaitlistSignup.mockReset()
+    submitWish.mockReset()
     await i18n.changeLanguage('de')
   })
 
@@ -33,7 +34,7 @@ describe('CatalogRequestSection', () => {
   })
 
   it('submits email + message + marketing consent and shows success', async () => {
-    submitWaitlistSignup.mockResolvedValue({ alreadySubscribed: false })
+    submitWish.mockResolvedValue({ ok: true })
     renderSection()
     const T = i18n.getFixedT('de')
     fireEvent.change(screen.getByLabelText(T('catalogRequest.emailLabel')), { target: { value: 'a@b.com' } })
@@ -42,10 +43,9 @@ describe('CatalogRequestSection', () => {
     fireEvent.click(screen.getByRole('button', { name: T('catalogRequest.submit') }))
 
     await waitFor(() =>
-      expect(submitWaitlistSignup).toHaveBeenCalledWith(
+      expect(submitWish).toHaveBeenCalledWith(
         expect.objectContaining({
           email: 'a@b.com',
-          source: 'catalog_request',
           message: 'HubSpot-Sync',
           marketingConsent: true,
         }),
@@ -54,11 +54,31 @@ describe('CatalogRequestSection', () => {
     await waitFor(() => expect(screen.getByText(T('catalogRequest.success'))).toBeInTheDocument())
   })
 
+  it('passes the selected industry to submitWish', async () => {
+    submitWish.mockResolvedValue({ ok: true })
+    renderSection()
+    const T = i18n.getFixedT('de')
+    fireEvent.change(screen.getByLabelText(T('catalogRequest.emailLabel')), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByLabelText(T('catalogRequest.industryLabel')), {
+      target: { value: 'coaching' },
+    })
+    fireEvent.click(screen.getByLabelText(T('catalogRequest.consentLabel')))
+    fireEvent.click(screen.getByRole('button', { name: T('catalogRequest.submit') }))
+
+    // Sanity: the option label renders via industryLabel.
+    expect(screen.getByText(industryLabel('coaching', 'de'))).toBeInTheDocument()
+    await waitFor(() =>
+      expect(submitWish).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'a@b.com', industry: 'coaching', marketingConsent: true }),
+      ),
+    )
+  })
+
   it('does not submit without consent (button stays disabled, service never called)', () => {
     renderSection()
     const T = i18n.getFixedT('de')
     fireEvent.change(screen.getByLabelText(T('catalogRequest.emailLabel')), { target: { value: 'a@b.com' } })
     expect(screen.getByRole('button', { name: T('catalogRequest.submit') })).toBeDisabled()
-    expect(submitWaitlistSignup).not.toHaveBeenCalled()
+    expect(submitWish).not.toHaveBeenCalled()
   })
 })
