@@ -52,7 +52,7 @@ function completeWizard(lang: 'de' | 'en') {
   // Step 3 questions (optional) -> skip
   next()
   // Step 4 booking
-  fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.booking.title')), {
+  fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.booking.label')), {
     target: { value: 'https://cal.com/acme' },
   })
   next()
@@ -106,7 +106,10 @@ describe('ConciergeSetupPage onboarding wizard', () => {
     })
     fireEvent.click(screen.getByText('Weiter'))
     fireEvent.click(screen.getByText('Weiter')) // skip questions
-    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.booking.title')), {
+    // Regression: the booking prompt appears once (the heading) — it must NOT also be
+    // the input label, which read as two booking-link fields.
+    expect(screen.getAllByText(T('conciergeOnboarding.booking.title'))).toHaveLength(1)
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.booking.label')), {
       target: { value: 'not-a-url' },
     })
     fireEvent.click(screen.getByText('Weiter'))

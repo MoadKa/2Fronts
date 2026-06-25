@@ -353,7 +353,7 @@ export function ConciergeSetupPage() {
           <div className="wizard-step">
             <h1>{t('conciergeOnboarding.booking.title')}</h1>
             <Input
-              label={t('conciergeOnboarding.booking.title')}
+              label={t('conciergeOnboarding.booking.label')}
               type="url"
               value={data.calendarUrl}
               onChange={(e) => update({ calendarUrl: e.target.value })}

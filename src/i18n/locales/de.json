@@ -423,6 +423,7 @@
     },
     "booking": {
       "title": "Füge deinen Buchungslink ein.",
+      "label": "Buchungslink",
       "hint": "Calendly, Cal.com oder ein beliebiger Terminlink. Dorthin schickt dein Assistent buchungsbereite Besucher:innen.",
       "placeholder": "https://cal.com/dein-name",
       "momentum": "Fast fertig. Nur noch eins."
