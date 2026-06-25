@@ -26,6 +26,11 @@ const provisionedAutomation = {
   id: 'auto-2', name: 'AI Missed-Call Recovery', requires_provisioning: true, connector_type: 'twilio_missed_call',
 }
 
+const conciergeAutomation = {
+  ...sampleAutomation,
+  id: 'auto-3', name: 'AI Booking Concierge', requires_provisioning: true, connector_type: 'booking_concierge',
+}
+
 function renderAt(id: string) {
   return render(
     <ToastProvider>
@@ -105,6 +110,25 @@ describe('AutomationDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Diese Automatisierung anfragen' }))
     expect(createRequest).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.getByText('Bitte gib einen Buchungslink an, über den dich Kunden erreichen.')).toBeInTheDocument())
+  })
+
+  it('does NOT ask the booking concierge for a booking link (calendar is set in the wizard, not twice)', async () => {
+    // Regression: the concierge requires_provisioning, but its calendar link is
+    // entered in the setup wizard. The Twilio-only booking-link field must not
+    // appear at checkout, and must not block it — otherwise the coach enters
+    // their Calendly here (discarded) AND again in the wizard.
+    vi.mocked(getAutomationById).mockResolvedValue(conciergeAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    vi.mocked(createRequest).mockResolvedValue({
+      id: 'req-3', automation_id: 'auto-3', customer_id: 'user-1', status: 'requested',
+      stripe_checkout_session_id: null, delivery_notes: null, requested_at: '2026-06-18T00:00:00Z', paid_at: null, delivered_at: null,
+    })
+    vi.mocked(createCheckoutSession).mockResolvedValue({ url: 'https://checkout.stripe.com/session-3' })
+    renderAt('auto-3')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Diese Automatisierung anfragen' })).toBeInTheDocument())
+    expect(screen.queryByLabelText('Buchungslink')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Diese Automatisierung anfragen' }))
+    await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledWith('req-3'))
   })
 
   it('submits provisioning details before starting checkout for provisioned automations', async () => {
