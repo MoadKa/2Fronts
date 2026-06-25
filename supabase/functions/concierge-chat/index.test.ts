@@ -4,8 +4,11 @@ import type { ChatCompleteFn } from '../_shared/conciergeChat.ts'
 
 // A fake admin client modelling exactly the calls handleConciergeChat makes:
 //   concierges:               select.eq(slug).eq(is_active).maybeSingle
-//   concierge_conversations:  select existing by (concierge_id, session) OR insert
-//   concierge_messages:       select history by conversation_id; insert turns
+//   concierge_conversations:  upsert(...).select(id).maybeSingle (new session ->
+//                             returns row; existing session -> null, then the
+//                             conflict-path select.eq.eq.maybeSingle reads the id)
+//   concierge_messages:       select history by conversation_id (order/limit);
+//                             insert turns
 // It records inserts + the conversation outcome update so tests can assert them.
 interface Captured {
   conciergeRow: Record<string, unknown> | null
@@ -56,26 +59,33 @@ function fakeAdminClient(c: Captured) {
       }
       if (table === 'concierge_conversations') {
         return {
+          // Atomic upsert: a new session inserts and returns its row; an existing
+          // session conflicts (ignoreDuplicates) and gets NO row back.
+          upsert(row: Record<string, unknown>) {
+            c.insertedConversation = row
+            return {
+              select() {
+                return {
+                  maybeSingle: () =>
+                    Promise.resolve({
+                      data: c.existingConversation ? null : { id: 'conv-new', ...row },
+                      error: null,
+                    }),
+                }
+              },
+            }
+          },
+          // Conflict path: read the existing conversation id by the unique key.
           select() {
             return {
               eq() {
                 return {
                   eq() {
                     return {
-                      order() {
-                        return { limit: () => Promise.resolve({ data: c.existingConversation ? [c.existingConversation] : [], error: null }) }
-                      },
+                      maybeSingle: () => Promise.resolve({ data: c.existingConversation, error: null }),
                     }
                   },
                 }
-              },
-            }
-          },
-          insert(row: Record<string, unknown>) {
-            c.insertedConversation = row
-            return {
-              select() {
-                return { single: () => Promise.resolve({ data: { id: 'conv-new', ...row }, error: null }) }
               },
             }
           },
@@ -91,7 +101,12 @@ function fakeAdminClient(c: Captured) {
             return {
               eq() {
                 return {
-                  order: () => Promise.resolve({ data: c.history, error: null }),
+                  // Handler fetches newest-first with a limit, then reverses to
+                  // oldest-first. The mock returns history already oldest-first,
+                  // so hand back a newest-first copy for the handler to reverse.
+                  order: () => ({
+                    limit: () => Promise.resolve({ data: [...c.history].reverse(), error: null }),
+                  }),
                 }
               },
             }
@@ -203,4 +218,59 @@ Deno.test('the response payload never contains the offer_description or qa', asy
   const raw = await res.text()
   assertEquals(raw.includes('SECRET-OFFER-TEXT'), false)
   assertEquals(raw.includes('SECRET-QA-TEXT'), false)
+})
+
+Deno.test('a message over 2000 chars returns 400 message_too_long and never calls the model', async () => {
+  const c = makeCaptured()
+  let modelCalled = false
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'x'.repeat(2001) }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: () => {
+        modelCalled = true
+        return Promise.resolve('should not happen')
+      },
+    },
+  )
+  assertEquals(res.status, 400)
+  assertEquals((await res.json()).error, 'message_too_long')
+  assertEquals(modelCalled, false)
+  assertEquals(c.insertedMessages.length, 0)
+})
+
+Deno.test('a session_id over 256 chars returns 400 session_id_too_long and never calls the model', async () => {
+  const c = makeCaptured()
+  let modelCalled = false
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 's'.repeat(257), message: 'hi' }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: () => {
+        modelCalled = true
+        return Promise.resolve('should not happen')
+      },
+    },
+  )
+  assertEquals(res.status, 400)
+  assertEquals((await res.json()).error, 'session_id_too_long')
+  assertEquals(modelCalled, false)
+  assertEquals(c.insertedMessages.length, 0)
+})
+
+Deno.test('when the model throws (Gemini down) the handler returns 502 and never leaks the visitor message', async () => {
+  const c = makeCaptured()
+  const secretMessage = 'LEAK-ME-VISITOR-SECRET'
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: secretMessage }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: () => Promise.reject(new Error('gemini unavailable')),
+    },
+  )
+  assertEquals(res.status, 502)
+  const raw = await res.text()
+  assertEquals(JSON.parse(raw).error, 'concierge_chat_failed')
+  // The failure body must not echo the visitor's message back to the browser.
+  assertEquals(raw.includes(secretMessage), false)
 })
