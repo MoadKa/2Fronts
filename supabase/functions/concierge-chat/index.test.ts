@@ -137,6 +137,23 @@ Deno.test('OPTIONS preflight returns CORS headers without touching the model', a
   await res.body?.cancel()
 })
 
+Deno.test('a rate-limited IP gets 429 and the model is never called', async () => {
+  const c = makeCaptured()
+  let modelCalled = false
+  const complete: ChatCompleteFn = () => {
+    modelCalled = true
+    return Promise.resolve('x')
+  }
+  const res = await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete,
+    checkRateLimit: () => Promise.resolve(false),
+  })
+  assertEquals(res.status, 429)
+  assertEquals((await res.json()).error, 'rate_limited')
+  assertEquals(modelCalled, false)
+})
+
 Deno.test('replies to a visitor message grounded in the concierge, persists both turns', async () => {
   const c = makeCaptured()
   const res = await handleConciergeChat(

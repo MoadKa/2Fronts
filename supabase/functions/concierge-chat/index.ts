@@ -35,10 +35,43 @@ export interface ConciergeChatDeps {
   // Injectable LLM call. Defaults to the real Gemini multi-turn client, built
   // lazily so a missing key only errors a real request, never a CORS preflight.
   complete?: ChatCompleteFn
+  // Injectable per-key rate limiter (true = allowed). Defaults to the DB-backed
+  // fixed-window limiter; tests inject a stub to assert the 429 path.
+  checkRateLimit?: (key: string) => Promise<boolean>
 }
 
 const defaultDeps: ConciergeChatDeps = {
   createAdminClient,
+}
+
+// Public, no-JWT endpoint: cap requests per client IP so a script can't run up
+// the Gemini bill. Fixed window, enforced in Postgres so the count holds across
+// the stateless edge isolates. Generous enough a real visitor never hits it.
+const RATE_LIMIT_MAX = 30
+const RATE_LIMIT_WINDOW_SECS = 60
+
+function clientIp(req: Request): string {
+  const fwd = req.headers.get('x-forwarded-for')
+  if (fwd) return fwd.split(',')[0].trim()
+  return req.headers.get('x-real-ip')?.trim() || 'unknown'
+}
+
+// DB-backed fixed-window limiter. Fail-OPEN on any error (no rpc in unit tests,
+// transient DB issue): a limiter glitch must never block a real booking. The
+// happy path still limits abusers.
+async function dbRateLimit(admin: SupabaseClient, key: string): Promise<boolean> {
+  try {
+    if (typeof (admin as { rpc?: unknown }).rpc !== 'function') return true
+    const { data, error } = await admin.rpc('concierge_rate_limit_hit', {
+      p_key: key,
+      p_max: RATE_LIMIT_MAX,
+      p_window_secs: RATE_LIMIT_WINDOW_SECS,
+    })
+    if (error) return true
+    return data !== false
+  } catch {
+    return true
+  }
 }
 
 interface ConciergeRow extends ConciergeKnowledge {
@@ -74,6 +107,13 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   }
 
   const admin = deps.createAdminClient()
+
+  // Rate-limit by client IP BEFORE any expensive work (concierge load + Gemini
+  // call). Public endpoint with no JWT, so this is the only spend guard.
+  const limiter = deps.checkRateLimit ?? ((key: string) => dbRateLimit(admin, key))
+  if (!(await limiter(`ip:${clientIp(req)}`))) {
+    return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: jsonHeaders })
+  }
 
   // 1. Load the active concierge by slug, server-side. 404 if missing/inactive
   //    so an unknown or paused link gets a friendly "not available", never a
