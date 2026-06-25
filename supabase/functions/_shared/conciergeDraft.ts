@@ -21,8 +21,8 @@ export interface ConciergeDraft {
   calendar_url?: string
 }
 
-// Fetch the readable text of a page. Injectable; the default uses a plain fetch
-// and strips tags, but tests pass canned page text.
+// Fetch the readable text of a page. Injectable; the default uses Firecrawl
+// (renders JS + gets past bot-blocking), but tests pass canned page text.
 export type ScrapeFn = (url: string) => Promise<string>
 
 // Turn a system prompt + the page text into the model's JSON draft. Injectable
@@ -106,24 +106,37 @@ export async function draftConciergeFromUrl(
 // ---------------------------------------------------------------------------
 // Default real implementations.
 
-// A dependency-free scrape: fetch the page and reduce it to readable text. Good
-// enough to ground a draft; the wizard always lets the coach edit. (A richer
-// scrape — Firecrawl — can be swapped in here later without touching callers.)
+const FIRECRAWL_API_URL = 'https://api.firecrawl.dev/v1/scrape'
+
+// Scrape a page's readable text via Firecrawl. A plain fetch can't read modern
+// coach sites: site builders (Wix/Squarespace/Framer) render the page in the
+// browser, so the raw HTML is an empty shell, and Cloudflare/bot-protection
+// blocks a non-browser request outright — both leave the draft empty. Firecrawl
+// renders JS and gets past the blocks, returning clean markdown to ground the
+// draft (the coach still edits it). Injectable fetcher keeps tests offline. The
+// key goes ONLY in the Authorization header, never the URL/a log/an error.
+// Requires FIRECRAWL_API_KEY; without it (or on any Firecrawl failure) we throw,
+// the edge fn maps it to a 502, and the wizard falls back to manual entry.
 export async function defaultScrape(
   url: string,
   fetcher: typeof fetch = fetch,
+  apiKey: string | undefined = (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get('FIRECRAWL_API_KEY'),
 ): Promise<string> {
   if (!/^https?:\/\//i.test(url)) throw new Error('invalid_url')
-  const res = await fetcher(url, { headers: { 'User-Agent': '2Fronts-concierge-draft/1.0' } })
+  if (!apiKey) throw new Error('FIRECRAWL_API_KEY is not set; cannot scrape the page')
+  const res = await fetcher(FIRECRAWL_API_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true }),
+  })
   if (!res.ok) throw new Error(`scrape_failed_${res.status}`)
-  const html = await res.text()
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
+  const data = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { markdown?: string } }
+  const markdown = data?.data?.markdown ?? ''
+  if (!data?.success || !markdown.trim()) throw new Error('scrape_empty')
+  return markdown
 }
 
 const GEMINI_MODEL = 'gemini-2.5-flash'

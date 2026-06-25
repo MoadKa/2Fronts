@@ -93,6 +93,17 @@ export function ConciergeSetupPage() {
     setScrapeState('loading')
     try {
       const draft = await draftConciergeFromUrl(scrapeUrl.trim(), data.language)
+      // The scrape can return a 200 with an EMPTY draft (e.g. a JS-shell page
+      // that yielded no usable text). Don't claim success and prefill nothing —
+      // that reads as "done" with blank fields. Treat empty as a failure so the
+      // coach gets the honest "fill it in manually" note instead.
+      const hasContent = !!(
+        draft.offer_description || draft.qa || draft.tone || draft.calendar_url
+      )
+      if (!hasContent) {
+        setScrapeState('failed')
+        return
+      }
       update({
         ...(draft.offer_description ? { offer: draft.offer_description } : {}),
         ...(draft.qa ? { qa: draft.qa } : {}),
