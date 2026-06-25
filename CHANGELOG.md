@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.6.0] - 2026-06-25
+
+### Fixed
+- **Public concierge page (`/c/:slug`) now renders standalone**, without the 2Fronts marketplace chrome (top nav with "Anmelden / Registrieren", footer). It was nested under `AppLayout`; a coach's prospect landing there saw the 2Fronts marketplace shell and an invitation to register with us instead of a clean, focused booking concierge. Moved the route out of `AppLayout` in `src/App.tsx` so the page a coach shares is bare. Regression test in `src/App.test.tsx` (standalone on `/c/:slug`, nav still present on marketplace routes). (Found via /qa on the live site.)
+
 ## [1.0.5.0] - 2026-06-25
 
 ### Fixed
