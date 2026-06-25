@@ -423,6 +423,7 @@
     },
     "booking": {
       "title": "Paste your booking link.",
+      "label": "Booking link",
       "hint": "Calendly, Cal.com, or any scheduling link. This is where your assistant sends ready-to-book visitors.",
       "placeholder": "https://cal.com/your-name",
       "momentum": "Almost done. One last thing."

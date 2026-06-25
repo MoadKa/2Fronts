@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.5.0] - 2026-06-25
+
+### Fixed
+- **Concierge wizard no longer shows the booking-link prompt twice.** The booking step used the same i18n string (`conciergeOnboarding.booking.title`, "Paste your booking link.") for BOTH the step heading and the input's label, so the prompt appeared twice and read as two booking-link fields. Added a distinct `conciergeOnboarding.booking.label` ("Booking link" / "Buchungslink") for the field; the heading keeps the full sentence. (`src/pages/customer/ConciergeSetupPage.tsx`, `src/i18n/locales/{de,en}.json`)
+
 ## [1.0.4.0] - 2026-06-25
 
 ### Fixed
