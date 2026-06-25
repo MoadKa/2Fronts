@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.4.0] - 2026-06-25
+
+### Fixed
+- **No more entering your Calendly link twice when setting up the concierge.** The automation detail page showed (and required) the Twilio missed-call "business name" + "booking link" fields for *every* provisioned automation — including the AI Booking Concierge, whose calendar link is set in the setup wizard. The coach typed their Calendly at checkout (where it was discarded for non-Twilio connectors) and then again in the wizard. Those fields are now gated on `connector_type === 'twilio_missed_call'`, so the concierge (and the Sheets/Slack connectors, which configure via OAuth) no longer ask for a booking link at checkout. (`src/pages/public/AutomationDetailPage.tsx`)
+
 ## [1.0.3.0] - 2026-06-25
 
 ### Fixed
