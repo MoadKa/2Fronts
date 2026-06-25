@@ -10,6 +10,8 @@ import {
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { ProgressBar } from '../../components/ui/ProgressBar'
+import { BUILTIN_CRITERION_IDS, type QualCriterion } from '../../lib/qualification'
+import { INDUSTRIES, industryLabel } from '../../lib/industries'
 import {
   CONTENT_STEPS,
   emptyWizardData,
@@ -59,6 +61,100 @@ export function ConciergeSetupPage() {
 
   function update(patch: Partial<WizardData>) {
     setData((d) => ({ ...d, ...patch }))
+  }
+
+  // ---- Qualification step helpers (optional ideal-customer criteria) ----
+  // The assembled QualCriterion[] lives in data.qualificationCriteria; these
+  // helpers seed/edit/remove entries and write back via update().
+  const criteria = data.qualificationCriteria
+
+  function setCriteria(next: QualCriterion[]) {
+    update({ qualificationCriteria: next })
+  }
+
+  function isCriterionEnabled(id: string): boolean {
+    return criteria.some((c) => c.id === id)
+  }
+
+  // Seed a builtin criterion from i18n presets when the coach toggles it on.
+  function seedBuiltin(id: string): QualCriterion {
+    if (id === 'industry') {
+      return {
+        id,
+        question: t('conciergeOnboarding.qualify.presets.industryQuestion'),
+        options: INDUSTRIES.map((i) => ({
+          label: industryLabel(i.value, data.language),
+          qualifies: false,
+        })),
+      }
+    }
+    const optionLabels = t(`conciergeOnboarding.qualify.presets.${id}Options`, {
+      returnObjects: true,
+    }) as string[]
+    return {
+      id,
+      question: t(`conciergeOnboarding.qualify.presets.${id}Question`),
+      options: optionLabels.map((label) => ({ label, qualifies: false })),
+    }
+  }
+
+  function toggleBuiltin(id: string) {
+    if (isCriterionEnabled(id)) {
+      setCriteria(criteria.filter((c) => c.id !== id))
+    } else {
+      setCriteria([...criteria, seedBuiltin(id)])
+    }
+  }
+
+  function updateCriterion(id: string, patch: Partial<QualCriterion>) {
+    setCriteria(criteria.map((c) => (c.id === id ? { ...c, ...patch } : c)))
+  }
+
+  function updateOptionLabel(critId: string, idx: number, label: string) {
+    updateCriterion(critId, {
+      options: criteria
+        .find((c) => c.id === critId)!
+        .options.map((o, i) => (i === idx ? { ...o, label } : o)),
+    })
+  }
+
+  function toggleOptionQualifies(critId: string, idx: number) {
+    updateCriterion(critId, {
+      options: criteria
+        .find((c) => c.id === critId)!
+        .options.map((o, i) => (i === idx ? { ...o, qualifies: !o.qualifies } : o)),
+    })
+  }
+
+  function addOption(critId: string) {
+    updateCriterion(critId, {
+      options: [...criteria.find((c) => c.id === critId)!.options, { label: '', qualifies: false }],
+    })
+  }
+
+  function removeOption(critId: string, idx: number) {
+    updateCriterion(critId, {
+      options: criteria.find((c) => c.id === critId)!.options.filter((_, i) => i !== idx),
+    })
+  }
+
+  function addCustomCriterion() {
+    const n = criteria.filter((c) => c.id.startsWith('custom_')).length + 1
+    setCriteria([
+      ...criteria,
+      {
+        id: `custom_${n}`,
+        question: '',
+        options: [
+          { label: '', qualifies: false },
+          { label: '', qualifies: false },
+        ],
+      },
+    ])
+  }
+
+  function removeCriterion(id: string) {
+    setCriteria(criteria.filter((c) => c.id !== id))
   }
 
   // Advance from a content step, validating it first. The last content step
@@ -140,6 +236,7 @@ export function ConciergeSetupPage() {
         tone: data.tone,
         language: data.language,
         calendar_url: data.calendarUrl.trim(),
+        qualification_criteria: data.qualificationCriteria,
       })
 
       // Link the purchase provision to the concierge. Best-effort: the concierge
@@ -362,6 +459,139 @@ export function ConciergeSetupPage() {
               autoFocus
             />
             <span className="input-hint">{t('conciergeOnboarding.booking.hint')}</span>
+          </div>
+        )}
+
+        {step === 'qualify' && (
+          <div className="wizard-step">
+            <h1>{t('conciergeOnboarding.qualify.title')}</h1>
+            <p className="muted">{t('conciergeOnboarding.qualify.sub')}</p>
+
+            <div className="wizard-qualify">
+              {BUILTIN_CRITERION_IDS.map((id) => {
+                const enabled = isCriterionEnabled(id)
+                const crit = criteria.find((c) => c.id === id)
+                return (
+                  <div key={id} className="wizard-qualify-criterion">
+                    <label className="wizard-qualify-toggle">
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => toggleBuiltin(id)}
+                      />
+                      <span>{t(`conciergeOnboarding.qualify.presets.${id}Question`)}</span>
+                    </label>
+
+                    {enabled && crit && (
+                      <div className="wizard-qualify-body">
+                        <div className="input-field">
+                          <label htmlFor={`qual-q-${id}`}>
+                            {t('conciergeOnboarding.qualify.questionLabel')}
+                          </label>
+                          <input
+                            id={`qual-q-${id}`}
+                            type="text"
+                            value={crit.question}
+                            onChange={(e) => updateCriterion(id, { question: e.target.value })}
+                          />
+                        </div>
+
+                        {crit.options.map((opt, i) => (
+                          <div key={i} className="wizard-qualify-option">
+                            <input
+                              type="text"
+                              aria-label={t('conciergeOnboarding.qualify.optionLabel')}
+                              value={opt.label}
+                              onChange={(e) => updateOptionLabel(id, i, e.target.value)}
+                            />
+                            <label className="wizard-qualify-qualifies">
+                              <input
+                                type="checkbox"
+                                checked={opt.qualifies}
+                                onChange={() => toggleOptionQualifies(id, i)}
+                              />
+                              <span>{t('conciergeOnboarding.qualify.qualifiesHint')}</span>
+                            </label>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() => removeOption(id, i)}
+                            >
+                              {t('conciergeOnboarding.qualify.remove')}
+                            </button>
+                          </div>
+                        ))}
+
+                        <Button type="button" variant="secondary" onClick={() => addOption(id)}>
+                          {t('conciergeOnboarding.qualify.addOption')}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {criteria
+                .filter((c) => c.id.startsWith('custom_'))
+                .map((crit) => (
+                  <div key={crit.id} className="wizard-qualify-criterion">
+                    <div className="input-field">
+                      <label htmlFor={`qual-q-${crit.id}`}>
+                        {t('conciergeOnboarding.qualify.questionLabel')}
+                      </label>
+                      <input
+                        id={`qual-q-${crit.id}`}
+                        type="text"
+                        value={crit.question}
+                        onChange={(e) => updateCriterion(crit.id, { question: e.target.value })}
+                      />
+                    </div>
+
+                    {crit.options.map((opt, i) => (
+                      <div key={i} className="wizard-qualify-option">
+                        <input
+                          type="text"
+                          aria-label={t('conciergeOnboarding.qualify.optionLabel')}
+                          value={opt.label}
+                          onChange={(e) => updateOptionLabel(crit.id, i, e.target.value)}
+                        />
+                        <label className="wizard-qualify-qualifies">
+                          <input
+                            type="checkbox"
+                            checked={opt.qualifies}
+                            onChange={() => toggleOptionQualifies(crit.id, i)}
+                          />
+                          <span>{t('conciergeOnboarding.qualify.qualifiesHint')}</span>
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => removeOption(crit.id, i)}
+                        >
+                          {t('conciergeOnboarding.qualify.remove')}
+                        </button>
+                      </div>
+                    ))}
+
+                    <div className="wizard-qualify-actions">
+                      <Button type="button" variant="secondary" onClick={() => addOption(crit.id)}>
+                        {t('conciergeOnboarding.qualify.addOption')}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => removeCriterion(crit.id)}
+                      >
+                        {t('conciergeOnboarding.qualify.remove')}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+              <Button type="button" variant="secondary" onClick={addCustomCriterion}>
+                {t('conciergeOnboarding.qualify.addCustom')}
+              </Button>
+            </div>
           </div>
         )}
 
