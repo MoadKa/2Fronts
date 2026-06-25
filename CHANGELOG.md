@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.2.0] - 2026-06-25
+
+### Fixed
+- **Concierge onboarding "import from website" now actually reads the page.** The wizard's website-import accelerator (`concierge-draft-from-url`) scraped with a plain server-side `fetch`, which returns an empty JS shell or gets bot-blocked on the site builders most coaches use (Wix/Squarespace/Framer) and behind Cloudflare — so the draft came back empty. It now scrapes via Firecrawl (renders JS, gets past bot-blocking) and returns clean markdown for the draft. Requires a `FIRECRAWL_API_KEY` secret; without it (or on any scrape failure) the wizard falls back to manual entry. (`supabase/functions/_shared/conciergeDraft.ts`)
+- **No more false "draft ready" with blank fields.** `handleScrape` set the success state even when the draft was empty, so the coach saw "accept the draft" with nothing filled in. An empty draft is now treated as a failure, showing the honest "couldn't read your site, fill it in manually" note instead. (`src/pages/customer/ConciergeSetupPage.tsx`)
+
 ## [1.0.1.0] - 2026-06-25
 
 ### Fixed
