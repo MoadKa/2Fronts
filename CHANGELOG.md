@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.1.0.0] - 2026-06-25
+
+### Security
+- **Per-IP rate limit on the public concierge chat** (`/c/<slug>`). The no-auth endpoint calls Gemini on every message; without a cap a script could run up the LLM bill. Added a Postgres fixed-window limiter (`concierge_rate_limit_hit`, 30 req/min/IP) returning HTTP 429, enforced in the DB so the count holds across stateless edge isolates. Fail-open on limiter error so a glitch never blocks a real booking. (CSO finding #1; closes the open rate-limit TODO. `supabase/functions/concierge-chat/index.ts`, migration `20260625130000`)
+- **Pinned CI deploy actions to commit SHAs** — `supabase/setup-cli` and `actions/checkout` were on mutable tags while the deploy job holds Supabase secrets; pinning closes the tag-hijack supply-chain risk. (CSO finding #2; `.github/workflows/deploy-supabase.yml`)
+
 ## [1.0.6.0] - 2026-06-25
 
 ### Fixed
