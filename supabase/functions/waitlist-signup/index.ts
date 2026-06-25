@@ -19,13 +19,30 @@ export interface InsertResult {
   duplicate: boolean
 }
 
-export interface WaitlistDeps {
-  insertSignup: (row: { email: string; locale: string | null; source: string | null }) => Promise<InsertResult>
+export interface SignupRow {
+  email: string
+  locale: string | null
+  source: string | null
+  // Free-text "what are you missing?" from the catalog request form (null on the
+  // plain waitlist path). Capped before it reaches here.
+  message: string | null
+  // Explicit marketing opt-in (DSGVO active checkbox). The consent timestamp is
+  // stamped at insert time in defaultInsertSignup when this is true.
+  marketing_consent: boolean
 }
 
-async function defaultInsertSignup(row: { email: string; locale: string | null; source: string | null }): Promise<InsertResult> {
+export interface WaitlistDeps {
+  insertSignup: (row: SignupRow) => Promise<InsertResult>
+}
+
+async function defaultInsertSignup(row: SignupRow): Promise<InsertResult> {
   const supabase = createAdminClient()
-  const { error }: { error: { code?: string } | null } = await supabase.from('waitlist_signups').insert(row)
+  const { error }: { error: { code?: string } | null } = await supabase
+    .from('waitlist_signups')
+    .insert({
+      ...row,
+      marketing_consent_at: row.marketing_consent ? new Date().toISOString() : null,
+    })
   if (error) {
     if (error.code === UNIQUE_VIOLATION) return { duplicate: true }
     throw error
@@ -53,7 +70,7 @@ export async function handleWaitlistSignup(req: Request, deps: WaitlistDeps = de
     return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
-  let body: { email?: unknown; locale?: unknown; source?: unknown }
+  let body: { email?: unknown; locale?: unknown; source?: unknown; message?: unknown; marketing_consent?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -67,9 +84,13 @@ export async function handleWaitlistSignup(req: Request, deps: WaitlistDeps = de
 
   const locale = typeof body.locale === 'string' && body.locale.trim() !== '' ? body.locale.trim() : null
   const source = typeof body.source === 'string' && body.source.trim() !== '' ? body.source.trim() : null
+  // Bound the free-text request: public endpoint, so cap it like the concierge.
+  const rawMessage = typeof body.message === 'string' ? body.message.trim() : ''
+  const message = rawMessage === '' ? null : rawMessage.slice(0, 2000)
+  const marketing_consent = body.marketing_consent === true
 
   try {
-    const { duplicate } = await deps.insertSignup({ email, locale, source })
+    const { duplicate } = await deps.insertSignup({ email, locale, source, message, marketing_consent })
     // Duplicate is a friendly success: the visitor is already on the list, so we
     // return 200 with an `alreadySubscribed` flag the client can surface.
     return jsonResponse({ ok: true, alreadySubscribed: duplicate }, 200)
