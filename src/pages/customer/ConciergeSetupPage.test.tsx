@@ -198,6 +198,31 @@ describe('ConciergeSetupPage onboarding wizard', () => {
     expect(draftConciergeFromUrl).toHaveBeenCalledWith('https://acme.com', 'de')
   })
 
+  it('treats an empty draft as a failure (no fake "done" with blank fields)', async () => {
+    // A 200 with nothing usable (e.g. a JS-shell page) must NOT show success and
+    // prefill nothing — the coach should get the honest manual-fallback note.
+    draftConciergeFromUrl.mockResolvedValue({})
+    renderPage()
+    const T = i18n.getFixedT('de')
+
+    fireEvent.click(screen.getByText("Los geht's"))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.business.title')), {
+      target: { value: 'Acme' },
+    })
+    fireEvent.click(screen.getByText('Weiter')) // -> offer
+
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.offer.scrapePrompt')), {
+      target: { value: 'https://acme.com' },
+    })
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.offer.scrapeButton')))
+
+    await waitFor(() =>
+      expect(screen.getByText(T('conciergeOnboarding.offer.scrapeFailed'))).toBeInTheDocument(),
+    )
+    // The "done" hint must NOT appear.
+    expect(screen.queryByText(T('conciergeOnboarding.offer.scrapeDone'))).not.toBeInTheDocument()
+  })
+
   it('falls back to manual entry when the scrape fails (no error wall)', async () => {
     draftConciergeFromUrl.mockRejectedValue(new Error('conciergeOnboarding.errors.scrapeFailed'))
     renderPage()
