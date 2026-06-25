@@ -342,6 +342,8 @@
     "emailPlaceholder": "du@firma.de",
     "messageLabel": "Was fehlt dir? (optional)",
     "messagePlaceholder": "z. B. Rechnungen automatisch aus meinem Shop erstellen…",
+    "industryLabel": "Deine Branche (optional)",
+    "industryPlaceholder": "Branche wählen…",
     "consentLabel": "Ich möchte Produkt-Updates und Werbung per E-Mail erhalten.",
     "consentRequired": "Bitte stimme zu, damit wir dir per E-Mail antworten dürfen.",
     "submit": "Vorschlag senden",
@@ -446,6 +448,25 @@
       "hint": "Calendly, Cal.com oder ein beliebiger Terminlink. Dorthin schickt dein Assistent buchungsbereite Besucher:innen.",
       "placeholder": "https://cal.com/dein-name",
       "momentum": "Fast fertig. Nur noch eins."
+    },
+    "qualify": {
+      "title": "Wie sieht dein Wunschkunde aus?",
+      "sub": "Wähle Kriterien, nach denen dein Assistent Besucher im Chat einordnet — mit klaren Antwort-Buttons. Optional, du kannst es überspringen.",
+      "questionLabel": "Frage im Chat",
+      "optionLabel": "Antwort-Option",
+      "qualifiesHint": "Häkchen = diese Antwort zählt als qualifiziert",
+      "addOption": "Option hinzufügen",
+      "addCustom": "Eigenes Kriterium hinzufügen",
+      "remove": "Entfernen",
+      "presets": {
+        "budgetQuestion": "Wie hoch ist dein monatliches Budget?",
+        "budgetOptions": ["unter 500 €", "500–2.000 €", "über 2.000 €"],
+        "industryQuestion": "In welcher Branche bist du tätig?",
+        "ageQuestion": "In welche Altersgruppe fällst du?",
+        "ageOptions": ["18–25", "26–40", "41–60", "über 60"],
+        "timeline_roleQuestion": "Wie schnell möchtest du starten?",
+        "timeline_roleOptions": ["sofort", "in den nächsten Wochen", "ich stöbere nur"]
+      }
     },
     "tone": {
       "title": "Wie soll es klingen?",

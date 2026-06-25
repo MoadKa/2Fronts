@@ -342,6 +342,8 @@
     "emailPlaceholder": "you@company.com",
     "messageLabel": "What are you missing? (optional)",
     "messagePlaceholder": "e.g. auto-generate invoices from my shop…",
+    "industryLabel": "Your industry (optional)",
+    "industryPlaceholder": "Select industry…",
     "consentLabel": "I'd like to receive product updates and marketing by email.",
     "consentRequired": "Please agree so we may reply to you by email.",
     "submit": "Send request",
@@ -446,6 +448,25 @@
       "hint": "Calendly, Cal.com, or any scheduling link. This is where your assistant sends ready-to-book visitors.",
       "placeholder": "https://cal.com/your-name",
       "momentum": "Almost done. One last thing."
+    },
+    "qualify": {
+      "title": "What does your ideal customer look like?",
+      "sub": "Pick criteria your assistant uses to sort visitors in chat — with clear answer buttons. Optional, you can skip it.",
+      "questionLabel": "Question in chat",
+      "optionLabel": "Answer option",
+      "qualifiesHint": "Checked = this answer counts as qualified",
+      "addOption": "Add option",
+      "addCustom": "Add your own criterion",
+      "remove": "Remove",
+      "presets": {
+        "budgetQuestion": "What's your monthly budget?",
+        "budgetOptions": ["under €500", "€500–2,000", "over €2,000"],
+        "industryQuestion": "What industry are you in?",
+        "ageQuestion": "Which age group are you in?",
+        "ageOptions": ["18–25", "26–40", "41–60", "over 60"],
+        "timeline_roleQuestion": "How soon do you want to start?",
+        "timeline_roleOptions": ["right away", "in the next few weeks", "just browsing"]
+      }
     },
     "tone": {
       "title": "How should it sound?",
