@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.2.0.0] - 2026-06-25
+
+### Added
+- **Catalog is now the home page.** `/` serves the automation catalog (the standalone waitlist landing is gone); `/automations` stays as an alias.
+- **"Didn't find what you're looking for?" capture** at the bottom of the catalog: email + free-text wish + **industry (Branche) dropdown** + an explicit marketing-consent checkbox (DSGVO active opt-in). Every submission is stored in a dedicated `wishes` table (no email dedup, so repeat requests are all kept).
+- **Lead qualification for the AI Booking Concierge.** A new optional wizard step lets the coach define their ideal customer — built-in criteria (budget, industry, age, timeline+role) plus custom ones, each with answer options and a "counts as qualified" flag (`concierges.qualification_criteria`).
+- **In-chat qualification.** The public concierge asks the coach's criteria as quick-reply buttons, records the visitor's answers on the conversation, and tags it qualified/not (AND rule). Hybrid: the booking link stays available to everyone — no lead is turned away.
+
+### Changed
+- Catalog request form now writes to the `wishes` table via a new `submit-wish` edge function (was the waitlist path).
+
 ## [1.1.0.0] - 2026-06-25
 
 ### Security
