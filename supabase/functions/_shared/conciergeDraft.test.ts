@@ -1,6 +1,7 @@
 import { assertEquals, assertRejects } from 'jsr:@std/assert@1'
 import {
   buildDraftSystemPrompt,
+  createGeminiDraftComplete,
   defaultScrape,
   draftConciergeFromUrl,
   parseDraft,
@@ -117,4 +118,19 @@ Deno.test('defaultScrape rejects a non-http url before calling out', async () =>
   }) as typeof fetch
   await assertRejects(() => defaultScrape('ftp://nope', fetcher, 'fc-key'), Error, 'invalid_url')
   assertEquals(called, false)
+})
+
+Deno.test('createGeminiDraftComplete retries a transient 503 then succeeds', async () => {
+  let calls = 0
+  const fetcher = (() => {
+    calls++
+    return Promise.resolve(
+      calls < 2
+        ? new Response('{}', { status: 503 })
+        : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"offer_description":"x"}' }] } }] }), { status: 200 }),
+    )
+  }) as typeof fetch
+  const reply = await createGeminiDraftComplete('k', fetcher)('sys', 'page text')
+  assertEquals(reply.includes('offer_description'), true)
+  assertEquals(calls, 2)
 })

@@ -9,6 +9,8 @@
 // unparseable reply) surfaces as a thrown Error the edge fn turns into a 502;
 // the wizard catches it and falls back to manual entry with no error wall.
 
+import { geminiFetchWithRetry } from './geminiRetry.ts'
+
 export type ConciergeLanguage = 'de' | 'en'
 
 // The draft we hand back to the wizard. Every field is optional: the coach edits
@@ -156,7 +158,7 @@ export function createGeminiDraftComplete(
     throw new Error('GEMINI_API_KEY is not set; cannot build the concierge draft LLM client')
   }
   return async (system: string, pageText: string): Promise<string> => {
-    const res = await fetcher(GEMINI_API_URL, {
+    const init: RequestInit = {
       method: 'POST',
       headers: {
         'x-goog-api-key': apiKey,
@@ -167,7 +169,9 @@ export function createGeminiDraftComplete(
         contents: [{ role: 'user', parts: [{ text: pageText }] }],
         generationConfig: { temperature: 0.3, maxOutputTokens: 1024, responseMimeType: 'application/json' },
       }),
-    })
+    }
+    // Retry transient Gemini failures (rate-limit / overload / network blip).
+    const res = await geminiFetchWithRetry(fetcher, GEMINI_API_URL, init)
     if (!res.ok) {
       const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
       throw new Error(data.error?.message ?? `Gemini API request failed (status ${res.status})`)

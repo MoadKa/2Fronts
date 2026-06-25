@@ -19,6 +19,8 @@
 // implementation is at the bottom and reuses the exact key-in-header / never-log
 // / error-handling posture of createGeminiComplete.
 
+import { geminiFetchWithRetry } from './geminiRetry.ts'
+
 export type ConciergeLanguage = 'de' | 'en'
 
 // The coach's concierge knowledge, as the runtime needs it. (A subset of the
@@ -203,7 +205,7 @@ export function createGeminiChatComplete(
   }
 
   return async (system: string, turns: ChatTurn[]): Promise<string> => {
-    const res = await fetcher(GEMINI_API_URL, {
+    const init: RequestInit = {
       method: 'POST',
       headers: {
         // Header auth keeps the key out of the URL (URLs get logged; headers don't).
@@ -215,7 +217,11 @@ export function createGeminiChatComplete(
         contents: toGeminiContents(turns),
         generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
       }),
-    })
+    }
+
+    // Retry transient Gemini failures (rate-limit / overload / network blip)
+    // before surfacing an error to the visitor mid-conversation.
+    const res = await geminiFetchWithRetry(fetcher, GEMINI_API_URL, init)
 
     if (!res.ok) {
       // Surface the API's error message, but never the request we sent (which

@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.3.0] - 2026-06-25
+
+### Fixed
+- **Concierge chat no longer fails on a transient Gemini blip.** A visitor mid-conversation (e.g. asking to book) could hit "etwas ist fehlgeschlagen" when Gemini returned a transient error (429 rate-limit, 5xx overload) or a network hiccup — the handler had no retry, so a single blip became a hard error and a lost booking. The Gemini calls now retry transient failures (429/500/502/503/504 + network errors) up to 3 attempts with a short escalating backoff; a 4xx (bad key/request) still fails fast. Extracted as a shared `geminiFetchWithRetry` helper and applied to all three Gemini clients: the concierge chat (`conciergeChat.ts`), the website-import draft (`conciergeDraft.ts`), and the column mapper (`columnMapping.ts`).
+
 ## [1.0.2.0] - 2026-06-25
 
 ### Fixed
