@@ -19,6 +19,8 @@
 // canned JSON and run with no network. A real default impl calling the
 // Google Gemini API is provided at the bottom.
 
+import { geminiFetchWithRetry } from './geminiRetry.ts'
+
 export type Confidence = 'high' | 'low'
 
 // Our canonical lead fields. Stable identifiers the rest of the pipeline keys
@@ -185,7 +187,7 @@ export function createGeminiComplete(
   }
 
   return async (prompt: string): Promise<string> => {
-    const res = await fetcher(GEMINI_API_URL, {
+    const init: RequestInit = {
       method: 'POST',
       headers: {
         // Header auth keeps the key out of the URL (URLs get logged; headers don't).
@@ -196,7 +198,9 @@ export function createGeminiComplete(
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: { temperature: 0, maxOutputTokens: 1024 },
       }),
-    })
+    }
+    // Retry transient Gemini failures (rate-limit / overload / network blip).
+    const res = await geminiFetchWithRetry(fetcher, GEMINI_API_URL, init)
 
     if (!res.ok) {
       // Surface the API's error message, but never the request we sent (which

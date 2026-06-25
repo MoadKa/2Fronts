@@ -203,3 +203,18 @@ Deno.test('createGeminiComplete surfaces the API error message on failure', asyn
   const complete = createGeminiComplete('secret-key-123', fetcher)
   await assertRejects(() => complete('x'), Error, 'RESOURCE_EXHAUSTED')
 })
+
+Deno.test('createGeminiComplete retries a transient 503 then succeeds', async () => {
+  let calls = 0
+  const fetcher = () => {
+    calls++
+    return Promise.resolve(
+      calls < 2
+        ? new Response('{}', { status: 503 })
+        : new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'mapped' }] } }] }), { status: 200 }),
+    )
+  }
+  const complete = createGeminiComplete('secret-key-123', fetcher)
+  assertEquals(await complete('x'), 'mapped')
+  assertEquals(calls, 2)
+})

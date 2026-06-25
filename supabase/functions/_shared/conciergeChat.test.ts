@@ -190,3 +190,45 @@ Deno.test('createGeminiChatComplete surfaces the API error message on failure', 
   const complete = createGeminiChatComplete('secret-key-123', fetcher)
   await assertRejects(() => complete('sys', [{ role: 'user', content: 'x' }]), Error, 'RESOURCE_EXHAUSTED')
 })
+
+Deno.test('createGeminiChatComplete retries a transient 503 and then succeeds (no hard error to the visitor)', async () => {
+  let calls = 0
+  const fetcher = () => {
+    calls++
+    if (calls < 3) return Promise.resolve(new Response('{}', { status: 503 }))
+    return Promise.resolve(
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'recovered' }] } }] }), { status: 200 }),
+    )
+  }
+  const text = await createGeminiChatComplete('k', fetcher)('sys', [{ role: 'user', content: 'x' }])
+  assertEquals(text, 'recovered')
+  assertEquals(calls, 3)
+})
+
+Deno.test('createGeminiChatComplete retries a network-layer failure and then succeeds', async () => {
+  let calls = 0
+  const fetcher = () => {
+    calls++
+    if (calls === 1) return Promise.reject(new Error('network down'))
+    return Promise.resolve(
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }), { status: 200 }),
+    )
+  }
+  const text = await createGeminiChatComplete('k', fetcher)('sys', [{ role: 'user', content: 'x' }])
+  assertEquals(text, 'ok')
+  assertEquals(calls, 2)
+})
+
+Deno.test('createGeminiChatComplete does NOT retry a non-retryable 400 (fails fast)', async () => {
+  let calls = 0
+  const fetcher = () => {
+    calls++
+    return Promise.resolve(new Response(JSON.stringify({ error: { message: 'INVALID_ARGUMENT' } }), { status: 400 }))
+  }
+  await assertRejects(
+    () => createGeminiChatComplete('k', fetcher)('sys', [{ role: 'user', content: 'x' }]),
+    Error,
+    'INVALID_ARGUMENT',
+  )
+  assertEquals(calls, 1)
+})
