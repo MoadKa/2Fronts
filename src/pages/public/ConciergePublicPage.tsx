@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { sendConciergeMessage, newSessionId } from '../../services/ConciergeService'
+import type { QualOption, QualPrompt } from '../../lib/qualification'
 import './ConciergePublicPage.css'
 
 // The public face of the AI Booking Concierge (#23): a no-auth chat at /c/:slug.
@@ -30,6 +31,20 @@ export function ConciergePublicPage() {
   const [sending, setSending] = useState(false)
   const [bookingUrl, setBookingUrl] = useState<string | null>(null)
   const [unavailable, setUnavailable] = useState(false)
+  // The qualification quick-reply prompt to render under the latest assistant
+  // bubble, if any. Cleared once the visitor answers it.
+  const [quickReplies, setQuickReplies] = useState<QualPrompt | null>(null)
+
+  // Apply the unavailable/error handling shared by text + quick-reply sends.
+  function handleSendError(err: unknown) {
+    const key = err instanceof Error ? err.message : 'conciergeChat.error'
+    // An unknown/inactive slug -> a calm dedicated screen, never a crash.
+    if (key === 'conciergeChat.unavailable') {
+      setUnavailable(true)
+    } else {
+      setMessages((prev) => [...prev, { role: 'assistant', content: t('conciergeChat.error') }])
+    }
+  }
 
   async function handleSend(e: FormEvent) {
     e.preventDefault()
@@ -44,14 +59,33 @@ export function ConciergePublicPage() {
       const reply = await sendConciergeMessage(slug, sessionRef.current, text)
       setMessages((prev) => [...prev, { role: 'assistant', content: reply.reply }])
       if (reply.show_booking && reply.calendar_url) setBookingUrl(reply.calendar_url)
+      // Render the next qualification prompt as buttons (or clear if none).
+      setQuickReplies(reply.quick_replies ?? null)
     } catch (err) {
-      const key = err instanceof Error ? err.message : 'conciergeChat.error'
-      // An unknown/inactive slug -> a calm dedicated screen, never a crash.
-      if (key === 'conciergeChat.unavailable') {
-        setUnavailable(true)
-      } else {
-        setMessages((prev) => [...prev, { role: 'assistant', content: t('conciergeChat.error') }])
-      }
+      handleSendError(err)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // Visitor clicked a quick-reply button: optimistically show its label as a user
+  // bubble, send the chosen answer (no free-text), and render the next prompt.
+  async function handleQuickReply(prompt: QualPrompt, option: QualOption) {
+    if (!slug || sending) return
+    setMessages((prev) => [...prev, { role: 'user', content: option.label }])
+    setQuickReplies(null) // hide the answered prompt immediately
+    setSending(true)
+    try {
+      const reply = await sendConciergeMessage(slug, sessionRef.current, option.label, {
+        criterion_id: prompt.criterion_id,
+        label: option.label,
+        qualifies: option.qualifies,
+      })
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply.reply }])
+      if (reply.show_booking && reply.calendar_url) setBookingUrl(reply.calendar_url)
+      setQuickReplies(reply.quick_replies ?? null)
+    } catch (err) {
+      handleSendError(err)
     } finally {
       setSending(false)
     }
@@ -78,6 +112,24 @@ export function ConciergePublicPage() {
             </div>
           ))}
           {sending && <div className="concierge-bubble concierge-bubble-assistant concierge-typing">{t('conciergePublic.thinking')}</div>}
+
+          {quickReplies && !sending && (
+            <div className="concierge-quick-replies">
+              <div className="concierge-quick-question">{quickReplies.question}</div>
+              <div className="concierge-quick-options">
+                {quickReplies.options.map((opt, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="btn btn-secondary concierge-quick-option"
+                    onClick={() => handleQuickReply(quickReplies, opt)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {bookingUrl && (

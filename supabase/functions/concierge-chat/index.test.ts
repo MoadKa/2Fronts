@@ -12,11 +12,15 @@ import type { ChatCompleteFn } from '../_shared/conciergeChat.ts'
 // It records inserts + the conversation outcome update so tests can assert them.
 interface Captured {
   conciergeRow: Record<string, unknown> | null
-  existingConversation: { id: string; outcome: string } | null
+  existingConversation: { id: string; outcome: string; qualification_answers?: unknown[] } | null
+  // qualification_answers the new-session upsert returns (defaults to []).
+  newConversationAnswers: unknown[]
   history: Array<{ role: string; content: string }>
   insertedMessages: Array<Record<string, unknown>>
   insertedConversation: Record<string, unknown> | null
   outcomeUpdate: string | null
+  // The qualification update the handler applies on a quick-reply answer.
+  qualificationUpdate: { qualification_answers: unknown[]; qualified: boolean | null } | null
 }
 
 function makeCaptured(overrides: Partial<Captured> = {}): Captured {
@@ -29,12 +33,15 @@ function makeCaptured(overrides: Partial<Captured> = {}): Captured {
       tone: 'friendly',
       language: 'de',
       calendar_url: 'https://cal.com/acme',
+      qualification_criteria: [],
     },
     existingConversation: null,
+    newConversationAnswers: [],
     history: [],
     insertedMessages: [],
     insertedConversation: null,
     outcomeUpdate: null,
+    qualificationUpdate: null,
     ...overrides,
   }
 }
@@ -68,14 +75,16 @@ function fakeAdminClient(c: Captured) {
                 return {
                   maybeSingle: () =>
                     Promise.resolve({
-                      data: c.existingConversation ? null : { id: 'conv-new', ...row },
+                      data: c.existingConversation
+                        ? null
+                        : { id: 'conv-new', qualification_answers: c.newConversationAnswers, ...row },
                       error: null,
                     }),
                 }
               },
             }
           },
-          // Conflict path: read the existing conversation id by the unique key.
+          // Conflict path: read the existing conversation id + answers by the key.
           select() {
             return {
               eq() {
@@ -90,7 +99,15 @@ function fakeAdminClient(c: Captured) {
             }
           },
           update(patch: Record<string, unknown>) {
-            c.outcomeUpdate = patch.outcome as string
+            // The handler issues two kinds of update: booking outcome, or the
+            // quick-reply qualification (answers + qualified). Capture each.
+            if ('outcome' in patch) c.outcomeUpdate = patch.outcome as string
+            if ('qualification_answers' in patch) {
+              c.qualificationUpdate = {
+                qualification_answers: patch.qualification_answers as unknown[],
+                qualified: patch.qualified as boolean | null,
+              }
+            }
             return { eq: () => Promise.resolve({ error: null }) }
           },
         }
@@ -290,4 +307,113 @@ Deno.test('when the model throws (Gemini down) the handler returns 502 and never
   assertEquals(JSON.parse(raw).error, 'concierge_chat_failed')
   // The failure body must not echo the visitor's message back to the browser.
   assertEquals(raw.includes(secretMessage), false)
+})
+
+// --- Qualification quick-replies (S-C) ---------------------------------------
+
+const budgetCriterion = {
+  id: 'budget',
+  question: 'What is your budget?',
+  options: [
+    { label: '5k+', qualifies: true },
+    { label: '<1k', qualifies: false },
+  ],
+}
+const timelineCriterion = {
+  id: 'timeline_role',
+  question: 'When do you want to start?',
+  options: [
+    { label: 'Now', qualifies: true },
+    { label: 'Someday', qualifies: false },
+  ],
+}
+
+Deno.test('a normal message with criteria configured attaches quick_replies for the first criterion', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'Hi' }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Hallo!') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.reply, 'Hallo!')
+  // The next unanswered criterion (the first) comes back as a QualPrompt.
+  assertEquals(json.quick_replies.criterion_id, 'budget')
+  assertEquals(json.quick_replies.question, 'What is your budget?')
+  assertEquals(json.quick_replies.options.length, 2)
+})
+
+Deno.test('sending an answer records it, sets qualified, returns the next prompt, and NEVER calls the model', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  let modelCalled = false
+  const complete: ChatCompleteFn = () => {
+    modelCalled = true
+    return Promise.resolve('should not happen')
+  }
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: '5k+',
+      answer: { criterion_id: 'budget', label: '5k+', qualifies: true },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // Localized ack (de), no booking, and the model was never invoked.
+  assertEquals(json.reply, 'Danke!')
+  assertEquals(json.show_booking, false)
+  assertEquals(modelCalled, false)
+  // The answer was appended and qualified recomputed (one qualifying answer).
+  assertEquals(c.qualificationUpdate!.qualification_answers.length, 1)
+  assertEquals(c.qualificationUpdate!.qualified, true)
+  // The clicked label was logged as a user message for history continuity.
+  assertEquals(c.insertedMessages.length, 1)
+  assertEquals(c.insertedMessages[0].role, 'user')
+  assertEquals(c.insertedMessages[0].content, '5k+')
+  // The NEXT unanswered criterion is returned.
+  assertEquals(json.quick_replies.criterion_id, 'timeline_role')
+})
+
+Deno.test('answering the last criterion returns no quick_replies and a disqualifying answer sets qualified false', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion]
+  // Conversation already has the budget answered as qualifying; now answer... wait,
+  // budget is the only criterion. Pre-seed a different prior answer so the new one
+  // is the last and we can assert AND-rule disqualification.
+  c.conciergeRow!.qualification_criteria = [timelineCriterion, budgetCriterion]
+  c.newConversationAnswers = [{ criterion_id: 'timeline_role', label: 'Now', qualifies: true }]
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: '<1k',
+      answer: { criterion_id: 'budget', label: '<1k', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('nope') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // All criteria now answered -> no further prompt.
+  assertEquals(json.quick_replies, undefined)
+  // AND-rule: one disqualifying answer makes the whole conversation not qualified.
+  assertEquals(c.qualificationUpdate!.qualification_answers.length, 2)
+  assertEquals(c.qualificationUpdate!.qualified, false)
+})
+
+Deno.test('a concierge with NO criteria behaves exactly as before (no quick_replies)', async () => {
+  const c = makeCaptured() // qualification_criteria defaults to []
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'Wie lange?' }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('12 Wochen.') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.reply, '12 Wochen.')
+  assertEquals(json.quick_replies, undefined)
+  // Existing flow intact: both turns persisted.
+  assertEquals(c.insertedMessages.map((m) => m.role), ['user', 'assistant'])
 })

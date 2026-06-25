@@ -74,3 +74,26 @@
   text-align: center;
   padding: var(--space-xl) var(--space-lg);
 }
+
+/* Qualification quick-reply buttons rendered under the latest assistant bubble. */
+.concierge-quick-replies {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs, 4px);
+}
+
+.concierge-quick-question {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.concierge-quick-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.concierge-quick-option {
+  font-size: 0.95rem;
+}

@@ -58,6 +58,72 @@ describe('ConciergePublicPage', () => {
     expect(cta.closest('a')).toHaveAttribute('href', 'https://cal.com/acme')
   })
 
+  it('renders quick-reply buttons when the reply includes quick_replies', async () => {
+    sendConciergeMessage.mockResolvedValue({
+      reply: 'Hallo!',
+      show_booking: false,
+      quick_replies: {
+        criterion_id: 'budget',
+        question: 'Wie hoch ist dein Budget?',
+        options: [
+          { label: '5k+', qualifies: true },
+          { label: '<1k', qualifies: false },
+        ],
+      },
+    })
+    renderAt('acme')
+
+    fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Hi' } })
+    fireEvent.click(screen.getByText('Senden'))
+
+    await waitFor(() => expect(screen.getByText('Wie hoch ist dein Budget?')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: '5k+' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '<1k' })).toBeInTheDocument()
+  })
+
+  it('clicking a quick-reply sends the answer, shows the label, and renders the next prompt', async () => {
+    sendConciergeMessage
+      .mockResolvedValueOnce({
+        reply: 'Hallo!',
+        show_booking: false,
+        quick_replies: {
+          criterion_id: 'budget',
+          question: 'Budget?',
+          options: [{ label: '5k+', qualifies: true }],
+        },
+      })
+      .mockResolvedValueOnce({
+        reply: 'Danke!',
+        show_booking: false,
+        quick_replies: {
+          criterion_id: 'timeline_role',
+          question: 'Wann?',
+          options: [{ label: 'Jetzt', qualifies: true }],
+        },
+      })
+    renderAt('acme')
+
+    fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Hi' } })
+    fireEvent.click(screen.getByText('Senden'))
+
+    const optionBtn = await screen.findByRole('button', { name: '5k+' })
+    fireEvent.click(optionBtn)
+
+    // The chosen label appears as a user bubble immediately.
+    expect(screen.getByText('5k+')).toBeInTheDocument()
+    // The answer was sent with the matching QualAnswer.
+    expect(sendConciergeMessage).toHaveBeenLastCalledWith('acme', 'sess-test', '5k+', {
+      criterion_id: 'budget',
+      label: '5k+',
+      qualifies: true,
+    })
+    // The next prompt renders.
+    await waitFor(() => expect(screen.getByText('Wann?')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Jetzt' })).toBeInTheDocument()
+    // The answered prompt is gone.
+    expect(screen.queryByText('Budget?')).not.toBeInTheDocument()
+  })
+
   it('shows a friendly unavailable screen when the slug is not found', async () => {
     sendConciergeMessage.mockRejectedValue(new Error('conciergeChat.unavailable'))
     renderAt('nope')

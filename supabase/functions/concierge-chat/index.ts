@@ -23,6 +23,13 @@ import {
   createGeminiChatComplete,
   generateConciergeReply,
 } from '../_shared/conciergeChat.ts'
+import {
+  type QualAnswer,
+  type QualCriterion,
+  type QualPrompt,
+  evaluateQualified,
+  nextUnansweredCriterion,
+} from '../_shared/qualification.ts'
 
 const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
 
@@ -78,13 +85,35 @@ interface ConciergeRow extends ConciergeKnowledge {
   id: string
 }
 
+// A QualCriterion is structurally a QualPrompt (criterion_id alias is the id).
+function toQualPrompt(c: QualCriterion): QualPrompt {
+  return { criterion_id: c.id, question: c.question, options: c.options }
+}
+
+// Short localized acknowledgement returned when the visitor clicks a quick-reply
+// button (no model call that turn). Mirrors the de/en split used elsewhere.
+function answerAck(language: ConciergeKnowledge['language']): string {
+  return language === 'en' ? 'Thanks!' : 'Danke!'
+}
+
+// Validate an inbound quick-reply answer from the public body. Returns null when
+// it isn't a well-formed QualAnswer so we fall back to the normal text flow.
+function parseAnswer(raw: unknown): QualAnswer | null {
+  if (!raw || typeof raw !== 'object') return null
+  const a = raw as Record<string, unknown>
+  if (typeof a.criterion_id !== 'string' || typeof a.label !== 'string' || typeof a.qualifies !== 'boolean') {
+    return null
+  }
+  return { criterion_id: a.criterion_id, label: a.label, qualifies: a.qualifies }
+}
+
 export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps = defaultDeps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), { status: 405, headers: jsonHeaders })
   }
 
-  let body: { slug?: unknown; session_id?: unknown; message?: unknown }
+  let body: { slug?: unknown; session_id?: unknown; message?: unknown; answer?: unknown }
   try {
     body = await req.json()
   } catch {
@@ -94,6 +123,9 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   const slug = typeof body.slug === 'string' ? body.slug.trim() : ''
   const sessionId = typeof body.session_id === 'string' ? body.session_id.trim() : ''
   const message = typeof body.message === 'string' ? body.message.trim() : ''
+  // A clicked quick-reply button: the visitor's qualification answer. When present
+  // and valid we record it deterministically and skip the model for this turn.
+  const answer = parseAnswer(body.answer)
   if (!slug || !sessionId || !message) {
     return new Response(JSON.stringify({ error: 'slug, session_id and message are required' }), { status: 400, headers: jsonHeaders })
   }
@@ -120,7 +152,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   //    crash — and we never even build a prompt for a concierge that isn't live.
   const { data: conciergeData, error: conciergeErr } = await admin
     .from('concierges')
-    .select('id, business_name, offer_description, qa, tone, language, calendar_url')
+    .select('id, business_name, offer_description, qa, tone, language, calendar_url, qualification_criteria')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle()
@@ -128,10 +160,42 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
   }
   const concierge = conciergeData as ConciergeRow
+  // Default to no criteria when the column is null (older rows / not configured).
+  const criteria: QualCriterion[] = Array.isArray(concierge.qualification_criteria)
+    ? concierge.qualification_criteria
+    : []
 
   try {
-    // 2. Find (or open) this visitor's conversation for the concierge.
-    const conversationId = await resolveConversation(admin, concierge.id, sessionId)
+    // 2. Find (or open) this visitor's conversation for the concierge, and load
+    //    its recorded qualification answers (so we can append + recompute).
+    const { id: conversationId, qualification_answers: priorAnswers } =
+      await resolveConversation(admin, concierge.id, sessionId)
+
+    // 2b. QUICK-REPLY BRANCH. The visitor clicked a qualifying button: record the
+    //     answer deterministically, recompute `qualified`, persist both, log the
+    //     clicked label as a user message for history continuity, and return the
+    //     NEXT question (if any). We do NOT call the model on this turn.
+    if (answer) {
+      const updatedAnswers: QualAnswer[] = [...priorAnswers, answer]
+      const qualified = evaluateQualified(updatedAnswers)
+      await admin
+        .from('concierge_conversations')
+        .update({ qualification_answers: updatedAnswers, qualified })
+        .eq('id', conversationId)
+      await admin
+        .from('concierge_messages')
+        .insert([{ conversation_id: conversationId, role: 'user', content: answer.label }])
+
+      const next = nextUnansweredCriterion(criteria, updatedAnswers)
+      return new Response(
+        JSON.stringify({
+          reply: answerAck(concierge.language),
+          show_booking: false,
+          ...(next ? { quick_replies: toQualPrompt(next) } : {}),
+        }),
+        { status: 200, headers: jsonHeaders },
+      )
+    }
 
     // 3. Load only the most recent HISTORY_LIMIT turns (newest-first in the DB),
     //    then reverse to oldest-first so the prompt reads chronologically. Fetching
@@ -156,6 +220,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
           tone: concierge.tone,
           language: concierge.language,
           calendar_url: concierge.calendar_url,
+          qualification_criteria: criteria,
         },
         history,
         message,
@@ -173,12 +238,17 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       await admin.from('concierge_conversations').update({ outcome: 'booking_shown' }).eq('id', conversationId)
     }
 
+    // 5b. HYBRID: booking gating above is unchanged. Independently, if there's a
+    //     next unanswered criterion, attach its quick-reply prompt to the reply.
+    const next = nextUnansweredCriterion(criteria, priorAnswers)
+
     // 6. Return only the reply + booking signal. Offer/qa never leave the server.
     return new Response(
       JSON.stringify({
         reply: result.reply,
         show_booking: result.show_booking,
         ...(result.calendar_url ? { calendar_url: result.calendar_url } : {}),
+        ...(next ? { quick_replies: toQualPrompt(next) } : {}),
       }),
       { status: 200, headers: jsonHeaders },
     )
@@ -197,31 +267,43 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
 // upsert atomic. We upsert with ignoreDuplicates so a brand-new session inserts
 // (and returns) its row, while concurrent requests for an existing session hit
 // the conflict and get NO row back — without ever overwriting the live outcome.
-// On that empty result we SELECT the existing row by the same key.
+// On that empty result we SELECT the existing row by the same key. Returns the id
+// plus the conversation's recorded qualification answers (empty for a new row).
+interface ResolvedConversation {
+  id: string
+  qualification_answers: QualAnswer[]
+}
+
+function toAnswers(raw: unknown): QualAnswer[] {
+  return Array.isArray(raw) ? (raw as QualAnswer[]) : []
+}
+
 async function resolveConversation(
   admin: SupabaseClient,
   conciergeId: string,
   sessionId: string,
-): Promise<string> {
+): Promise<ResolvedConversation> {
   const { data: upserted } = await admin
     .from('concierge_conversations')
     .upsert(
       { concierge_id: conciergeId, visitor_session_id: sessionId, outcome: 'open' },
       { onConflict: 'concierge_id,visitor_session_id', ignoreDuplicates: true },
     )
-    .select('id')
+    .select('id, qualification_answers')
     .maybeSingle()
-  if ((upserted as { id?: string } | null)?.id) return (upserted as { id: string }).id
+  const up = upserted as { id?: string; qualification_answers?: unknown } | null
+  if (up?.id) return { id: up.id, qualification_answers: toAnswers(up.qualification_answers) }
 
   // Conflict path: the conversation already existed, so the upsert did nothing.
-  // Read its id by the unique key.
+  // Read its id + answers by the unique key.
   const { data: existing } = await admin
     .from('concierge_conversations')
-    .select('id')
+    .select('id, qualification_answers')
     .eq('concierge_id', conciergeId)
     .eq('visitor_session_id', sessionId)
     .maybeSingle()
-  if ((existing as { id?: string } | null)?.id) return (existing as { id: string }).id
+  const ex = existing as { id?: string; qualification_answers?: unknown } | null
+  if (ex?.id) return { id: ex.id, qualification_answers: toAnswers(ex.qualification_answers) }
 
   throw new Error('could not open conversation')
 }
