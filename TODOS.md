@@ -200,7 +200,9 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 
 **Depends on:** Nothing blocking.
 
-## 15. Cap visitor message length in `concierge-chat`
+## 15. Cap visitor message length in `concierge-chat` ✅ DONE (2026-06-25, v1.0.1.0)
+
+**Done:** `concierge-chat/index.ts` now rejects `message` > 2000 chars (`message_too_long`) and `session_id` > 256 chars (`session_id_too_long`) before any DB/Gemini call. (#14 per-IP/window rate-limiting is still open.)
 
 **What:** Reject or truncate oversized `message` input in the concierge chat handler before it goes into the Gemini prompt.
 
