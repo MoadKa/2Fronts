@@ -37,7 +37,12 @@ export function AutomationDetailPage() {
 
   async function handleRequest() {
     if (!automation) return
-    if (automation.requires_provisioning && !bookingLink.trim()) {
+    // The business-name + booking-link fields are Twilio-missed-call only. Other
+    // provisioned connectors configure elsewhere: the booking concierge sets its
+    // calendar link in the setup wizard, Sheets/Slack via OAuth at /connect. So
+    // only require the booking link for the Twilio connector — otherwise a coach
+    // would have to enter their Calendly here AND again in the wizard.
+    if (automation.connector_type === 'twilio_missed_call' && !bookingLink.trim()) {
       setBookingLinkError(t('automationDetail.bookingLinkRequired'))
       return
     }
@@ -72,7 +77,7 @@ export function AutomationDetailPage() {
         <h3>{formatPrice(automation.price_cents, automation.currency)}</h3>
         {user ? (
           <>
-            {automation.requires_provisioning && (
+            {automation.connector_type === 'twilio_missed_call' && (
               <>
                 <Input
                   label={t('automationDetail.businessName')}
