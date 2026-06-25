@@ -28,6 +28,10 @@ export default function App() {
         <AuthProvider>
           <BrowserRouter>
             <Routes>
+              {/* The public concierge a coach shares with their prospects renders
+                  standalone — no 2Fronts marketplace nav/footer/sign-in, which would
+                  be off-brand and invite the coach's visitor to register with us. */}
+              <Route path="/c/:slug" element={<ConciergePublicPage />} />
               <Route element={<AppLayout />}>
                 <Route path="/" element={<WaitlistLandingPage />} />
                 <Route path="/app" element={<AppHomePage />} />
@@ -39,7 +43,6 @@ export default function App() {
                 <Route path="/supported-software" element={<SupportedSoftwarePage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
                 <Route path="/marketplace-test" element={<MarketplaceTestPage />} />
-                <Route path="/c/:slug" element={<ConciergePublicPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route path="/my-requests" element={<MyRequestsPage />} />
                   <Route path="/connect/:provisionId/confirm" element={<ConnectConfirmRoute />} />
