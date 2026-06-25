@@ -56,7 +56,9 @@ function completeWizard(lang: 'de' | 'en') {
     target: { value: 'https://cal.com/acme' },
   })
   next()
-  // Step 5 tone -> finish
+  // Step 5 qualify (optional) -> skip
+  next()
+  // Step 6 tone -> finish
   fireEvent.click(screen.getByText(T('conciergeOnboarding.tone.finish')))
 }
 
@@ -79,8 +81,8 @@ describe('ConciergeSetupPage onboarding wizard', () => {
     renderPage()
     fireEvent.click(screen.getByText("Los geht's"))
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
-    // Step 1 of 5.
-    expect(screen.getByText('Schritt 1 von 5')).toBeInTheDocument()
+    // Step 1 of 6.
+    expect(screen.getByText('Schritt 1 von 6')).toBeInTheDocument()
   })
 
   it('validates a required step before advancing', () => {
@@ -151,6 +153,45 @@ describe('ConciergeSetupPage onboarding wizard', () => {
       }),
     )
     expect(linkProvisionToConcierge).toHaveBeenCalledWith('prov-1', 'con-1')
+  })
+
+  it('saves qualification_criteria when a builtin criterion is enabled', async () => {
+    createConcierge.mockResolvedValue({ id: 'con-q', slug: 'acme-coaching' })
+    linkProvisionToConcierge.mockResolvedValue(undefined)
+    renderPage()
+    const T = i18n.getFixedT('de')
+
+    // Welcome -> business -> offer -> questions -> booking.
+    fireEvent.click(screen.getByRole('button', { name: T('conciergeOnboarding.welcome.languageDe') }))
+    fireEvent.click(screen.getByText("Los geht's"))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.business.title')), {
+      target: { value: 'Acme Coaching' },
+    })
+    fireEvent.click(screen.getByText('Weiter'))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.offer.title')), {
+      target: { value: 'We coach founders.' },
+    })
+    fireEvent.click(screen.getByText('Weiter'))
+    fireEvent.click(screen.getByText('Weiter')) // skip questions
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.booking.label')), {
+      target: { value: 'https://cal.com/acme' },
+    })
+    fireEvent.click(screen.getByText('Weiter')) // -> qualify
+
+    // Enable the budget builtin criterion (toggle labelled by its question).
+    const budgetToggle = screen.getByLabelText(T('conciergeOnboarding.qualify.presets.budgetQuestion'))
+    fireEvent.click(budgetToggle)
+
+    fireEvent.click(screen.getByText('Weiter')) // -> tone
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.tone.finish')))
+
+    await waitFor(() => expect(createConcierge).toHaveBeenCalled())
+    const arg = createConcierge.mock.calls[0][0]
+    expect(arg.qualification_criteria).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'budget' })]),
+    )
+    expect(arg.qualification_criteria.length).toBeGreaterThan(0)
+    expect(arg.qualification_criteria[0].options.length).toBeGreaterThan(0)
   })
 
   it('completes the wizard in English and sets language=en on the concierge', async () => {

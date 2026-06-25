@@ -15,6 +15,7 @@ const concierge = {
   tone: 'friendly',
   language: 'de' as const,
   calendar_url: 'https://cal.com/acme/intro',
+  qualification_criteria: [],
 }
 
 // A chat complete() that returns the same canned text regardless of input.

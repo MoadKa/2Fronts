@@ -20,6 +20,7 @@
 // / error-handling posture of createGeminiComplete.
 
 import { geminiFetchWithRetry } from './geminiRetry.ts'
+import type { QualCriterion, QualPrompt } from './qualification.ts'
 
 export type ConciergeLanguage = 'de' | 'en'
 
@@ -33,6 +34,9 @@ export interface ConciergeKnowledge {
   tone: string
   language: ConciergeLanguage
   calendar_url: string
+  // The coach's ideal-customer criteria. The handler (not the LLM) deterministically
+  // asks these as quick-reply buttons; empty = no qualification. (Shared contract.)
+  qualification_criteria: QualCriterion[]
 }
 
 // One turn of the conversation. 'assistant' is the AI; 'user' is the visitor.
@@ -63,6 +67,9 @@ export interface ConciergeReply {
   show_booking: boolean
   // Only set when show_booking is true, so the page never renders a bare CTA.
   calendar_url?: string
+  // The next qualification question to render as quick-reply buttons. Set by the
+  // handler (deterministic), never by the LLM. Absent when nothing left to ask.
+  quick_replies?: QualPrompt
 }
 
 function languageName(language: ConciergeLanguage): string {
@@ -120,6 +127,8 @@ export function buildConciergeSystemPrompt(c: ConciergeKnowledge): string {
     '- When the visitor wants to book, is ready, or asks how to get started, share',
     `  the booking link verbatim: ${c.calendar_url}`,
     '- Keep replies short, warm, and conversational. One idea at a time.',
+    '- Another part of the system asks the visitor any qualifying questions via',
+    '  quick-reply buttons, so do NOT ask qualifying questions yourself.',
   ].join('\n')
 }
 

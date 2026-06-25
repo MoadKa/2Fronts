@@ -1,3 +1,16 @@
+// A catalog "what's missing?" request. Every submission is its own row (see the
+// wishes table) so repeat requests from the same email are all captured.
+export interface Wish {
+  id: string
+  email: string
+  message: string | null
+  industry: string | null
+  locale: string | null
+  marketing_consent: boolean
+  marketing_consent_at: string | null
+  created_at: string
+}
+
 export type UserRole = 'customer' | 'admin'
 
 export interface Profile {

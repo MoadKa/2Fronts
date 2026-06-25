@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1'
-import { handleWaitlistSignup, type InsertResult } from './index.ts'
+import { handleWaitlistSignup, type InsertResult, type SignupRow } from './index.ts'
 
 function jsonReq(body: unknown, method = 'POST') {
   return new Request('http://localhost/waitlist-signup', {
@@ -9,10 +9,10 @@ function jsonReq(body: unknown, method = 'POST') {
 }
 
 function inserter(result: InsertResult) {
-  const calls: Array<{ email: string; locale: string | null; source: string | null }> = []
+  const calls: Array<SignupRow> = []
   return {
     deps: {
-      insertSignup: (row: { email: string; locale: string | null; source: string | null }) => {
+      insertSignup: (row: SignupRow) => {
         calls.push(row)
         return Promise.resolve(result)
       },
@@ -30,7 +30,26 @@ Deno.test('inserts a new signup and returns 200 with alreadySubscribed=false', a
   assertEquals(body.ok, true)
   assertEquals(body.alreadySubscribed, false)
   assertEquals(calls.length, 1)
-  assertEquals(calls[0], { email: 'a@b.com', locale: 'de', source: 'landing' })
+  assertEquals(calls[0], { email: 'a@b.com', locale: 'de', source: 'landing', message: null, marketing_consent: false })
+})
+
+Deno.test('stores the catalog request message and marketing consent', async () => {
+  const { deps, calls } = inserter({ duplicate: false })
+  const res = await handleWaitlistSignup(
+    jsonReq({ email: 'a@b.com', source: 'catalog_request', message: '  Bitte HubSpot-Sync  ', marketing_consent: true }),
+    deps,
+  )
+  assertEquals(res.status, 200)
+  assertEquals(calls[0].message, 'Bitte HubSpot-Sync')
+  assertEquals(calls[0].marketing_consent, true)
+})
+
+Deno.test('marketing_consent defaults to false and message to null when omitted/blank', async () => {
+  const { deps, calls } = inserter({ duplicate: false })
+  await handleWaitlistSignup(jsonReq({ email: 'a@b.com', message: '   ', marketing_consent: 'yes' }), deps)
+  assertEquals(calls[0].message, null)
+  // Only a real boolean true counts as consent; a truthy string must not.
+  assertEquals(calls[0].marketing_consent, false)
 })
 
 Deno.test('trims the email before inserting', async () => {

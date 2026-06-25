@@ -60,4 +60,11 @@ describe('App routing — public concierge is standalone', () => {
       expect(screen.getByText(T('nav.signInRegister'))).toBeInTheDocument(),
     )
   })
+
+  // The catalog is now the home page (replaced the waitlist landing at /).
+  it('serves the catalog as the home page at /', async () => {
+    const T = i18n.getFixedT('de')
+    renderAppAt('/')
+    await waitFor(() => expect(screen.getByText(T('catalog.heroTitle'))).toBeInTheDocument())
+  })
 })

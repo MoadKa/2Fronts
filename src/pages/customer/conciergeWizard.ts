@@ -5,24 +5,33 @@
 // error KEY the component resolves, mirroring the rest of the codebase.
 
 import type { ConciergeLanguage } from '../../services/ConciergeService'
+import type { QualCriterion } from '../../lib/qualification'
 
 // The wizard's content steps, in order. 'welcome' and 'done' are screens, not
-// content steps, so they are NOT part of the progress count ("Step 3 of 5").
+// content steps, so they are NOT part of the progress count ("Step 3 of 6").
 export const WIZARD_STEPS = [
   'welcome',
   'business',
   'offer',
   'questions',
   'booking',
+  'qualify',
   'tone',
   'done',
 ] as const
 
 export type WizardStep = (typeof WIZARD_STEPS)[number]
 
-// The five numbered content steps the progress bar counts. Welcome/done bookend
-// the flow but never show "Step X of 5".
-export const CONTENT_STEPS: WizardStep[] = ['business', 'offer', 'questions', 'booking', 'tone']
+// The numbered content steps the progress bar counts. Welcome/done bookend
+// the flow but never show "Step X of 6".
+export const CONTENT_STEPS: WizardStep[] = [
+  'business',
+  'offer',
+  'questions',
+  'booking',
+  'qualify',
+  'tone',
+]
 export const TOTAL_CONTENT_STEPS = CONTENT_STEPS.length
 
 export type TonePreset = 'friendly' | 'professional' | 'casual'
@@ -38,6 +47,7 @@ export interface WizardData {
   qa: string
   calendarUrl: string
   tone: TonePreset
+  qualificationCriteria: QualCriterion[]
 }
 
 export function emptyWizardData(language: ConciergeLanguage): WizardData {
@@ -48,6 +58,7 @@ export function emptyWizardData(language: ConciergeLanguage): WizardData {
     qa: '',
     calendarUrl: '',
     tone: 'friendly',
+    qualificationCriteria: [],
   }
 }
 

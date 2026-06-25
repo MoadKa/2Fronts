@@ -15,7 +15,6 @@ import { MyRequestsPage } from './pages/customer/MyRequestsPage'
 import { ConnectConfirmRoute } from './pages/customer/ConnectConfirmRoute'
 import { AdminCatalogPage } from './pages/admin/AdminCatalogPage'
 import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
-import { WaitlistLandingPage } from './pages/public/WaitlistLandingPage'
 import { AppHomePage } from './pages/public/AppHomePage'
 import { ImpressumPage } from './pages/public/legal/ImpressumPage'
 import { DatenschutzPage } from './pages/public/legal/DatenschutzPage'
@@ -33,7 +32,9 @@ export default function App() {
                   be off-brand and invite the coach's visitor to register with us. */}
               <Route path="/c/:slug" element={<ConciergePublicPage />} />
               <Route element={<AppLayout />}>
-                <Route path="/" element={<WaitlistLandingPage />} />
+                {/* The catalog IS the home page. /automations stays as an alias so
+                    existing links and deep links keep working. */}
+                <Route path="/" element={<CatalogPage />} />
                 <Route path="/app" element={<AppHomePage />} />
                 <Route path="/automations" element={<CatalogPage />} />
                 <Route path="/automations/:id" element={<AutomationDetailPage />} />

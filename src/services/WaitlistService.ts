@@ -4,6 +4,10 @@ export interface WaitlistSignupPayload {
   email: string
   locale?: string
   source?: string
+  // Free-text "what are you missing?" from the catalog request form.
+  message?: string
+  // Explicit marketing opt-in (DSGVO active checkbox).
+  marketingConsent?: boolean
 }
 
 export interface WaitlistSignupResult {
@@ -18,6 +22,8 @@ export async function submitWaitlistSignup(payload: WaitlistSignupPayload): Prom
       email: payload.email,
       locale: payload.locale,
       source: payload.source,
+      message: payload.message,
+      marketing_consent: payload.marketingConsent,
     },
   })
   if (error) throw error

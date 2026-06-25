@@ -28,23 +28,26 @@ function fullData(over: Partial<WizardData> = {}): WizardData {
 describe('conciergeWizard progress', () => {
   it('reads 0 on welcome and full on done', () => {
     expect(progressFor('welcome')).toMatchObject({ current: 0, total: TOTAL_CONTENT_STEPS, ratio: 0 })
-    expect(progressFor('done')).toMatchObject({ current: 5, total: 5, ratio: 1 })
+    expect(progressFor('done')).toMatchObject({ current: 6, total: 6, ratio: 1 })
   })
 
-  it('numbers the five content steps 1..5', () => {
+  it('numbers the six content steps 1..6', () => {
     expect(progressFor('business').current).toBe(1)
     expect(progressFor('offer').current).toBe(2)
     expect(progressFor('questions').current).toBe(3)
     expect(progressFor('booking').current).toBe(4)
-    expect(progressFor('tone').current).toBe(5)
+    expect(progressFor('qualify').current).toBe(5)
+    expect(progressFor('tone').current).toBe(6)
     expect(progressFor('tone').ratio).toBeCloseTo(1)
-    expect(progressFor('questions').ratio).toBeCloseTo(0.6)
+    expect(progressFor('questions').ratio).toBeCloseTo(0.5)
   })
 })
 
 describe('conciergeWizard navigation', () => {
   it('walks forward and back and clamps at the bookends', () => {
     expect(nextStep('welcome')).toBe('business')
+    expect(nextStep('booking')).toBe('qualify')
+    expect(nextStep('qualify')).toBe('tone')
     expect(nextStep('tone')).toBe('done')
     expect(nextStep('done')).toBe('done') // clamps
     expect(prevStep('business')).toBe('welcome')
@@ -104,8 +107,9 @@ describe('validateStep', () => {
     expect(validateStep('booking', fullData())).toBeNull()
   })
 
-  it('never blocks welcome/tone/done', () => {
+  it('never blocks welcome/qualify/tone/done', () => {
     expect(validateStep('welcome', fullData())).toBeNull()
+    expect(validateStep('qualify', fullData())).toBeNull()
     expect(validateStep('tone', fullData())).toBeNull()
     expect(validateStep('done', fullData())).toBeNull()
   })

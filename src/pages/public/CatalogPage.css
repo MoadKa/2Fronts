@@ -267,18 +267,68 @@
   margin-top: var(--space-2xl);
 }
 
-.final-cta {
+/* "Didn't find what you're looking for?" capture at the bottom of the catalog. */
+.catalog-request {
+  max-width: 560px;
+  margin: var(--space-3xl) auto;
   text-align: center;
-  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
-  padding: var(--space-2xl);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
   border-radius: var(--radius-lg);
+  padding: var(--space-2xl);
   box-shadow: var(--shadow-clay-md);
-  margin: var(--space-3xl) 0;
 }
 
-.final-cta h2,
-.final-cta p {
-  color: var(--color-on-primary);
+.catalog-request-sub {
+  color: var(--color-text);
+  margin-bottom: var(--space-lg);
+}
+
+.catalog-request-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  text-align: left;
+}
+
+.catalog-request-form textarea {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md, 12px);
+  font: inherit;
+  color: var(--color-foreground);
+  background: var(--color-background, #fff);
+  resize: vertical;
+}
+
+.catalog-request-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.catalog-request-consent input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.catalog-request-success {
+  color: var(--color-success, #15803d);
+  font-weight: 600;
+}
+
+.catalog-request-error {
+  color: var(--color-destructive);
+}
+
+.catalog-request-privacy {
+  margin-top: var(--space-md);
+  font-size: 0.82rem;
+  color: var(--color-text);
 }
 
 /* ----------------------------------------------------------------------- */

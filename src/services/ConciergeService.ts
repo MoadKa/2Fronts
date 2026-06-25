@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient'
+import type { QualAnswer, QualCriterion, QualPrompt } from '../lib/qualification'
 
 // Client-side surface of the AI Booking Concierge:
 //   sendConciergeMessage -> the public chat (calls the concierge-chat edge fn)
@@ -12,6 +13,9 @@ export interface ConciergeChatReply {
   reply: string
   show_booking: boolean
   calendar_url?: string
+  // Present when the concierge wants the visitor to answer the next qualification
+  // criterion: the chat renders these options as quick-reply buttons. (S-C runtime.)
+  quick_replies?: QualPrompt
 }
 
 export type ConciergeLanguage = 'de' | 'en'
@@ -24,6 +28,10 @@ export interface CreateConciergeInput {
   tone: string
   language: ConciergeLanguage
   calendar_url: string
+  // Ideal-customer criteria the concierge qualifies visitors against in chat.
+  // Optional/empty = no qualification (concierge behaves exactly as before). The
+  // wizard (S-B) supplies it; older callers omit it. (S-B wizard.)
+  qualification_criteria?: QualCriterion[]
 }
 
 export interface Concierge {
@@ -75,9 +83,12 @@ export async function sendConciergeMessage(
   slug: string,
   sessionId: string,
   message: string,
+  // Set when the visitor clicked a quick-reply button: the chosen qualification
+  // answer. The edge function records it and returns the next prompt. (S-C runtime.)
+  answer?: QualAnswer,
 ): Promise<ConciergeChatReply> {
   const { data, error } = await supabase.functions.invoke('concierge-chat', {
-    body: { slug, session_id: sessionId, message },
+    body: { slug, session_id: sessionId, message, answer },
   })
   if (error) throw new Error(await readChatErrorKey(error))
   return data as ConciergeChatReply
@@ -106,6 +117,7 @@ export async function createConcierge(input: CreateConciergeInput): Promise<Conc
       tone: input.tone,
       language: input.language,
       calendar_url: input.calendar_url,
+      qualification_criteria: input.qualification_criteria ?? [],
     })
     .select()
     .single()
