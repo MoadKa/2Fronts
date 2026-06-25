@@ -335,6 +335,25 @@
     "privacyNote": "We'll only email you about early access. See our",
     "privacyLink": "Privacy Policy"
   },
+  "catalogRequest": {
+    "title": "Didn't find what you're looking for?",
+    "sub": "Tell us which automation you're missing. We'll build it and get back to you.",
+    "emailLabel": "Your email",
+    "emailPlaceholder": "you@company.com",
+    "messageLabel": "What are you missing? (optional)",
+    "messagePlaceholder": "e.g. auto-generate invoices from my shop…",
+    "consentLabel": "I'd like to receive product updates and marketing by email.",
+    "consentRequired": "Please agree so we may reply to you by email.",
+    "submit": "Send request",
+    "submitting": "Sending…",
+    "success": "Thanks! We've got your request — we'll be in touch.",
+    "alreadySubscribed": "You're already on the list — thanks!",
+    "error": "Something went wrong — please try again.",
+    "emailRequired": "Please enter your email",
+    "emailInvalid": "Please enter a valid email address",
+    "privacyNote": "We process your data per our",
+    "privacyLink": "Privacy Policy"
+  },
   "conciergePublic": {
     "greeting": "Hi! I'm here to answer your questions and help you book a call. What would you like to know?",
     "inputPlaceholder": "Type your message…",

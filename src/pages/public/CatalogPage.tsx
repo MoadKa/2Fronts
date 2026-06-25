@@ -5,6 +5,7 @@ import { listActiveAutomations } from '../../services/AutomationService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Reveal } from '../../components/ui/Reveal'
+import { CatalogRequestSection } from './CatalogRequestSection'
 import type { Automation } from '../../types/database'
 import './CatalogPage.css'
 
@@ -252,13 +253,7 @@ export function CatalogPage() {
       </section>
 
       <Reveal>
-        <section className="final-cta">
-          <h2>{t('catalog.finalCtaTitle')}</h2>
-          <p>{t('catalog.finalCtaBody')}</p>
-          <a href="#catalog" className="btn btn-primary">
-            {t('catalog.discoverAutomations')}
-          </a>
-        </section>
+        <CatalogRequestSection />
       </Reveal>
     </div>
   )

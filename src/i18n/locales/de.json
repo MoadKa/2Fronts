@@ -335,6 +335,25 @@
     "privacyNote": "Wir schreiben dir nur zum frühen Zugang. Siehe unsere",
     "privacyLink": "Datenschutzerklärung"
   },
+  "catalogRequest": {
+    "title": "Nicht gefunden, was du suchst?",
+    "sub": "Sag uns, welche Automatisierung dir fehlt. Wir bauen sie und melden uns bei dir.",
+    "emailLabel": "Deine E-Mail",
+    "emailPlaceholder": "du@firma.de",
+    "messageLabel": "Was fehlt dir? (optional)",
+    "messagePlaceholder": "z. B. Rechnungen automatisch aus meinem Shop erstellen…",
+    "consentLabel": "Ich möchte Produkt-Updates und Werbung per E-Mail erhalten.",
+    "consentRequired": "Bitte stimme zu, damit wir dir per E-Mail antworten dürfen.",
+    "submit": "Vorschlag senden",
+    "submitting": "Wird gesendet…",
+    "success": "Danke! Wir haben deinen Vorschlag — wir melden uns.",
+    "alreadySubscribed": "Du stehst bereits auf der Liste — danke!",
+    "error": "Etwas ist schiefgelaufen — bitte erneut versuchen.",
+    "emailRequired": "Bitte gib deine E-Mail ein",
+    "emailInvalid": "Bitte gib eine gültige E-Mail-Adresse ein",
+    "privacyNote": "Deine Daten verarbeiten wir gemäß unserer",
+    "privacyLink": "Datenschutzerklärung"
+  },
   "conciergePublic": {
     "greeting": "Hallo! Ich beantworte deine Fragen und helfe dir, einen Termin zu buchen. Was möchtest du wissen?",
     "inputPlaceholder": "Nachricht eingeben…",
