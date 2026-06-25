@@ -64,6 +64,14 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   if (!slug || !sessionId || !message) {
     return new Response(JSON.stringify({ error: 'slug, session_id and message are required' }), { status: 400, headers: jsonHeaders })
   }
+  // Bound public input: this endpoint takes no JWT, so unbounded message/session
+  // text would burn Gemini tokens and bloat the DB on abuse. Cap both early.
+  if (message.length > 2000) {
+    return new Response(JSON.stringify({ error: 'message_too_long' }), { status: 400, headers: jsonHeaders })
+  }
+  if (sessionId.length > 256) {
+    return new Response(JSON.stringify({ error: 'session_id_too_long' }), { status: 400, headers: jsonHeaders })
+  }
 
   const admin = deps.createAdminClient()
 
@@ -85,13 +93,16 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     // 2. Find (or open) this visitor's conversation for the concierge.
     const conversationId = await resolveConversation(admin, concierge.id, sessionId)
 
-    // 3. Load recent history for the conversation, oldest first.
+    // 3. Load only the most recent HISTORY_LIMIT turns (newest-first in the DB),
+    //    then reverse to oldest-first so the prompt reads chronologically. Fetching
+    //    with a limit avoids pulling an unbounded thread just to slice it later.
     const { data: historyData } = await admin
       .from('concierge_messages')
       .select('role, content')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
-    const history = (historyData ?? []) as ChatTurn[]
+      .order('created_at', { ascending: false })
+      .limit(HISTORY_LIMIT)
+    const history = ((historyData ?? []) as ChatTurn[]).reverse()
 
     // 4. Generate the grounded reply. The LLM client is built lazily so the key
     //    is only required when we actually call the model.
@@ -106,7 +117,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
           language: concierge.language,
           calendar_url: concierge.calendar_url,
         },
-        history: history.slice(-HISTORY_LIMIT),
+        history,
         message,
       },
       { complete },
@@ -141,28 +152,38 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
 // Reuse an existing conversation for this (concierge, session) when one exists,
 // else open a new one. Keeping one conversation per session means the AI sees
 // the visitor's whole thread, not a fresh start each message.
+//
+// Race-safe: a UNIQUE (concierge_id, visitor_session_id) constraint makes the
+// upsert atomic. We upsert with ignoreDuplicates so a brand-new session inserts
+// (and returns) its row, while concurrent requests for an existing session hit
+// the conflict and get NO row back — without ever overwriting the live outcome.
+// On that empty result we SELECT the existing row by the same key.
 async function resolveConversation(
   admin: SupabaseClient,
   conciergeId: string,
   sessionId: string,
 ): Promise<string> {
+  const { data: upserted } = await admin
+    .from('concierge_conversations')
+    .upsert(
+      { concierge_id: conciergeId, visitor_session_id: sessionId, outcome: 'open' },
+      { onConflict: 'concierge_id,visitor_session_id', ignoreDuplicates: true },
+    )
+    .select('id')
+    .maybeSingle()
+  if ((upserted as { id?: string } | null)?.id) return (upserted as { id: string }).id
+
+  // Conflict path: the conversation already existed, so the upsert did nothing.
+  // Read its id by the unique key.
   const { data: existing } = await admin
     .from('concierge_conversations')
     .select('id')
     .eq('concierge_id', conciergeId)
     .eq('visitor_session_id', sessionId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-  const found = (existing ?? [])[0] as { id?: string } | undefined
-  if (found?.id) return found.id
+    .maybeSingle()
+  if ((existing as { id?: string } | null)?.id) return (existing as { id: string }).id
 
-  const { data: created, error } = await admin
-    .from('concierge_conversations')
-    .insert({ concierge_id: conciergeId, visitor_session_id: sessionId, outcome: 'open' })
-    .select()
-    .single()
-  if (error || !created) throw new Error('could not open conversation')
-  return (created as { id: string }).id
+  throw new Error('could not open conversation')
 }
 
 if (import.meta.main) {

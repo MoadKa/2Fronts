@@ -29,9 +29,22 @@ Deno.test('buildConciergeSystemPrompt grounds the AI in the offer + qa and pins 
   assertStringIncludes(prompt, '14-day money back')
   // Language must be pinned to the concierge's chosen language.
   assertStringIncludes(prompt, 'German')
-  // The trust core: never invent, fall back when unsure.
+  // The trust core: never invent, route honestly to the booking link when unsure.
   assertStringIncludes(prompt.toLowerCase(), 'never')
-  assertStringIncludes(prompt, 'Acme Coaching follow up')
+  // The honest-handoff fallback points to the booking link, not a fake follow-up.
+  assertStringIncludes(prompt, concierge.calendar_url)
+})
+
+Deno.test('buildConciergeSystemPrompt makes NO follow-up/notify promise and forbids fake follow-ups', () => {
+  const prompt = buildConciergeSystemPrompt(concierge)
+  const lower = prompt.toLowerCase()
+  // The old false promise ("I'll have {business_name} follow up") must be gone.
+  assertEquals(lower.includes('follow up'), true) // present only as a FORBIDDEN action
+  assertEquals(lower.includes(`have ${concierge.business_name.toLowerCase()} follow up`), false)
+  assertEquals(lower.includes(`${concierge.business_name.toLowerCase()} follow up`), false)
+  // And the explicit no-false-promise rule must be present.
+  assertStringIncludes(prompt, 'NEVER promise anything the system cannot do')
+  assertStringIncludes(lower, 'cannot notify')
 })
 
 Deno.test('buildConciergeSystemPrompt says English when language is en', () => {
@@ -46,6 +59,19 @@ Deno.test('detectShowBooking is true once the calendar url appears in the reply'
 
 Deno.test('detectShowBooking is false for an empty calendar url', () => {
   assertEquals(detectShowBooking('anything', ''), false)
+})
+
+Deno.test('detectShowBooking matches only on a word boundary after the url', () => {
+  const url = concierge.calendar_url
+  // True when the url is followed by end-of-string, whitespace, or punctuation.
+  assertEquals(detectShowBooking(url, url), true)
+  assertEquals(detectShowBooking(`Book here: ${url} — see you soon`, url), true)
+  assertEquals(detectShowBooking(`Book here: ${url}.`, url), true)
+  assertEquals(detectShowBooking(`Book here: ${url}!`, url), true)
+  assertEquals(detectShowBooking(`(${url})`, url), true)
+  // False when the configured url is a strict PREFIX of a longer url in the reply.
+  assertEquals(detectShowBooking(`Book the VIP slot: ${url}-vip`, url), false)
+  assertEquals(detectShowBooking(`${url}/extra`, url), false)
 })
 
 Deno.test('generateConciergeReply returns the model reply and detects booking when the link surfaces', async () => {
@@ -65,6 +91,34 @@ Deno.test('generateConciergeReply does NOT surface booking for an ordinary answe
     { concierge, history: [], message: 'Wie lange dauert das Programm?' },
     { complete },
   )
+  assertEquals(result.show_booking, false)
+  assertEquals(result.calendar_url, undefined)
+})
+
+Deno.test('generateConciergeReply substitutes a localized booking fallback for an empty model reply', async () => {
+  // Gemini can return an empty/SAFETY-blocked string; the visitor must not get a blank bubble.
+  const complete = cannedChat('')
+  const result = await generateConciergeReply(
+    { concierge, history: [], message: 'Etwas heikles' },
+    { complete },
+  )
+  assertEquals(result.reply.trim() !== '', true)
+  // German fallback (concierge.language === 'de') that points to the booking link.
+  assertStringIncludes(result.reply, 'Entschuldige')
+  assertStringIncludes(result.reply, concierge.calendar_url)
+  assertEquals(result.show_booking, true)
+  assertEquals(result.calendar_url, concierge.calendar_url)
+})
+
+Deno.test('generateConciergeReply empty-reply fallback uses English and respects an unset calendar url', async () => {
+  const complete = cannedChat('   ') // whitespace-only counts as empty
+  const result = await generateConciergeReply(
+    { concierge: { ...concierge, language: 'en', calendar_url: '' }, history: [], message: 'x' },
+    { complete },
+  )
+  assertEquals(result.reply.trim() !== '', true)
+  assertStringIncludes(result.reply, 'Sorry')
+  // No calendar url configured -> no CTA path to offer.
   assertEquals(result.show_booking, false)
   assertEquals(result.calendar_url, undefined)
 })

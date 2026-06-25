@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.0.1.0] - 2026-06-25
+
+### Fixed
+- **The concierge AI no longer promises follow-ups it cannot deliver (honest handoff).** The system prompt previously told the AI, when it could not answer from the coach's content, to say it would "have {business_name} follow up" — but there is no mechanism that notifies the coach or follows up, so that was a false promise (a real visitor hit it: "let me notify company X"). The AI is now explicitly forbidden from promising any notification, callback, follow-up, or contact collection; when it cannot answer, it says so honestly and routes the visitor to the booking link (the only real next step). (`supabase/functions/_shared/conciergeChat.ts`)
+- **Empty/safety-blocked model replies no longer render as a blank message.** When Gemini returns an empty response (e.g. a SAFETY finish), `generateConciergeReply` now substitutes a localized (de/en) honest fallback that points to the booking link instead of an empty bubble.
+- **Booking-link detection no longer false-positives on a URL prefix.** `detectShowBooking` now requires a word boundary after the calendar URL, so a configured link that is a strict prefix of a longer URL in the reply (e.g. `.../intro` vs `.../intro-vip`) does not wrongly surface the booking CTA.
+
+### Added
+- **Public-endpoint input guards on `concierge-chat`.** Reject `message` over 2000 chars (`message_too_long`) and `session_id` over 256 chars (`session_id_too_long`) before any DB or Gemini call — bounds cost/abuse on the unauthenticated endpoint. (Closes the message-length half of the concierge cost-abuse hardening.)
+
+### Changed
+- **Race-safe conversation resolution.** `concierge_conversations` gains a `UNIQUE (concierge_id, visitor_session_id)` constraint (new migration; existing duplicates are de-duped, keeping the earliest, first), and `resolveConversation` now upserts on that constraint instead of select-then-insert. Two near-simultaneous messages on the same visitor session can no longer split the conversation history across duplicate rows.
+- Concierge chat history is now fetched with a DB-side limit (most recent turns) instead of loading the whole thread and slicing in memory.
+
 ## [1.0.0.3] - 2026-06-25
 
 ### Fixed
