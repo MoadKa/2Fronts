@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.5.1.0] - 2026-06-26
+
+### Fixed
+- **Logged-in users no longer see the waitlist email/marketing form after login.** The "Nicht gefunden, was du suchst?" request capture on the catalog now drops the email field and the marketing-consent gate for signed-in users (it uses their account email); they can still suggest automations. Anonymous visitors keep the full email + DSGVO opt-in waitlist behavior.
+
 ## [1.5.0.0] - 2026-06-26
 
 ### Changed
