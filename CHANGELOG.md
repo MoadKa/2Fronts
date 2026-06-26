@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.7.0.0] - 2026-06-26
+
+### Added
+- **Subscription self-service (Stripe Billing Portal).** Subscribers can now update their card, view invoices, and cancel from "Meine Anfragen" via a "Abo verwalten / kündigen" button. New `create-portal-session` edge function (authed; resolves the Stripe customer from the caller's own provision under RLS). Required for the German Kündigungsbutton (§312k BGB) and to recover declined cards before churn.
+
 ## [1.6.0.0] - 2026-06-26
 
 ### Added
