@@ -5,6 +5,8 @@ import { CatalogPage } from './CatalogPage'
 import { listActiveAutomations } from '../../services/AutomationService'
 
 vi.mock('../../services/AutomationService', () => ({ listActiveAutomations: vi.fn() }))
+// CatalogPage renders CatalogRequestSection, which reads auth. Stub it (anonymous).
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
 
 describe('CatalogPage', () => {
   it('renders each active automation with name, category, and price', async () => {
