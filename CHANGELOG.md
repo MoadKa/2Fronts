@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.2.1.0] - 2026-06-26
+
+### Fixed
+- **Concierge takes initiative and asks qualifying questions itself.** The prompt previously told the model not to ask qualifying questions, so the handler bolted the criterion question + buttons onto an unrelated reply (the text above the buttons read disconnected) and the bot stayed passive. Now the bot is told to lead and to ask the pending criterion in its own words; the quick-reply buttons are just the answer options (the standalone question label is gone, kept as the button group's aria-label). Button-click turns return a coherent "ack + next question" line. Leading, proactive greeting.
+
+### Changed
+- **Wizard polish.** The qualification-criteria step renders soft claymorphism cards (toggle header, editable question + option rows, "counts as qualified" toggle, compact actions). Brand-fit motion across the wizard: step rise-in, tactile hover-lift/press on choices and buttons, with a `prefers-reduced-motion` guard.
+
 ## [1.2.0.0] - 2026-06-25
 
 ### Added
