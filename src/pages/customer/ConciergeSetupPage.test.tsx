@@ -194,6 +194,49 @@ describe('ConciergeSetupPage onboarding wizard', () => {
     expect(arg.qualification_criteria[0].options.length).toBeGreaterThan(0)
   })
 
+  it('reorders qualification criteria via the move-up control and persists the new order', async () => {
+    createConcierge.mockResolvedValue({ id: 'con-r', slug: 'acme-coaching' })
+    linkProvisionToConcierge.mockResolvedValue(undefined)
+    renderPage()
+    const T = i18n.getFixedT('de')
+
+    // Welcome -> business -> offer -> questions -> booking -> qualify.
+    fireEvent.click(screen.getByRole('button', { name: T('conciergeOnboarding.welcome.languageDe') }))
+    fireEvent.click(screen.getByText("Los geht's"))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.business.title')), {
+      target: { value: 'Acme Coaching' },
+    })
+    fireEvent.click(screen.getByText('Weiter'))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.offer.title')), {
+      target: { value: 'We coach founders.' },
+    })
+    fireEvent.click(screen.getByText('Weiter'))
+    fireEvent.click(screen.getByText('Weiter')) // skip questions
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.booking.label')), {
+      target: { value: 'https://cal.com/acme' },
+    })
+    fireEvent.click(screen.getByText('Weiter')) // -> qualify
+
+    // Enable two builtins, in order: budget first, then age. The enabled cards
+    // therefore render as [budget, age].
+    const budgetQ = T('conciergeOnboarding.qualify.presets.budgetQuestion')
+    const ageQ = T('conciergeOnboarding.qualify.presets.ageQuestion')
+    fireEvent.click(screen.getByLabelText(budgetQ)) // enable budget (from chips)
+    fireEvent.click(screen.getByLabelText(ageQ)) // enable age (from chips)
+
+    // Move the SECOND criterion (age) up — order should become [age, budget].
+    const moveAgeUp = screen.getByLabelText(`"${ageQ}" nach oben verschieben`)
+    fireEvent.click(moveAgeUp)
+
+    fireEvent.click(screen.getByText('Weiter')) // -> tone
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.tone.finish')))
+
+    await waitFor(() => expect(createConcierge).toHaveBeenCalled())
+    const arg = createConcierge.mock.calls[0][0]
+    const ids = arg.qualification_criteria.map((c: { id: string }) => c.id)
+    expect(ids).toEqual(['age', 'budget'])
+  })
+
   it('completes the wizard in English and sets language=en on the concierge', async () => {
     createConcierge.mockResolvedValue({ id: 'con-2', slug: 'acme-coaching' })
     linkProvisionToConcierge.mockResolvedValue(undefined)
