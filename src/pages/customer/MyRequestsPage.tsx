@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { listMyRequests } from '../../services/RequestService'
+import { listMyRequests, createPortalSession } from '../../services/RequestService'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -28,12 +28,30 @@ const PROVISION_TONE: Record<AutomationProvision['status'], 'neutral' | 'success
 function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
 
   const handleCopy = () => {
     if (!provision.twilio_phone_number) return
     navigator.clipboard.writeText(provision.twilio_phone_number)
     setCopied(true)
   }
+
+  // Self-serve subscription management (Stripe Billing Portal): update card, see
+  // invoices, cancel. Shown only when there's an active subscription to manage.
+  async function openPortal() {
+    setPortalLoading(true)
+    try {
+      window.location.assign(await createPortalSession(provision.id))
+    } catch {
+      setPortalLoading(false)
+    }
+  }
+
+  const subscriptionManage = provision.stripe_subscription_id ? (
+    <Button variant="secondary" onClick={openPortal} disabled={portalLoading}>
+      {t('myRequests.manageSubscription')}
+    </Button>
+  ) : null
 
   // The AI Booking Concierge has no OAuth step, so nothing redirects the buyer
   // into setup after payment. Surface the entry point here: a button into the
@@ -58,6 +76,7 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
             <Button>{t('myRequests.setUpConcierge')}</Button>
           </Link>
         )}
+        {subscriptionManage}
       </div>
     )
   }
@@ -108,6 +127,7 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
           </details>
         </>
       )}
+      {subscriptionManage}
     </div>
   )
 }

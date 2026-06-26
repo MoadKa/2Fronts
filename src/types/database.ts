@@ -61,6 +61,11 @@ export interface AutomationProvision {
   // Connector-specific settings written at setup time (e.g. concierge_id once
   // the concierge has been configured via the wizard).
   config?: Record<string, unknown> | null
+  // Stripe linkage for subscription automations: the customer (set at checkout)
+  // and the subscription (set by the webhook on checkout.session.completed). A
+  // present subscription id means there's an active sub to self-manage.
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
   created_at: string
   updated_at: string
 }
