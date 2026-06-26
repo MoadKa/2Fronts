@@ -130,6 +130,26 @@ export interface ConciergeChatMessage {
   created_at: string
 }
 
+// One of the coach's concierges, for the dashboard's "your links" section.
+export interface MyConcierge {
+  id: string
+  slug: string
+  business_name: string
+}
+
+/**
+ * List the signed-in coach's own concierge(s) (RLS: owner_id = auth.uid()), so
+ * the dashboard can show the customer link(s) even before any chat exists.
+ */
+export async function listMyConcierges(): Promise<MyConcierge[]> {
+  const { data, error } = await supabase
+    .from('concierges')
+    .select('id, slug, business_name')
+    .order('created_at', { ascending: true })
+  if (error) throw new Error('conciergeChats.loadFailed')
+  return (data ?? []) as MyConcierge[]
+}
+
 /**
  * List every conversation across the signed-in coach's concierge(s), newest
  * first. RLS scopes the rows to concierges the caller owns (owners-read policy),
