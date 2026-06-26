@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.5.1.0] - 2026-06-26
+
+### Changed
+- **Clearer post-registration "verify your email" notice.** After sign-up the modal now names the address the confirmation was sent to, tells the user to click the link to activate, and adds a spam-folder hint.
+
 ## [1.5.0.0] - 2026-06-26
 
 ### Changed
