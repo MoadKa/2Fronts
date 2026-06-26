@@ -357,7 +357,7 @@
     "privacyLink": "Datenschutzerklärung"
   },
   "conciergePublic": {
-    "greeting": "Hallo! Ich beantworte deine Fragen und helfe dir, einen Termin zu buchen. Was möchtest du wissen?",
+    "greeting": "Hi! Ich helfe dir herauszufinden, ob das zu dir passt — und direkt einen Termin zu buchen. Erzähl mir kurz: worum geht's bei dir gerade?",
     "inputPlaceholder": "Nachricht eingeben…",
     "send": "Senden",
     "sending": "…",

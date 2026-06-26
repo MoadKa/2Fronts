@@ -53,6 +53,24 @@ Deno.test('buildConciergeSystemPrompt says English when language is en', () => {
   assertStringIncludes(prompt, 'English')
 })
 
+Deno.test('buildConciergeSystemPrompt always tells the bot to take initiative', () => {
+  assertStringIncludes(buildConciergeSystemPrompt(concierge), 'INITIATIVE')
+})
+
+Deno.test('buildConciergeSystemPrompt makes the bot ASK the pending qualifying question itself', () => {
+  const prompt = buildConciergeSystemPrompt(concierge, {
+    id: 'budget',
+    question: 'What is your budget?',
+    options: [{ label: '5k+', qualifies: true }],
+  })
+  // The bot is told to ask the question (so the reply leads into the buttons),
+  // and explicitly NOT to list the options (the buttons show them).
+  assertStringIncludes(prompt, 'What is your budget?')
+  assertStringIncludes(prompt, 'do NOT list or mention the answer options')
+  // Without a pending criterion, no such question is injected.
+  assertEquals(buildConciergeSystemPrompt(concierge).includes('What is your budget?'), false)
+})
+
 Deno.test('detectShowBooking is true once the calendar url appears in the reply', () => {
   assertEquals(detectShowBooking('Sure! Book here: https://cal.com/acme/intro', concierge.calendar_url), true)
   assertEquals(detectShowBooking('Happy to help with that.', concierge.calendar_url), false)

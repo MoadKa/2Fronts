@@ -186,10 +186,18 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
         .from('concierge_messages')
         .insert([{ conversation_id: conversationId, role: 'user', content: answer.label }])
 
+      // No model call this turn, so build a coherent bot line ourselves: a short
+      // ack, and — when another criterion remains — the next question, so the text
+      // above the next set of buttons reads as the bot asking it (not a stray label).
       const next = nextUnansweredCriterion(criteria, updatedAnswers)
+      const ack = answerAck(concierge.language)
+      const reply = next ? `${ack} ${next.question}` : ack
+      await admin
+        .from('concierge_messages')
+        .insert([{ conversation_id: conversationId, role: 'assistant', content: reply }])
       return new Response(
         JSON.stringify({
-          reply: answerAck(concierge.language),
+          reply,
           show_booking: false,
           ...(next ? { quick_replies: toQualPrompt(next) } : {}),
         }),
@@ -209,7 +217,12 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     const history = ((historyData ?? []) as ChatTurn[]).reverse()
 
     // 4. Generate the grounded reply. The LLM client is built lazily so the key
-    //    is only required when we actually call the model.
+    //    is only required when we actually call the model. The next unanswered
+    //    criterion (if any) is passed in so the BOT asks it in its own words —
+    //    the buttons below are just the answer options. This keeps the reply text
+    //    and the buttons coherent (the bot leads), instead of bolting a stray
+    //    question onto an unrelated reply.
+    const next = nextUnansweredCriterion(criteria, priorAnswers)
     const complete = deps.complete ?? createGeminiChatComplete()
     const result = await generateConciergeReply(
       {
@@ -224,6 +237,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
         },
         history,
         message,
+        pendingCriterion: next,
       },
       { complete },
     )
@@ -238,9 +252,8 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       await admin.from('concierge_conversations').update({ outcome: 'booking_shown' }).eq('id', conversationId)
     }
 
-    // 5b. HYBRID: booking gating above is unchanged. Independently, if there's a
-    //     next unanswered criterion, attach its quick-reply prompt to the reply.
-    const next = nextUnansweredCriterion(criteria, priorAnswers)
+    // 5b. HYBRID: booking gating above is unchanged. The bot already asked `next`
+    //     in its reply (step 4); we attach its options as quick-reply buttons.
 
     // 6. Return only the reply + booking signal. Offer/qa never leave the server.
     return new Response(

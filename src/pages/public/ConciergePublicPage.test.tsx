@@ -76,9 +76,11 @@ describe('ConciergePublicPage', () => {
     fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Hi' } })
     fireEvent.click(screen.getByText('Senden'))
 
-    await waitFor(() => expect(screen.getByText('Wie hoch ist dein Budget?')).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: '5k+' })).toBeInTheDocument()
+    // The bot asks the question in its own reply now; the options render as buttons,
+    // with the question kept as the group's accessible label (no separate text label).
+    await waitFor(() => expect(screen.getByRole('button', { name: '5k+' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: '<1k' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Wie hoch ist dein Budget?' })).toBeInTheDocument()
   })
 
   it('clicking a quick-reply sends the answer, shows the label, and renders the next prompt', async () => {
@@ -117,11 +119,11 @@ describe('ConciergePublicPage', () => {
       label: '5k+',
       qualifies: true,
     })
-    // The next prompt renders.
-    await waitFor(() => expect(screen.getByText('Wann?')).toBeInTheDocument())
-    expect(screen.getByRole('button', { name: 'Jetzt' })).toBeInTheDocument()
-    // The answered prompt is gone.
-    expect(screen.queryByText('Budget?')).not.toBeInTheDocument()
+    // The next prompt renders (its options as buttons, question as group label).
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Jetzt' })).toBeInTheDocument())
+    expect(screen.getByRole('group', { name: 'Wann?' })).toBeInTheDocument()
+    // The answered prompt's buttons are gone.
+    expect(screen.queryByRole('button', { name: '5k+' })).not.toBeInTheDocument()
   })
 
   it('shows a friendly unavailable screen when the slug is not found', async () => {
