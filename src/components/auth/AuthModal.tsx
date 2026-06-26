@@ -63,8 +63,9 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
           </header>
           <p className="auth-modal-confirm-text">
             {t('auth.confirmEmailSent', {
+              email,
               defaultValue:
-                'Fast geschafft! Wir haben dir eine E-Mail geschickt — bestätige darin deine Adresse, dann kannst du dich anmelden.',
+                'Fast geschafft! Wir haben dir eine Bestätigungs-E-Mail an {{email}} geschickt. Klicke auf den Link darin, um dein Konto zu aktivieren — danach kannst du dich anmelden. Schau auch kurz im Spam-Ordner nach.',
             })}
           </p>
           <div className="page-stack auth-modal-actions">

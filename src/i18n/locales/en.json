@@ -39,7 +39,7 @@
     "accountCreated": "Account created",
     "signedIn": "Signed in",
     "confirmEmailTitle": "Confirm your email",
-    "confirmEmailSent": "Almost there! We've sent you an email — confirm your address there, then you can sign in.",
+    "confirmEmailSent": "Almost there! We've sent a confirmation email to {{email}}. Click the link inside to activate your account, then you can sign in. Check your spam folder too, just in case.",
     "gotIt": "Got it",
     "genericError": "Something went wrong"
   },

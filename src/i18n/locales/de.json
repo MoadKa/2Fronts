@@ -39,7 +39,7 @@
     "accountCreated": "Konto erstellt",
     "signedIn": "Angemeldet",
     "confirmEmailTitle": "Bestätige deine E-Mail",
-    "confirmEmailSent": "Fast geschafft! Wir haben dir eine E-Mail geschickt — bestätige darin deine Adresse, dann kannst du dich anmelden.",
+    "confirmEmailSent": "Fast geschafft! Wir haben dir eine Bestätigungs-E-Mail an {{email}} geschickt. Klicke auf den Link darin, um dein Konto zu aktivieren — danach kannst du dich anmelden. Schau auch kurz im Spam-Ordner nach.",
     "gotIt": "Verstanden",
     "genericError": "Etwas ist schiefgelaufen"
   },
