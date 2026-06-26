@@ -27,7 +27,7 @@ export interface WishRow {
 export type SendEmailFn = (args: {
   apiKey: string
   from: string
-  to: string
+  to: string | string[]
   subject: string
   text: string
 }) => Promise<boolean>
@@ -78,7 +78,16 @@ async function notifyAdminOfWish(
       `Branche: ${row.industry || '(keine)'}`,
       `Vorschlag: ${row.message || '(kein Text)'}`,
     ].join('\n')
-    await sendEmail({ apiKey, from, to: adminEmail, subject: 'Neuer Automatisierungs-Vorschlag', text })
+    // ADMIN_EMAIL may list several recipients, comma-separated (e.g. a 2fronts
+    // address + a Gmail) so the founder can also see it in Google.
+    const recipients = adminEmail.split(',').map((s) => s.trim()).filter(Boolean)
+    await sendEmail({
+      apiKey,
+      from,
+      to: recipients.length === 1 ? recipients[0] : recipients,
+      subject: 'Neuer Automatisierungs-Vorschlag',
+      text,
+    })
   } catch (e) {
     console.error('submit-wish: notify failed', e instanceof Error ? e.message : 'unknown')
   }

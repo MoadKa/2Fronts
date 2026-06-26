@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.8.1.0] - 2026-06-26
+
+### Added
+- **`ADMIN_EMAIL` can list multiple recipients** (comma-separated). The request + suggestion notifications now go to all of them, so the founder can also receive at a Gmail/Google address.
+
 ## [1.8.0.0] - 2026-06-26
 
 ### Added
