@@ -47,7 +47,24 @@ describe('AdminCatalogPage', () => {
       expect(createAutomation).toHaveBeenCalledWith({
         name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900,
         connector_type: 'twilio_missed_call', requires_provisioning: true, is_active: true,
+        pricing_model: 'one_time', recurring_interval: null,
       })
+    )
+  })
+
+  it('creates a monthly (subscription) automation when billing is set to monthly', async () => {
+    vi.mocked(listAllAutomations).mockResolvedValue([])
+    vi.mocked(createAutomation).mockResolvedValue(sample)
+    renderPage()
+    await waitFor(() => expect(listAllAutomations).toHaveBeenCalled())
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Concierge' } })
+    fireEvent.change(screen.getByLabelText('Preis (Cent)'), { target: { value: '7900' } })
+    fireEvent.change(screen.getByLabelText('Abrechnung'), { target: { value: 'subscription' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Automatisierung hinzufügen' }))
+    await waitFor(() =>
+      expect(createAutomation).toHaveBeenCalledWith(
+        expect.objectContaining({ price_cents: 7900, pricing_model: 'subscription', recurring_interval: 'month' }),
+      )
     )
   })
 

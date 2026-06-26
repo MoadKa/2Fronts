@@ -28,6 +28,13 @@ export interface Automation {
   category: string
   price_cents: number
   currency: string
+  // 'one_time' (single Stripe payment) or 'subscription' (recurring). Drives the
+  // checkout mode; subscription requires a recurring_interval (DB constraint).
+  // Optional in TS only to avoid churning every test fixture — the DB column is
+  // NOT NULL (default 'one_time'), so real rows always carry it.
+  pricing_model?: 'one_time' | 'subscription'
+  // Only set for subscriptions: the Stripe recurring interval (e.g. 'month').
+  recurring_interval?: 'day' | 'week' | 'month' | 'year' | null
   is_active: boolean
   requires_provisioning: boolean
   // Which connector fulfils this automation. The purchase flow copies this onto

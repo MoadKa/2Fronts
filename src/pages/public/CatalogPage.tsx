@@ -254,7 +254,10 @@ export function CatalogPage() {
                         <Badge>{automation.category}</Badge>
                         <h3>{automation.name}</h3>
                         <p>{automation.summary}</p>
-                        <strong>{formatPrice(automation.price_cents, automation.currency)}</strong>
+                        <strong>
+                          {formatPrice(automation.price_cents, automation.currency)}
+                          {automation.pricing_model === 'subscription' && ` ${t('catalog.perMonth')}`}
+                        </strong>
                       </Card>
                     </Link>
                   </Reveal>

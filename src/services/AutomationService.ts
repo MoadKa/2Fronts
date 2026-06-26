@@ -8,6 +8,11 @@ export interface NewAutomationInput {
   category: string
   price_cents: number
   currency?: string
+  // Billing model. 'subscription' bills recurring (needs recurring_interval, e.g.
+  // 'month'); 'one_time' is a single payment (recurring_interval must be null).
+  // Defaults to one_time at the DB level when omitted.
+  pricing_model?: 'one_time' | 'subscription'
+  recurring_interval?: 'day' | 'week' | 'month' | 'year' | null
   // Which connector fulfils this automation. Without it the DB default
   // ('twilio_missed_call') applies, so a Google Sheets / Slack automation could
   // never be created from the Admin UI. Admin sets it explicitly.

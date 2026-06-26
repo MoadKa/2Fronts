@@ -26,6 +26,17 @@ const EMPTY_FORM: NewAutomationInput = {
   connector_type: 'google_sheets',
   requires_provisioning: false,
   is_active: true,
+  pricing_model: 'one_time',
+  recurring_interval: null,
+}
+
+// One-time vs monthly billing. The DB enforces: subscription ⇒ recurring_interval
+// set, one_time ⇒ null, so we always set them together. (Monthly is the only
+// recurring interval we expose for now; yearly is a one-line addition.)
+function billingPatch(value: string): { pricing_model: 'one_time' | 'subscription'; recurring_interval: 'month' | null } {
+  return value === 'subscription'
+    ? { pricing_model: 'subscription', recurring_interval: 'month' }
+    : { pricing_model: 'one_time', recurring_interval: null }
 }
 
 export function AdminCatalogPage() {
@@ -78,6 +89,8 @@ export function AdminCatalogPage() {
       outcome_description: automation.outcome_description,
       category: automation.category,
       price_cents: automation.price_cents,
+      pricing_model: automation.pricing_model ?? 'one_time',
+      recurring_interval: automation.recurring_interval ?? null,
     })
   }
 
@@ -109,6 +122,16 @@ export function AdminCatalogPage() {
         <Input label={t('adminCatalog.outcomeDescription')} value={form.outcome_description} onChange={(e) => setForm({ ...form, outcome_description: e.target.value })} />
         <Input label={t('adminCatalog.category')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
         <Input label={t('adminCatalog.priceCents')} type="number" value={form.price_cents} onChange={(e) => setForm({ ...form, price_cents: Number(e.target.value) })} />
+        <label className="admin-field">
+          <span>{t('adminCatalog.billing')}</span>
+          <select
+            value={form.pricing_model ?? 'one_time'}
+            onChange={(e) => setForm({ ...form, ...billingPatch(e.target.value) })}
+          >
+            <option value="one_time">{t('adminCatalog.billingOneTime')}</option>
+            <option value="subscription">{t('adminCatalog.billingMonthly')}</option>
+          </select>
+        </label>
         <label className="admin-field">
           <span>{t('adminCatalog.connectorType')}</span>
           <select
@@ -151,6 +174,16 @@ export function AdminCatalogPage() {
               <Input label={t('adminCatalog.outcomeDescription')} value={editForm.outcome_description ?? ''} onChange={(e) => setEditForm({ ...editForm, outcome_description: e.target.value })} />
               <Input label={t('adminCatalog.category')} value={editForm.category ?? ''} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
               <Input label={t('adminCatalog.priceCents')} type="number" value={editForm.price_cents ?? 0} onChange={(e) => setEditForm({ ...editForm, price_cents: Number(e.target.value) })} />
+              <label className="admin-field">
+                <span>{t('adminCatalog.billing')}</span>
+                <select
+                  value={editForm.pricing_model ?? 'one_time'}
+                  onChange={(e) => setEditForm({ ...editForm, ...billingPatch(e.target.value) })}
+                >
+                  <option value="one_time">{t('adminCatalog.billingOneTime')}</option>
+                  <option value="subscription">{t('adminCatalog.billingMonthly')}</option>
+                </select>
+              </label>
               <Button onClick={() => saveEdit(automation.id)}>{t('adminCatalog.save')}</Button>
               <Button variant="secondary" onClick={cancelEdit}>{t('adminCatalog.cancel')}</Button>
             </>
