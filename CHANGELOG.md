@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.4.1.0] - 2026-06-26
+
+### Changed
+- **Concierge dashboard is now a per-coach link, not a global nav tab.** Removed the global "Chats" navbar item (it doesn't scale as the app adds more products); the coach reaches the dashboard via a "Open dashboard" button on the concierge card in My Requests. The dashboard now also shows the coach's customer link(s) (`/c/<slug>`, copyable) at the top, so both links live in one place. Reading a full conversation (transcript + qualification answers) works by clicking any conversation.
+
+### Added
+- **CSV export** of all conversations from the dashboard (name, email, concierge, qualified, outcome, date, answers).
+
 ## [1.4.0.0] - 2026-06-26
 
 ### Added

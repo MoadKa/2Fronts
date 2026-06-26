@@ -47,7 +47,12 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
           <Badge tone={PROVISION_TONE[provision.status]}>{provision.status}</Badge>
         </div>
         {configured ? (
-          <p className="provision-message">{t('myRequests.conciergeReady')}</p>
+          <>
+            <p className="provision-message">{t('myRequests.conciergeReady')}</p>
+            <Link to="/app/chats">
+              <Button>{t('myRequests.openDashboard')}</Button>
+            </Link>
+          </>
         ) : (
           <Link to={`/connect/${provision.id}/confirm`}>
             <Button>{t('myRequests.setUpConcierge')}</Button>
