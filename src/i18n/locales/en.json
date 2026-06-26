@@ -38,6 +38,9 @@
     "haveAccountSignIn": "Already have an account? Sign in",
     "accountCreated": "Account created",
     "signedIn": "Signed in",
+    "confirmEmailTitle": "Confirm your email",
+    "confirmEmailSent": "Almost there! We've sent you an email — confirm your address there, then you can sign in.",
+    "gotIt": "Got it",
     "genericError": "Something went wrong"
   },
   "notFound": {
@@ -389,14 +392,14 @@
     "privacyLink": "Privacy Policy"
   },
   "conciergePublic": {
-    "greeting": "Hi! I'll help you figure out if this is a fit — and book a call right here. Tell me a bit: what's going on for you right now?",
+    "greeting": "Hi, great to have you here! Could you quickly drop your name and email? Then I'll get started for you.",
     "inputPlaceholder": "Type your message…",
     "send": "Send",
     "sending": "…",
     "bookCta": "Book a call",
     "namePlaceholder": "Your name",
     "emailPlaceholder": "Your email",
-    "contactSubmit": "Continue to booking",
+    "contactSubmit": "Let's go",
     "unavailableTitle": "This page isn't available",
     "unavailableBody": "This concierge link is inactive or doesn't exist. Please check the link and try again.",
     "thinking": "Typing…"

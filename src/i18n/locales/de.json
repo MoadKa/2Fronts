@@ -38,6 +38,9 @@
     "haveAccountSignIn": "Schon ein Konto? Anmelden",
     "accountCreated": "Konto erstellt",
     "signedIn": "Angemeldet",
+    "confirmEmailTitle": "Bestätige deine E-Mail",
+    "confirmEmailSent": "Fast geschafft! Wir haben dir eine E-Mail geschickt — bestätige darin deine Adresse, dann kannst du dich anmelden.",
+    "gotIt": "Verstanden",
     "genericError": "Etwas ist schiefgelaufen"
   },
   "notFound": {
@@ -389,14 +392,14 @@
     "privacyLink": "Datenschutzerklärung"
   },
   "conciergePublic": {
-    "greeting": "Hi! Ich helfe dir herauszufinden, ob das zu dir passt — und direkt einen Termin zu buchen. Erzähl mir kurz: worum geht's bei dir gerade?",
+    "greeting": "Hi, schön dass du da bist! Magst du mir kurz deinen Namen und deine E-Mail dalassen? Dann lege ich direkt für dich los.",
     "inputPlaceholder": "Nachricht eingeben…",
     "send": "Senden",
     "sending": "…",
     "bookCta": "Termin buchen",
     "namePlaceholder": "Dein Name",
     "emailPlaceholder": "Deine E-Mail",
-    "contactSubmit": "Weiter zum Termin",
+    "contactSubmit": "Los geht's",
     "unavailableTitle": "Diese Seite ist nicht verfügbar",
     "unavailableBody": "Dieser Concierge-Link ist inaktiv oder existiert nicht. Bitte überprüfe den Link und versuche es erneut.",
     "thinking": "Schreibt…"
