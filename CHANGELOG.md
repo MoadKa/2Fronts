@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.3.0.0] - 2026-06-26
+
+### Added
+- **Drag-and-drop reorder of the concierge's qualification questions** in the setup wizard (grip-handle drag + up/down buttons for keyboard/touch). The order sets the sequence the concierge asks them in chat, so budget no longer has to be first.
+
+### Fixed
+- **Typed answers to a qualification question are understood, not ignored.** Previously, typing (instead of clicking a quick-reply) while a question was pending was discarded — the buttons lingered and a booking button could appear alongside. Now the concierge interprets the typed text against the open question (matches an option / records it verbatim as an off-menu answer / treats a genuine question as a question), records it, and the buttons advance.
+
+### Changed
+- **UI/UX overhaul (v1.3) — elevation of the existing claymorphism.** Shared motion system (easing + duration tokens, `.rise`/`.rise-stagger` entrance utilities, reduced-motion guarded). Flagship concierge chat reworked into a delighter (clay bubbles, animated typing indicator, pill quick-replies, prominent booking CTA). Premium passes on the catalog/home, automation detail, supported-software, legal, the wizard, My Requests, the nav/footer, and the auth modal. Brand kept (warm amber + booking-blue claymorphism); WCAG AA, ≥44px targets, mobile-first.
+
 ## [1.2.1.0] - 2026-06-26
 
 ### Fixed

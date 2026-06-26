@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type SVGProps } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getAutomationById } from '../../services/AutomationService'
@@ -10,9 +10,39 @@ import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import type { Automation } from '../../types/database'
+import './AutomationDetailPage.css'
 
 function formatPrice(cents: number, currency: string): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
+}
+
+type IconProps = SVGProps<SVGSVGElement>
+
+function ArrowLeftIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M19 12H5" />
+      <path d="M11 18l-6-6 6-6" />
+    </svg>
+  )
+}
+
+function CheckIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M5 12.5l4.5 4.5L19 7" />
+    </svg>
+  )
+}
+
+function LockIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      <circle cx="12" cy="15.5" r="1.25" />
+    </svg>
+  )
 }
 
 export function AutomationDetailPage() {
@@ -64,42 +94,77 @@ export function AutomationDetailPage() {
     }
   }
 
-  if (loading) return <p>{t('automationDetail.loading')}</p>
-  if (!automation) return <p>{t('automationDetail.notFound')}</p>
+  if (loading) return <p className="detail-status">{t('automationDetail.loading')}</p>
+  if (!automation) return <p className="detail-status">{t('automationDetail.notFound')}</p>
 
   return (
-    <div className="page-stack">
-      <Link to="/automations">{t('automationDetail.backToCatalog')}</Link>
-      <Card>
-        <Badge>{automation.category}</Badge>
-        <h2>{automation.name}</h2>
-        <p>{automation.outcome_description}</p>
-        <h3>{formatPrice(automation.price_cents, automation.currency)}</h3>
-        {user ? (
-          <>
-            {automation.connector_type === 'twilio_missed_call' && (
-              <>
-                <Input
-                  label={t('automationDetail.businessName')}
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                />
-                <Input
-                  label={t('automationDetail.bookingLink')}
-                  value={bookingLink}
-                  onChange={(e) => setBookingLink(e.target.value)}
-                  error={bookingLinkError}
-                />
-              </>
-            )}
-            <Button onClick={handleRequest} disabled={requesting}>
-              {requesting ? t('automationDetail.checkoutStarting') : t('automationDetail.requestAutomation')}
-            </Button>
-          </>
-        ) : (
-          <p>{t('automationDetail.signInToRequest')}</p>
-        )}
-      </Card>
+    <div className="detail-page page-stack">
+      <Link to="/automations" className="detail-back">
+        <ArrowLeftIcon className="detail-back-icon" aria-hidden="true" />
+        {t('automationDetail.backToCatalog')}
+      </Link>
+
+      <div className="detail-layout">
+        <Card className="detail-main rise">
+          <Badge>{automation.category}</Badge>
+          <h2>{automation.name}</h2>
+          <p className="detail-outcome">{automation.outcome_description}</p>
+          {automation.summary && automation.summary !== automation.outcome_description && (
+            <p className="detail-summary">{automation.summary}</p>
+          )}
+        </Card>
+
+        <Card className="detail-buy rise">
+          <div className="detail-price">
+            <span className="detail-price-amount">
+              {formatPrice(automation.price_cents, automation.currency)}
+            </span>
+            <span className="detail-price-note">{t('automationDetail.priceOnceLabel', 'einmalig')}</span>
+          </div>
+
+          {user ? (
+            <>
+              {automation.connector_type === 'twilio_missed_call' && (
+                <div className="detail-fields">
+                  <Input
+                    label={t('automationDetail.businessName')}
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                  />
+                  <Input
+                    label={t('automationDetail.bookingLink')}
+                    value={bookingLink}
+                    onChange={(e) => setBookingLink(e.target.value)}
+                    error={bookingLinkError}
+                  />
+                </div>
+              )}
+              <Button className="detail-cta" onClick={handleRequest} disabled={requesting}>
+                {requesting ? t('automationDetail.checkoutStarting') : t('automationDetail.requestAutomation')}
+              </Button>
+              <p className="detail-secure">
+                <LockIcon className="detail-secure-icon" aria-hidden="true" />
+                {t('automationDetail.secureCheckoutNote', 'Sichere Zahlung über Stripe')}
+              </p>
+            </>
+          ) : (
+            <div className="detail-signin">
+              <p>{t('automationDetail.signInToRequest')}</p>
+            </div>
+          )}
+
+          <ul className="detail-assurances">
+            <li>
+              <CheckIcon className="detail-check" aria-hidden="true" />
+              {t('automationDetail.assuranceDelivery', 'Einrichtung durch unser Team')}
+            </li>
+            <li>
+              <CheckIcon className="detail-check" aria-hidden="true" />
+              {t('automationDetail.assuranceCancel', 'Keine versteckten Kosten')}
+            </li>
+          </ul>
+        </Card>
+      </div>
     </div>
   )
 }

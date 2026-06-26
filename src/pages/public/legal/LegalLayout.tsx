@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import './LegalLayout.css'
 
 // Shared scaffold for the three legal pages (Impressum, Datenschutz, AGB).
 // Renders the title, an optional DRAFT banner, the "last updated" line and the
@@ -15,20 +16,20 @@ export function LegalLayout({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="page-stack">
-      <div className="page-header">
+    <article className="legal-page page-stack">
+      <header className="legal-header">
         <h1>{title}</h1>
         {draft && (
-          <p role="note" style={{ fontWeight: 600 }}>
+          <p className="legal-draft" role="note">
             {t('legal.draftNotice')}
           </p>
         )}
-        <p>
+        <p className="legal-updated">
           {t('legal.lastUpdatedLabel')}: {t('legal.lastUpdated')}
         </p>
-      </div>
-      {children}
-    </div>
+      </header>
+      <div className="legal-body">{children}</div>
+    </article>
   )
 }
 
@@ -36,7 +37,7 @@ export function LegalLayout({
 // contain newlines (e.g. a postal address); they are preserved via pre-line.
 export function LegalSection({ heading, body }: { heading: string; body: string }) {
   return (
-    <section>
+    <section className="legal-section">
       <h2>{heading}</h2>
       <p style={{ whiteSpace: 'pre-line' }}>{body}</p>
     </section>

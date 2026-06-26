@@ -34,13 +34,14 @@ describe('ConciergePublicPage', () => {
     renderAt('acme')
 
     fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Wie lange?' } })
-    fireEvent.click(screen.getByText('Senden'))
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
 
     // The visitor's own message renders immediately.
     expect(screen.getByText('Wie lange?')).toBeInTheDocument()
     // The reply renders once the service resolves.
     await waitFor(() => expect(screen.getByText('Es dauert 12 Wochen.')).toBeInTheDocument())
-    expect(sendConciergeMessage).toHaveBeenCalledWith('acme', 'sess-test', 'Wie lange?')
+    // No quick-reply was pending, so no answer and no pending criterion id are sent.
+    expect(sendConciergeMessage).toHaveBeenCalledWith('acme', 'sess-test', 'Wie lange?', undefined, undefined)
   })
 
   it('shows the booking CTA linking to the calendar when show_booking is true', async () => {
@@ -52,7 +53,7 @@ describe('ConciergePublicPage', () => {
     renderAt('acme')
 
     fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Termin' } })
-    fireEvent.click(screen.getByText('Senden'))
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
 
     const cta = await screen.findByText('Termin buchen')
     expect(cta.closest('a')).toHaveAttribute('href', 'https://cal.com/acme')
@@ -74,13 +75,53 @@ describe('ConciergePublicPage', () => {
     renderAt('acme')
 
     fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Hi' } })
-    fireEvent.click(screen.getByText('Senden'))
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
 
     // The bot asks the question in its own reply now; the options render as buttons,
     // with the question kept as the group's accessible label (no separate text label).
     await waitFor(() => expect(screen.getByRole('button', { name: '5k+' })).toBeInTheDocument())
     expect(screen.getByRole('button', { name: '<1k' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Wie hoch ist dein Budget?' })).toBeInTheDocument()
+  })
+
+  it('typing a free-text answer while a quick-reply is pending sends the pending criterion id (v1.3 fix)', async () => {
+    // Bug fix: when a quick-reply prompt is showing and the visitor TYPES instead
+    // of clicking, the page must pass the pending criterion id so the server can
+    // interpret the text — not silently drop it. The buttons are server-driven.
+    sendConciergeMessage
+      .mockResolvedValueOnce({
+        reply: 'Wie hoch ist dein Budget?',
+        show_booking: false,
+        quick_replies: {
+          criterion_id: 'budget',
+          question: 'Wie hoch ist dein Budget?',
+          options: [{ label: '5k+', qualifies: true }],
+        },
+      })
+      .mockResolvedValueOnce({
+        reply: 'Danke! Wann möchtest du starten?',
+        show_booking: false,
+        quick_replies: {
+          criterion_id: 'timeline_role',
+          question: 'Wann?',
+          options: [{ label: 'Jetzt', qualifies: true }],
+        },
+      })
+    renderAt('acme')
+
+    fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Hi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
+    await screen.findByRole('button', { name: '5k+' })
+
+    // Visitor TYPES the answer instead of tapping a button.
+    fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'so around 8k' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
+
+    // The pending criterion id is passed (4th arg answer undefined, 5th = id).
+    expect(sendConciergeMessage).toHaveBeenLastCalledWith('acme', 'sess-test', 'so around 8k', undefined, 'budget')
+    // Server response drives the buttons forward to the next criterion.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Jetzt' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: '5k+' })).not.toBeInTheDocument()
   })
 
   it('clicking a quick-reply sends the answer, shows the label, and renders the next prompt', async () => {
@@ -106,7 +147,7 @@ describe('ConciergePublicPage', () => {
     renderAt('acme')
 
     fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Hi' } })
-    fireEvent.click(screen.getByText('Senden'))
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
 
     const optionBtn = await screen.findByRole('button', { name: '5k+' })
     fireEvent.click(optionBtn)
@@ -131,7 +172,7 @@ describe('ConciergePublicPage', () => {
     renderAt('nope')
 
     fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'hi' } })
-    fireEvent.click(screen.getByText('Senden'))
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
 
     await waitFor(() =>
       expect(screen.getByText('Diese Seite ist nicht verfügbar')).toBeInTheDocument(),

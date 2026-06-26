@@ -37,6 +37,15 @@
   --shadow-clay-md: 0 4px 0 var(--color-border), 0 10px 20px rgba(154, 52, 18, 0.12);
   --shadow-clay-lg: 0 6px 0 var(--color-border), 0 18px 32px rgba(154, 52, 18, 0.16);
 
+  /* Motion system (v1.3 UI overhaul). Shared easing + durations so every surface
+     animates with one rhythm. Enter from below = ease-out; springy for delight. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 400ms;
+
   --sans: 'DM Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: 'Space Grotesk', system-ui, 'Segoe UI', Roboto, sans-serif;
 
@@ -149,4 +158,31 @@ a {
   text-align: center;
   padding: var(--space-3xl) var(--space-lg);
   color: var(--color-text);
+}
+
+/* Shared entrance utility (v1.3): rise + fade in. Add `.rise` to a section/card;
+   `.rise-stagger > *` cascades children. Respects reduced-motion below. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+.rise {
+  animation: rise-in var(--dur-base) var(--ease-out) both;
+}
+
+.rise-stagger > * {
+  animation: rise-in var(--dur-base) var(--ease-out) both;
+}
+.rise-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.rise-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.rise-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.rise-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.rise-stagger > *:nth-child(6) { animation-delay: 200ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .rise-stagger > * {
+    animation: none;
+  }
 }

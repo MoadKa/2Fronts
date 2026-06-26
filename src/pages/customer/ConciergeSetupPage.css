@@ -339,6 +339,204 @@
   transform: translateY(1px) scale(0.99);
 }
 
+/* ---- Reorderable qualification cards (drag + keyboard/touch arrows) ---- */
+/* The list is an ordered list so the visual order = the ask order = the saved
+   order. Each card has a grip (drag), a position number, the question, and
+   up/down arrow buttons (the accessible alternative to native DnD). */
+.wizard-qualify[role],
+ol.wizard-qualify {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.wizard-qualify-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+/* Grip: the drag affordance. Only this handle is draggable, so text inputs
+   inside the card stay selectable. */
+.wizard-qualify-grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-height: 44px;
+  flex-shrink: 0;
+  color: var(--color-text);
+  cursor: grab;
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.wizard-qualify-grip:hover {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.wizard-qualify-grip:active {
+  cursor: grabbing;
+}
+
+/* The 1,2,3 order index — reinforces "this is the ask order". */
+.wizard-qualify-pos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  color: var(--color-primary-dark);
+  font-family: var(--heading);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.wizard-qualify-head .wizard-qualify-toggle {
+  flex: 1;
+  padding: 0;
+  min-width: 0;
+}
+.wizard-qualify-toggle--custom {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+/* Up/down reorder buttons: ≥44px touch targets, clear disabled state. */
+.wizard-qualify-reorder {
+  display: inline-flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.wizard-qualify-move {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.wizard-qualify-move:first-child {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.wizard-qualify-move:last-child {
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  border-top: none;
+}
+.wizard-qualify-move:not(:disabled):hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.wizard-qualify-move:not(:disabled):active {
+  transform: scale(0.94);
+}
+.wizard-qualify-move:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Drag visual feedback: the dragged card dims + lifts; the drop target glows. */
+.wizard-qualify-criterion.is-dragging {
+  opacity: 0.6;
+  box-shadow: var(--shadow-clay-lg);
+  transform: scale(1.01);
+}
+.wizard-qualify-criterion.is-dragover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
+}
+.wizard-qualify-criterion {
+  transition: border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
+}
+
+/* When a builtin criterion is enabled, its body no longer needs the top pad the
+   toggle used to give it — the head row provides it. */
+.wizard-qualify-criterion .wizard-qualify-head + .wizard-qualify-body {
+  padding-top: 0;
+}
+
+/* "Add a starter question" — disabled builtins as soft pill toggles. */
+.wizard-qualify-available {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+.wizard-qualify-available-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+.wizard-qualify-addchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+.wizard-qualify-addchip:hover {
+  border-color: var(--color-primary);
+  border-style: solid;
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
+}
+.wizard-qualify-addchip:active {
+  transform: scale(0.98);
+}
+.wizard-qualify-addchip input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--color-primary);
+}
+
+/* ---- Welcome + done flourishes ---- */
+.wizard-welcome-mark,
+.wizard-done-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  box-shadow: var(--shadow-clay-sm);
+}
+.wizard-welcome-mark {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+}
+.wizard-done-badge {
+  color: var(--color-on-primary);
+  background: var(--color-success);
+  animation: wizard-pop var(--dur-slow) var(--ease-spring) both;
+}
+@keyframes wizard-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 /* Respect users who don't want motion. */
 @media (prefers-reduced-motion: reduce) {
   .wizard-step,
@@ -354,6 +552,12 @@
   }
   .wizard-choice:active,
   .wizard-card .btn:active {
+    transform: none;
+  }
+  .wizard-done-badge {
+    animation: none;
+  }
+  .wizard-qualify-criterion.is-dragging {
     transform: none;
   }
 }

@@ -120,34 +120,53 @@ export function MyRequestsPage() {
   }, [])
 
   return (
-    <div>
+    <div className="my-requests">
       <div className="page-header">
         <h1>{t('myRequests.title')}</h1>
       </div>
-      {loading && <p>{t('myRequests.loading')}</p>}
+      {loading && (
+        <div className="my-requests-loading" aria-live="polite">
+          <span className="my-requests-spinner" aria-hidden="true" />
+          <p>{t('myRequests.loading')}</p>
+        </div>
+      )}
       {!loading && requests.length === 0 && (
-        <div className="empty-state">
+        <div className="empty-state my-requests-empty rise">
+          <span className="my-requests-empty-mark" aria-hidden="true">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2.5" />
+              <path d="M3 9h18M8 14h8" />
+            </svg>
+          </span>
           <p>{t('myRequests.empty')}</p>
         </div>
       )}
-      {!loading && requests.map((request) => {
-        // `automation` can be null when the customer can't read it — e.g. it was
-        // deactivated (RLS only exposes is_active=true automations to customers).
-        // Guard against it so the whole page doesn't crash on one stale request.
-        const automation = request.automation
-        const provision = automation?.requires_provisioning
-          ? request.automation_provisions?.[0]
-          : undefined
+      {!loading && requests.length > 0 && (
+        <div className="my-requests-list rise-stagger">
+          {requests.map((request) => {
+            // `automation` can be null when the customer can't read it — e.g. it was
+            // deactivated (RLS only exposes is_active=true automations to customers).
+            // Guard against it so the whole page doesn't crash on one stale request.
+            const automation = request.automation
+            const provision = automation?.requires_provisioning
+              ? request.automation_provisions?.[0]
+              : undefined
 
-        return (
-          <Card key={request.id} className="my-requests-card">
-            <Badge tone={STATUS_TONE[request.status]}>{request.status}</Badge>
-            <h3>{automation?.name ?? t('common.automationFallback')}</h3>
-            {request.status === 'delivered' && request.delivery_notes && <p>{request.delivery_notes}</p>}
-            {provision && <ProvisionPanel provision={provision} />}
-          </Card>
-        )
-      })}
+            return (
+              <Card key={request.id} className="my-requests-card">
+                <div className="my-requests-card-head">
+                  <h3>{automation?.name ?? t('common.automationFallback')}</h3>
+                  <Badge tone={STATUS_TONE[request.status]}>{request.status}</Badge>
+                </div>
+                {request.status === 'delivered' && request.delivery_notes && (
+                  <p className="my-requests-notes">{request.delivery_notes}</p>
+                )}
+                {provision && <ProvisionPanel provision={provision} />}
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

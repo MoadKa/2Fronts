@@ -1,6 +1,6 @@
 import { assertEquals } from 'jsr:@std/assert@1'
 import { handleConciergeChat } from './index.ts'
-import type { ChatCompleteFn } from '../_shared/conciergeChat.ts'
+import type { ChatCompleteFn, ClassifyAnswerFn, ClassifyResult } from '../_shared/conciergeChat.ts'
 
 // A fake admin client modelling exactly the calls handleConciergeChat makes:
 //   concierges:               select.eq(slug).eq(is_active).maybeSingle
@@ -421,4 +421,131 @@ Deno.test('a concierge with NO criteria behaves exactly as before (no quick_repl
   assertEquals(json.quick_replies, undefined)
   // Existing flow intact: both turns persisted.
   assertEquals(c.insertedMessages.map((m) => m.role), ['user', 'assistant'])
+})
+
+// --- Free-text answers to a pending qualification question (v1.3) ------------
+// The confirmed live bug: when a quick-reply prompt is showing and the visitor
+// TYPES instead of clicking, the typed answer was discarded and the same
+// criterion re-attached forever. Now the server classifies the text. The
+// classifier is INJECTED so these stay offline.
+
+const classifyStub = (result: ClassifyResult): ClassifyAnswerFn => () => Promise.resolve(result)
+
+Deno.test('typed text that MATCHES an option is recorded (verbatim label) + advances + buttons move to next', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'we have around 8k to invest',
+      pending_criterion_id: 'budget',
+    }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('Großartig! Wann möchtest du starten?'),
+      classifyAnswer: classifyStub({ kind: 'matched', option: budgetCriterion.options[0] }),
+    },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // The answer was recorded with the VERBATIM typed text as the label, qualifies
+  // taken from the matched option, and qualified recomputed.
+  assertEquals(c.qualificationUpdate!.qualification_answers.length, 1)
+  assertEquals(
+    (c.qualificationUpdate!.qualification_answers[0] as { criterion_id: string; label: string; qualifies: boolean }),
+    { criterion_id: 'budget', label: 'we have around 8k to invest', qualifies: true },
+  )
+  assertEquals(c.qualificationUpdate!.qualified, true)
+  // The model still ran a normal reply, and the buttons advanced to the NEXT criterion.
+  assertEquals(json.reply, 'Großartig! Wann möchtest du starten?')
+  assertEquals(json.quick_replies.criterion_id, 'timeline_role')
+  // Both turns persisted as a normal reply turn.
+  assertEquals(c.insertedMessages.map((m) => m.role), ['user', 'assistant'])
+})
+
+Deno.test('typed text classified OTHER is recorded qualifies=false + advances to the next criterion', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'it depends on the value',
+      pending_criterion_id: 'budget',
+    }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('Verstande. Wann möchtest du starten?'),
+      classifyAnswer: classifyStub({ kind: 'other' }),
+    },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // Recorded as an off-menu answer: verbatim label, qualifies=false.
+  assertEquals(c.qualificationUpdate!.qualification_answers.length, 1)
+  assertEquals(
+    (c.qualificationUpdate!.qualification_answers[0] as { label: string; qualifies: boolean }),
+    { criterion_id: 'budget', label: 'it depends on the value', qualifies: false } as never,
+  )
+  // AND-rule: one non-qualifying answer makes the conversation not qualified.
+  assertEquals(c.qualificationUpdate!.qualified, false)
+  // Advances to the next criterion's buttons.
+  assertEquals(json.quick_replies.criterion_id, 'timeline_role')
+})
+
+Deno.test('typed text classified NONE is NOT recorded; the same criterion stays pending', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'wait, what exactly is included?',
+      pending_criterion_id: 'budget',
+    }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('Gute Frage! Es umfasst X. Wie hoch ist dein Budget?'),
+      classifyAnswer: classifyStub({ kind: 'none' }),
+    },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // Nothing recorded: it wasn't an answer, just a real question.
+  assertEquals(c.qualificationUpdate, null)
+  // The SAME criterion is still returned (re-asked), so the buttons stay on budget.
+  assertEquals(json.quick_replies.criterion_id, 'budget')
+  // The bot still answered naturally.
+  assertEquals(json.reply, 'Gute Frage! Es umfasst X. Wie hoch ist dein Budget?')
+})
+
+Deno.test('a stale pending_criterion_id (already answered) is ignored: no double-record', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  // Budget already answered; a stale pending id for it must not re-classify/record.
+  c.newConversationAnswers = [{ criterion_id: 'budget', label: '5k+', qualifies: true }]
+  let classifierCalled = false
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'something',
+      pending_criterion_id: 'budget',
+    }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('Wann möchtest du starten?'),
+      classifyAnswer: () => {
+        classifierCalled = true
+        return Promise.resolve({ kind: 'matched', option: budgetCriterion.options[0] })
+      },
+    },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(classifierCalled, false)
+  assertEquals(c.qualificationUpdate, null)
+  // The next unanswered criterion (timeline) is what gets asked.
+  assertEquals(json.quick_replies.criterion_id, 'timeline_role')
 })

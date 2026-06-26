@@ -86,9 +86,13 @@ export async function sendConciergeMessage(
   // Set when the visitor clicked a quick-reply button: the chosen qualification
   // answer. The edge function records it and returns the next prompt. (S-C runtime.)
   answer?: QualAnswer,
+  // Set when the visitor TYPED free text while a qualification question was
+  // pending: the id of that open criterion. The server interprets the text
+  // against it (answer? other? unrelated question?) instead of ignoring it. (v1.3)
+  pendingCriterionId?: string,
 ): Promise<ConciergeChatReply> {
   const { data, error } = await supabase.functions.invoke('concierge-chat', {
-    body: { slug, session_id: sessionId, message, answer },
+    body: { slug, session_id: sessionId, message, answer, pending_criterion_id: pendingCriterionId },
   })
   if (error) throw new Error(await readChatErrorKey(error))
   return data as ConciergeChatReply

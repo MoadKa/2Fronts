@@ -20,7 +20,7 @@
 // / error-handling posture of createGeminiComplete.
 
 import { geminiFetchWithRetry } from './geminiRetry.ts'
-import type { QualCriterion, QualPrompt } from './qualification.ts'
+import type { QualCriterion, QualOption, QualPrompt } from './qualification.ts'
 
 export type ConciergeLanguage = 'de' | 'en'
 
@@ -193,6 +193,73 @@ export async function generateConciergeReply(
     reply,
     show_booking,
     calendar_url: show_booking ? input.concierge.calendar_url : undefined,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Free-text qualification classifier (v1.3). When a qualification question is
+// pending and the visitor TYPES instead of tapping a button, we let the LLM
+// interpret what they wrote against that criterion's options. It returns one of:
+//   - the verbatim label of a matching option (visitor answered with an option)
+//   - 'OTHER'  -> the visitor answered, but off-menu (not one of the options)
+//   - 'NONE'   -> the message is NOT an answer (e.g. a real question back)
+// The handler then records an answer (or not) and advances accordingly.
+
+export type ClassifyResult =
+  | { kind: 'matched'; option: QualOption }
+  | { kind: 'other' }
+  | { kind: 'none' }
+
+// Interpret a free-text message against a single criterion. Injectable so the
+// handler is unit-tested offline; the default delegates to the Gemini `complete`.
+export type ClassifyAnswerFn = (
+  criterion: QualCriterion,
+  message: string,
+) => Promise<ClassifyResult>
+
+// Build the tiny classification system prompt: ask the model to map the visitor's
+// message onto exactly ONE option label, or OTHER (answered off-menu), or NONE
+// (not an answer at all). Reply must be exactly one token/line so parsing is cheap.
+function buildClassifierPrompt(criterion: QualCriterion): string {
+  const optionLines = criterion.options.map((o) => `- ${o.label}`).join('\n')
+  return [
+    'You are a strict classifier. A visitor was asked this qualifying question:',
+    `"${criterion.question}"`,
+    'The available answer options are:',
+    optionLines,
+    '',
+    'Classify the visitor\'s message into EXACTLY ONE of:',
+    '- the exact text of the single option it best matches (copy it verbatim), OR',
+    '- OTHER  (the message IS an answer to the question, but does not match any option), OR',
+    '- NONE   (the message is NOT an answer — e.g. it is a question, a greeting, or off-topic).',
+    '',
+    'Reply with ONLY the option text, or OTHER, or NONE. No punctuation, no explanation.',
+  ].join('\n')
+}
+
+// Default classifier: one short Gemini call, no conversation history. Maps the
+// model's single-token reply back to a matched option / OTHER / NONE. Anything
+// unexpected is treated as NONE (safest: leaves the criterion pending, never
+// records a phantom answer).
+export function createClassifyAnswer(complete: ChatCompleteFn): ClassifyAnswerFn {
+  return async (criterion: QualCriterion, message: string): Promise<ClassifyResult> => {
+    const system = buildClassifierPrompt(criterion)
+    const raw = (await complete(system, [{ role: 'user', content: message }])).trim()
+    if (raw === '') return { kind: 'none' }
+    const upper = raw.toUpperCase()
+    if (upper === 'NONE') return { kind: 'none' }
+    if (upper === 'OTHER') return { kind: 'other' }
+    // Match an option by exact (case-insensitive) label first, then by a tolerant
+    // contains check so minor model formatting (quotes, trailing words) still maps.
+    const exact = criterion.options.find((o) => o.label.toLowerCase() === raw.toLowerCase())
+    if (exact) return { kind: 'matched', option: exact }
+    const contained = criterion.options.find(
+      (o) => raw.toLowerCase().includes(o.label.toLowerCase()),
+    )
+    if (contained) return { kind: 'matched', option: contained }
+    // The model said something we can't map to an option or to OTHER/NONE.
+    // Treat as not-an-answer so we never fabricate a qualification record.
+    return { kind: 'none' }
   }
 }
 

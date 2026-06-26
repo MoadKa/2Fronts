@@ -8,8 +8,13 @@
   margin-bottom: var(--space-xl);
 }
 
+.software-header h1 {
+  font-size: clamp(2rem, 5vw, 2.8rem);
+}
+
 .software-page .page-header p {
-  max-width: 560px;
+  max-width: 60ch;
+  font-size: 1.1rem;
   color: var(--color-text);
 }
 
@@ -26,11 +31,18 @@
 
 .software-card {
   position: relative;
+  height: 100%;
   background: var(--color-surface);
   border: 2px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
   box-shadow: var(--shadow-clay-sm);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+
+.software-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-clay-md);
 }
 
 /* Coming-soon connectors are intentionally dimmed: clearly future, never a
@@ -39,18 +51,25 @@
   opacity: 0.72;
 }
 
+.software-card-soon:hover {
+  opacity: 0.85;
+}
+
 .software-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--color-muted);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(140deg, var(--color-background), var(--color-muted));
+  border: 1.5px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--heading);
   font-weight: 700;
+  font-size: 1.2rem;
   color: var(--color-primary-dark);
   margin-bottom: var(--space-md);
+  box-shadow: var(--shadow-clay-sm);
 }
 
 .software-name {
@@ -76,15 +95,26 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 700;
-  padding: 0.18rem 0.6rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.24rem 0.65rem;
   border-radius: 999px;
 }
 
 .pill-live {
   background: var(--color-success-bg);
   color: var(--color-success);
+}
+
+.pill-live::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
 }
 
 .pill-soon {
