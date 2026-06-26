@@ -20,6 +20,7 @@ import { AppHomePage } from './pages/public/AppHomePage'
 import { ImpressumPage } from './pages/public/legal/ImpressumPage'
 import { DatenschutzPage } from './pages/public/legal/DatenschutzPage'
 import { AGBPage } from './pages/public/legal/AGBPage'
+import { WiderrufPage } from './pages/public/legal/WiderrufPage'
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
                 <Route path="/impressum" element={<ImpressumPage />} />
                 <Route path="/datenschutz" element={<DatenschutzPage />} />
                 <Route path="/agb" element={<AGBPage />} />
+                <Route path="/widerruf" element={<WiderrufPage />} />
                 <Route path="/supported-software" element={<SupportedSoftwarePage />} />
                 <Route path="/checkout/result" element={<CheckoutResultPage />} />
                 <Route path="/marketplace-test" element={<MarketplaceTestPage />} />

@@ -64,6 +64,10 @@ export function DatenschutzPage() {
         body={t('legal.datenschutz.complaintBody')}
       />
       <LegalSection
+        heading={t('legal.datenschutz.aiEmailHeading')}
+        body={t('legal.datenschutz.aiEmailBody')}
+      />
+      <LegalSection
         heading={t('legal.datenschutz.changesHeading')}
         body={t('legal.datenschutz.changesBody')}
       />

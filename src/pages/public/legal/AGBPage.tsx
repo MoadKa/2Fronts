@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { LegalLayout, LegalSection } from './LegalLayout'
 
-// Lean B2B terms of service (AGB). No Widerrufsbelehrung — buyers are
-// businesses (Section 14 BGB). Company specifics are placeholders to be filled
-// before publication. DRAFT — lawyer review recommended (epic out-of-scope).
+// Terms of service (AGB) for businesses AND consumers, incl. subscriptions
+// (Kleinunternehmer §19 UStG, no VAT). Consumer right of withdrawal lives on the
+// dedicated Widerruf page; in-app cancellation (§312k) is in My Requests.
 export function AGBPage() {
   const { t } = useTranslation()
   return (
