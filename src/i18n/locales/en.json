@@ -387,6 +387,9 @@
     "send": "Send",
     "sending": "…",
     "bookCta": "Book a call",
+    "namePlaceholder": "Your name",
+    "emailPlaceholder": "Your email",
+    "contactSubmit": "Continue to booking",
     "unavailableTitle": "This page isn't available",
     "unavailableBody": "This concierge link is inactive or doesn't exist. Please check the link and try again.",
     "thinking": "Typing…"

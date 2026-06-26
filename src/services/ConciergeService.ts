@@ -16,6 +16,15 @@ export interface ConciergeChatReply {
   // Present when the concierge wants the visitor to answer the next qualification
   // criterion: the chat renders these options as quick-reply buttons. (S-C runtime.)
   quick_replies?: QualPrompt
+  // True when the server is gating the booking behind contact: the page must show
+  // the name + email form, then resubmit via the `contact` arg. (v1.4)
+  request_contact?: boolean
+}
+
+// The visitor's contact details from the name/email form (gated before booking).
+export interface ConciergeContact {
+  name: string
+  email: string
 }
 
 export type ConciergeLanguage = 'de' | 'en'
@@ -90,9 +99,12 @@ export async function sendConciergeMessage(
   // pending: the id of that open criterion. The server interprets the text
   // against it (answer? other? unrelated question?) instead of ignoring it. (v1.3)
   pendingCriterionId?: string,
+  // Set when the visitor submitted the name/email form: the server stores it and
+  // returns the booking. message may be empty on this turn. (v1.4)
+  contact?: ConciergeContact,
 ): Promise<ConciergeChatReply> {
   const { data, error } = await supabase.functions.invoke('concierge-chat', {
-    body: { slug, session_id: sessionId, message, answer, pending_criterion_id: pendingCriterionId },
+    body: { slug, session_id: sessionId, message, answer, pending_criterion_id: pendingCriterionId, contact },
   })
   if (error) throw new Error(await readChatErrorKey(error))
   return data as ConciergeChatReply
@@ -103,6 +115,8 @@ export async function sendConciergeMessage(
 export interface ConciergeChatSummary {
   id: string
   visitor_session_id: string
+  visitor_name: string | null
+  visitor_email: string | null
   outcome: 'open' | 'booking_shown' | 'booking_clicked'
   qualified: boolean | null
   qualification_answers: QualAnswer[]
@@ -125,7 +139,7 @@ export async function listConciergeChats(): Promise<ConciergeChatSummary[]> {
   const { data, error } = await supabase
     .from('concierge_conversations')
     .select(
-      'id, visitor_session_id, outcome, qualified, qualification_answers, created_at, concierge:concierges(slug, business_name)',
+      'id, visitor_session_id, visitor_name, visitor_email, outcome, qualified, qualification_answers, created_at, concierge:concierges(slug, business_name)',
     )
     .order('created_at', { ascending: false })
   if (error) throw new Error('conciergeChats.loadFailed')
@@ -136,6 +150,8 @@ export async function listConciergeChats(): Promise<ConciergeChatSummary[]> {
     return {
       id: row.id as string,
       visitor_session_id: row.visitor_session_id as string,
+      visitor_name: (row.visitor_name as string | null) ?? null,
+      visitor_email: (row.visitor_email as string | null) ?? null,
       outcome: row.outcome as ConciergeChatSummary['outcome'],
       qualified: (row.qualified as boolean | null) ?? null,
       qualification_answers: Array.isArray(row.qualification_answers)

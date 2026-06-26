@@ -12,7 +12,9 @@ import type { ChatCompleteFn, ClassifyAnswerFn, ClassifyResult } from '../_share
 // It records inserts + the conversation outcome update so tests can assert them.
 interface Captured {
   conciergeRow: Record<string, unknown> | null
-  existingConversation: { id: string; outcome: string; qualification_answers?: unknown[] } | null
+  existingConversation:
+    | { id: string; outcome: string; qualification_answers?: unknown[]; visitor_email?: string }
+    | null
   // qualification_answers the new-session upsert returns (defaults to []).
   newConversationAnswers: unknown[]
   history: Array<{ role: string; content: string }>
@@ -21,6 +23,8 @@ interface Captured {
   outcomeUpdate: string | null
   // The qualification update the handler applies on a quick-reply answer.
   qualificationUpdate: { qualification_answers: unknown[]; qualified: boolean | null } | null
+  // The contact update applied when the visitor submits the name/email form.
+  contactUpdate: { visitor_name: unknown; visitor_email: unknown } | null
 }
 
 function makeCaptured(overrides: Partial<Captured> = {}): Captured {
@@ -42,6 +46,7 @@ function makeCaptured(overrides: Partial<Captured> = {}): Captured {
     insertedConversation: null,
     outcomeUpdate: null,
     qualificationUpdate: null,
+    contactUpdate: null,
     ...overrides,
   }
 }
@@ -107,6 +112,9 @@ function fakeAdminClient(c: Captured) {
                 qualification_answers: patch.qualification_answers as unknown[],
                 qualified: patch.qualified as boolean | null,
               }
+            }
+            if ('visitor_email' in patch) {
+              c.contactUpdate = { visitor_name: patch.visitor_name, visitor_email: patch.visitor_email }
             }
             return { eq: () => Promise.resolve({ error: null }) }
           },
@@ -188,8 +196,24 @@ Deno.test('replies to a visitor message grounded in the concierge, persists both
   assertEquals(c.insertedMessages[1].content, 'Es dauert 12 Wochen.')
 })
 
-Deno.test('booking intent: reply surfaces the link -> show_booking true, outcome booking_shown', async () => {
+Deno.test('booking intent with NO contact yet: asks for name/email instead of the link', async () => {
   const c = makeCaptured()
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'Ich will buchen' }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Gerne! Buche hier: https://cal.com/acme') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // Booking is gated behind contact: the form is requested, no link/button yet.
+  assertEquals(json.request_contact, true)
+  assertEquals(json.show_booking, false)
+  assertEquals(json.calendar_url, undefined)
+})
+
+Deno.test('booking intent WITH contact on file: reply surfaces the link -> show_booking true', async () => {
+  const c = makeCaptured({
+    existingConversation: { id: 'conv-x', outcome: 'open', qualification_answers: [], visitor_email: 'lead@x.de' },
+  })
   const res = await handleConciergeChat(
     postReq({ slug: 'acme', session_id: 'sess-1', message: 'Ich will buchen' }),
     { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Gerne! Buche hier: https://cal.com/acme') },
@@ -199,6 +223,36 @@ Deno.test('booking intent: reply surfaces the link -> show_booking true, outcome
   assertEquals(json.show_booking, true)
   assertEquals(json.calendar_url, 'https://cal.com/acme')
   assertEquals(c.outcomeUpdate, 'booking_shown')
+})
+
+Deno.test('contact form submission stores name + email and returns the booking', async () => {
+  const c = makeCaptured()
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', contact: { name: 'Max Muster', email: 'max@example.com' } }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('unused') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, true)
+  assertEquals(json.calendar_url, 'https://cal.com/acme')
+  assertStringIncludes(json.reply, 'Termin')
+  // Stored on the conversation + advanced the outcome.
+  assertEquals(c.contactUpdate!.visitor_name, 'Max Muster')
+  assertEquals(c.contactUpdate!.visitor_email, 'max@example.com')
+  assertEquals(c.outcomeUpdate, 'booking_shown')
+  // The contact is logged to the transcript so the coach sees it.
+  assertStringIncludes(c.insertedMessages[0].content as string, 'max@example.com')
+})
+
+Deno.test('a malformed contact email is rejected (no record, normal flow)', async () => {
+  const c = makeCaptured()
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'hi', contact: { name: 'Max', email: 'not-an-email' } }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Hallo!') },
+  )
+  assertEquals(res.status, 200)
+  // Invalid contact ignored -> falls through to the normal message flow, nothing stored.
+  assertEquals(c.contactUpdate, null)
 })
 
 Deno.test('the fallback reply (AI unsure) is returned verbatim and does not surface booking', async () => {
@@ -404,14 +458,39 @@ Deno.test('answering the last criterion returns no quick_replies and a disqualif
   const json = await res.json()
   // All criteria now answered -> no further prompt.
   assertEquals(json.quick_replies, undefined)
-  // Completion must NOT stop at "thanks": it invites the booking and surfaces the
-  // calendar link + button (hybrid model = everyone who finishes is invited).
-  assertEquals(json.show_booking, true)
-  assertEquals(json.calendar_url, 'https://cal.com/acme')
-  assertStringIncludes(json.reply, 'Termin')
+  // Completion must NOT stop at "thanks". With no contact yet it asks for name +
+  // email first (the booking comes after the form, see the contact test).
+  assertEquals(json.request_contact, true)
+  assertEquals(json.show_booking, false)
   // AND-rule: one disqualifying answer makes the whole conversation not qualified.
   assertEquals(c.qualificationUpdate!.qualification_answers.length, 2)
   assertEquals(c.qualificationUpdate!.qualified, false)
+})
+
+Deno.test('answering the last criterion WHEN contact is on file goes straight to booking', async () => {
+  const c = makeCaptured({
+    existingConversation: {
+      id: 'conv-x',
+      outcome: 'open',
+      qualification_answers: [{ criterion_id: 'timeline_role', label: 'Now', qualifies: true }],
+      visitor_email: 'lead@x.de',
+    },
+  })
+  c.conciergeRow!.qualification_criteria = [timelineCriterion, budgetCriterion]
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: '5k+',
+      answer: { criterion_id: 'budget', label: '5k+', qualifies: true },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('nope') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, true)
+  assertEquals(json.calendar_url, 'https://cal.com/acme')
+  assertStringIncludes(json.reply, 'Termin')
 })
 
 Deno.test('a concierge with NO criteria behaves exactly as before (no quick_replies)', async () => {

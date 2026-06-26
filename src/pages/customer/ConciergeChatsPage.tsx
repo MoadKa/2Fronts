@@ -79,8 +79,12 @@ export function ConciergeChatsPage() {
             >
               <div className="concierge-chat-card-main">
                 <span className="concierge-chat-who">
-                  {t('conciergeChats.visitor')} {chat.visitor_session_id.slice(0, 8)}
+                  {chat.visitor_name ||
+                    `${t('conciergeChats.visitor')} ${chat.visitor_session_id.slice(0, 8)}`}
                 </span>
+                {chat.visitor_email && (
+                  <span className="concierge-chat-sub">{chat.visitor_email}</span>
+                )}
                 {chat.concierge && (
                   <span className="concierge-chat-sub">{chat.concierge.business_name}</span>
                 )}
@@ -106,9 +110,13 @@ export function ConciergeChatsPage() {
         {selected && (
           <div className="concierge-chat-detail">
             <h2>
-              {t('conciergeChats.visitor')} {selected.visitor_session_id.slice(0, 8)}
+              {selected.visitor_name ||
+                `${t('conciergeChats.visitor')} ${selected.visitor_session_id.slice(0, 8)}`}
             </h2>
-            <p className="concierge-chat-detail-meta">{fmt(selected.created_at)}</p>
+            <p className="concierge-chat-detail-meta">
+              {selected.visitor_email && <>{selected.visitor_email} · </>}
+              {fmt(selected.created_at)}
+            </p>
 
             {selected.qualification_answers.length > 0 && (
               <div className="concierge-chat-answers">

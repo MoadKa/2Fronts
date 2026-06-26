@@ -11,6 +11,8 @@ vi.mock('../../services/ConciergeService', () => ({
 const chat = {
   id: 'conv-1',
   visitor_session_id: 'sess-abcdef123456',
+  visitor_name: null,
+  visitor_email: null,
   outcome: 'booking_shown' as const,
   qualified: true,
   qualification_answers: [{ criterion_id: 'budget', label: '5k+', qualifies: true }],

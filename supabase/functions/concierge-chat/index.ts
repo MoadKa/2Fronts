@@ -113,6 +113,36 @@ function bookingInvite(language: ConciergeKnowledge['language']): string {
     : 'Danke! Auf der Basis ist der beste nächste Schritt ein kurzes Gespräch. Schnapp dir hier direkt einen passenden Termin:'
 }
 
+// Asked once, right before the booking link, so the coach ALWAYS gets a name +
+// email for a lead who reaches the booking step. The bot stays in character and
+// leads; the page renders name + email fields under this message.
+function contactRequest(language: ConciergeKnowledge['language']): string {
+  return language === 'en'
+    ? 'Perfect! So we can set everything up for you and confirm your spot — what is your name, and the best email to reach you?'
+    : 'Perfekt! Damit wir alles für dich vorbereiten und deinen Platz bestätigen können — wie heißt du, und unter welcher E-Mail erreichen wir dich am besten?'
+}
+
+// The visitor's typed contact details, submitted from the name/email form. Both
+// required; email is lightly validated so a coach never gets an obviously bogus
+// address. Returns null when malformed so we fall back to the normal flow.
+interface VisitorContact {
+  name: string
+  email: string
+}
+
+function isEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
+}
+
+function parseContact(raw: unknown): VisitorContact | null {
+  if (!raw || typeof raw !== 'object') return null
+  const c = raw as Record<string, unknown>
+  const name = typeof c.name === 'string' ? c.name.trim() : ''
+  const email = typeof c.email === 'string' ? c.email.trim() : ''
+  if (!name || name.length > 200 || !email || email.length > 320 || !isEmail(email)) return null
+  return { name, email }
+}
+
 // Validate an inbound quick-reply answer from the public body. Returns null when
 // it isn't a well-formed QualAnswer so we fall back to the normal text flow.
 function parseAnswer(raw: unknown): QualAnswer | null {
@@ -136,6 +166,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     message?: unknown
     answer?: unknown
     pending_criterion_id?: unknown
+    contact?: unknown
   }
   try {
     body = await req.json()
@@ -153,7 +184,10 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   // pending. We classify the text against that criterion instead of ignoring it.
   const pendingCriterionId =
     typeof body.pending_criterion_id === 'string' ? body.pending_criterion_id.trim() : ''
-  if (!slug || !sessionId || !message) {
+  // A submission from the name/email form. When present + valid we store it and
+  // move straight to the booking, so `message` is not required on this turn.
+  const contact = parseContact(body.contact)
+  if (!slug || !sessionId || (!message && !contact)) {
     return new Response(JSON.stringify({ error: 'slug, session_id and message are required' }), { status: 400, headers: jsonHeaders })
   }
   // Bound public input: this endpoint takes no JWT, so unbounded message/session
@@ -195,8 +229,29 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   try {
     // 2. Find (or open) this visitor's conversation for the concierge, and load
     //    its recorded qualification answers (so we can append + recompute).
-    const { id: conversationId, qualification_answers: priorAnswers } =
+    const { id: conversationId, qualification_answers: priorAnswers, visitor_email } =
       await resolveConversation(admin, concierge.id, sessionId)
+    const hasContact = Boolean(visitor_email)
+
+    // 2a. CONTACT BRANCH. The visitor submitted the name/email form. Store it on
+    //     the conversation (so the coach always has the lead's contact), log it to
+    //     the transcript, and move straight to the booking — this form only ever
+    //     appears as the step right before booking. No model call this turn.
+    if (contact) {
+      await admin
+        .from('concierge_conversations')
+        .update({ visitor_name: contact.name, visitor_email: contact.email, outcome: 'booking_shown' })
+        .eq('id', conversationId)
+      const reply = bookingInvite(concierge.language)
+      await admin.from('concierge_messages').insert([
+        { conversation_id: conversationId, role: 'user', content: `${contact.name} · ${contact.email}` },
+        { conversation_id: conversationId, role: 'assistant', content: reply },
+      ])
+      return new Response(
+        JSON.stringify({ reply, show_booking: true, calendar_url: concierge.calendar_url }),
+        { status: 200, headers: jsonHeaders },
+      )
+    }
 
     // 2b. QUICK-REPLY BRANCH. The visitor clicked a qualifying button: record the
     //     answer deterministically, recompute `qualified`, persist both, log the
@@ -227,8 +282,21 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
           { status: 200, headers: jsonHeaders },
         )
       }
-      // Qualification COMPLETE on this click: do not stop at "thanks" — invite the
-      // booking and surface the calendar link + button so the visitor can book now.
+      // Qualification COMPLETE on this click. Before the booking we must capture
+      // the lead's contact: if we don't have it yet, ask for name + email (the
+      // page shows the form); the booking comes after they submit it.
+      if (!hasContact) {
+        const reply = contactRequest(concierge.language)
+        await admin
+          .from('concierge_messages')
+          .insert([{ conversation_id: conversationId, role: 'assistant', content: reply }])
+        return new Response(
+          JSON.stringify({ reply, show_booking: false, request_contact: true }),
+          { status: 200, headers: jsonHeaders },
+        )
+      }
+      // Contact already on file: do not stop at "thanks" — invite the booking and
+      // surface the calendar link + button so the visitor can book now.
       const reply = bookingInvite(concierge.language)
       await admin
         .from('concierge_messages')
@@ -320,8 +388,23 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       { complete },
     )
 
-    // 5. Persist both turns (user first, then assistant) and, when the reply
-    //    surfaced the booking link, advance the conversation outcome.
+    // 5. Gate booking behind contact: if the model wants to surface the booking
+    //    link but we have no name/email yet, ask for it first (the page renders the
+    //    contact form). The lead only ever reaches the booking after we have it.
+    if (result.show_booking && !hasContact) {
+      const reply = contactRequest(concierge.language)
+      await admin.from('concierge_messages').insert([
+        { conversation_id: conversationId, role: 'user', content: message },
+        { conversation_id: conversationId, role: 'assistant', content: reply },
+      ])
+      return new Response(
+        JSON.stringify({ reply, show_booking: false, request_contact: true }),
+        { status: 200, headers: jsonHeaders },
+      )
+    }
+
+    // 5b. Persist both turns (user first, then assistant) and, when the reply
+    //     surfaced the booking link, advance the conversation outcome.
     await admin.from('concierge_messages').insert([
       { conversation_id: conversationId, role: 'user', content: message },
       { conversation_id: conversationId, role: 'assistant', content: result.reply },
@@ -330,10 +413,9 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       await admin.from('concierge_conversations').update({ outcome: 'booking_shown' }).eq('id', conversationId)
     }
 
-    // 5b. HYBRID: booking gating above is unchanged. The bot already asked `next`
-    //     in its reply (step 4); we attach its options as quick-reply buttons.
-
-    // 6. Return only the reply + booking signal. Offer/qa never leave the server.
+    // 6. Return only the reply + booking signal. The bot already asked `next` in
+    //    its reply (step 4); we attach its options as quick-reply buttons. Offer/qa
+    //    never leave the server.
     return new Response(
       JSON.stringify({
         reply: result.reply,
@@ -363,10 +445,24 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
 interface ResolvedConversation {
   id: string
   qualification_answers: QualAnswer[]
+  // Set once the visitor submitted the contact form; lets us gate the booking so
+  // it is only shown after we have a name + email for the lead.
+  visitor_email: string | null
 }
 
 function toAnswers(raw: unknown): QualAnswer[] {
   return Array.isArray(raw) ? (raw as QualAnswer[]) : []
+}
+
+type ConvRow = { id?: string; qualification_answers?: unknown; visitor_email?: unknown } | null
+
+function toResolved(row: ConvRow): ResolvedConversation | null {
+  if (!row?.id) return null
+  return {
+    id: row.id,
+    qualification_answers: toAnswers(row.qualification_answers),
+    visitor_email: typeof row.visitor_email === 'string' ? row.visitor_email : null,
+  }
 }
 
 async function resolveConversation(
@@ -380,21 +476,21 @@ async function resolveConversation(
       { concierge_id: conciergeId, visitor_session_id: sessionId, outcome: 'open' },
       { onConflict: 'concierge_id,visitor_session_id', ignoreDuplicates: true },
     )
-    .select('id, qualification_answers')
+    .select('id, qualification_answers, visitor_email')
     .maybeSingle()
-  const up = upserted as { id?: string; qualification_answers?: unknown } | null
-  if (up?.id) return { id: up.id, qualification_answers: toAnswers(up.qualification_answers) }
+  const up = toResolved(upserted as ConvRow)
+  if (up) return up
 
   // Conflict path: the conversation already existed, so the upsert did nothing.
-  // Read its id + answers by the unique key.
+  // Read its id + answers + contact by the unique key.
   const { data: existing } = await admin
     .from('concierge_conversations')
-    .select('id, qualification_answers')
+    .select('id, qualification_answers, visitor_email')
     .eq('concierge_id', conciergeId)
     .eq('visitor_session_id', sessionId)
     .maybeSingle()
-  const ex = existing as { id?: string; qualification_answers?: unknown } | null
-  if (ex?.id) return { id: ex.id, qualification_answers: toAnswers(ex.qualification_answers) }
+  const ex = toResolved(existing as ConvRow)
+  if (ex) return ex
 
   throw new Error('could not open conversation')
 }

@@ -167,6 +167,32 @@ describe('ConciergePublicPage', () => {
     expect(screen.queryByRole('button', { name: '5k+' })).not.toBeInTheDocument()
   })
 
+  it('asks for name + email when the server requests contact, then submits it and shows booking', async () => {
+    sendConciergeMessage
+      .mockResolvedValueOnce({ reply: 'Wie heißt du?', show_booking: false, request_contact: true })
+      .mockResolvedValueOnce({ reply: 'Buche hier!', show_booking: true, calendar_url: 'https://cal.com/acme' })
+    renderAt('acme')
+
+    fireEvent.change(screen.getByPlaceholderText('Nachricht eingeben…'), { target: { value: 'Hi' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Senden' }))
+
+    // The composer is swapped for the name + email form.
+    const nameInput = await screen.findByPlaceholderText('Dein Name')
+    const emailInput = screen.getByPlaceholderText('Deine E-Mail')
+    fireEvent.change(nameInput, { target: { value: 'Max Muster' } })
+    fireEvent.change(emailInput, { target: { value: 'max@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Weiter zum Termin' }))
+
+    // Submitted as the contact (6th arg), name carried as the message.
+    expect(sendConciergeMessage).toHaveBeenLastCalledWith('acme', 'sess-test', 'Max Muster', undefined, undefined, {
+      name: 'Max Muster',
+      email: 'max@example.com',
+    })
+    // Booking CTA appears after the contact is captured.
+    const cta = await screen.findByText('Termin buchen')
+    expect(cta.closest('a')).toHaveAttribute('href', 'https://cal.com/acme')
+  })
+
   it('shows a friendly unavailable screen when the slug is not found', async () => {
     sendConciergeMessage.mockRejectedValue(new Error('conciergeChat.unavailable'))
     renderAt('nope')
