@@ -7,7 +7,7 @@ interface AuthContextValue {
   user: User | null
   profile: Profile | null
   loading: boolean
-  signUp: (email: string, password: string, companyName: string) => Promise<void>
+  signUp: (email: string, password: string, companyName: string) => Promise<{ needsConfirmation: boolean }>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -42,12 +42,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function signUp(email: string, password: string, companyName: string) {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { company_name: companyName } },
+      options: {
+        data: { company_name: companyName },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     })
     if (error) throw error
+    // When "Confirm email" is enabled in Supabase, signUp returns a user but no
+    // session — that's the signal a confirmation email was sent and the user is
+    // not yet logged in. When it's disabled, a session is returned immediately.
+    const needsConfirmation = !data.session && !!data.user
+    return { needsConfirmation }
   }
 
   async function signIn(email: string, password: string) {

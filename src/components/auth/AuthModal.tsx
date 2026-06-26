@@ -18,12 +18,20 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [error, setError] = useState('')
+  const [confirmationSent, setConfirmationSent] = useState(false)
 
   async function handleSubmit() {
     setError('')
     try {
       if (mode === 'signUp') {
-        await signUp(email, password, companyName)
+        const { needsConfirmation } = await signUp(email, password, companyName)
+        if (needsConfirmation) {
+          // No session yet — Supabase sent a confirmation email. Don't pretend
+          // the user is signed in; keep the modal open showing a "check inbox"
+          // state instead of firing the signed-in success path.
+          setConfirmationSent(true)
+          return
+        }
       } else {
         await signIn(email, password)
       }
@@ -38,6 +46,35 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   function handleFormSubmit(e: FormEvent) {
     e.preventDefault()
     void handleSubmit()
+  }
+
+  if (confirmationSent) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <div className="auth-modal" role="status">
+          <header className="auth-modal-head">
+            <span className="auth-modal-mark" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16v16H4z" />
+                <path d="m4 6 8 6 8-6" />
+              </svg>
+            </span>
+            <h2>{t('auth.confirmEmailTitle', { defaultValue: 'Bestätige deine E-Mail' })}</h2>
+          </header>
+          <p className="auth-modal-confirm-text">
+            {t('auth.confirmEmailSent', {
+              defaultValue:
+                'Fast geschafft! Wir haben dir eine E-Mail geschickt — bestätige darin deine Adresse, dann kannst du dich anmelden.',
+            })}
+          </p>
+          <div className="page-stack auth-modal-actions">
+            <Button type="button" onClick={onClose}>
+              {t('auth.gotIt', { defaultValue: 'Verstanden' })}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    )
   }
 
   return (

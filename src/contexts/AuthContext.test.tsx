@@ -57,7 +57,10 @@ describe('AuthContext', () => {
       expect(supabase.auth.signUp).toHaveBeenCalledWith({
         email: 'a@acme.com',
         password: 'pw123456',
-        options: { data: { company_name: 'Acme' } },
+        options: {
+          data: { company_name: 'Acme' },
+          emailRedirectTo: `${window.location.origin}/`,
+        },
       })
     )
     expect(supabase.from).not.toHaveBeenCalledWith('profiles')

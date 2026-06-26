@@ -46,6 +46,12 @@
   gap: var(--space-sm);
 }
 
+.auth-modal-confirm-text {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--color-text-muted, inherit);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .auth-modal {
     animation: none;
