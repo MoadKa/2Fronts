@@ -72,6 +72,15 @@ function RocketIcon(props: IconProps) {
   )
 }
 
+function ArrowRightIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
+  )
+}
+
 export function CatalogPage() {
   const { t } = useTranslation()
   const [automations, setAutomations] = useState<Automation[]>([])
@@ -107,13 +116,17 @@ export function CatalogPage() {
           <span className="blob blob-2" />
           <span className="blob blob-3" />
         </div>
-        <div className="hero-content">
-          <span className="hero-eyebrow">{t('catalog.heroEyebrow')}</span>
+        <div className="hero-content rise-stagger">
+          <span className="hero-eyebrow">
+            <SparkleIcon className="hero-eyebrow-icon" aria-hidden="true" />
+            {t('catalog.heroEyebrow')}
+          </span>
           <h1>{t('catalog.heroTitle')}</h1>
           <p className="hero-sub">{t('catalog.heroSub')}</p>
           <div className="hero-actions">
-            <a href="#catalog" className="btn btn-primary">
+            <a href="#catalog" className="btn btn-primary hero-cta">
               {t('catalog.discoverAutomations')}
+              <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
             </a>
             <a href="#how-it-works" className="hero-link">
               {t('catalog.howItWorksLink')}
@@ -187,7 +200,7 @@ export function CatalogPage() {
       </section>
 
       <section id="catalog" className="catalog-section">
-        <div className="page-header">
+        <div className="page-header catalog-header">
           <h2>{t('catalog.catalogSectionTitle')}</h2>
           <p>{t('catalog.catalogSectionSub')}</p>
         </div>

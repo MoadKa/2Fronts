@@ -29,10 +29,12 @@ export function SupportedSoftwarePage() {
 
   return (
     <div className="software-page">
-      <div className="page-header">
-        <h1>{t('supportedSoftware.title')}</h1>
-        <p>{t('supportedSoftware.intro')}</p>
-      </div>
+      <Reveal>
+        <div className="page-header software-header">
+          <h1>{t('supportedSoftware.title')}</h1>
+          <p>{t('supportedSoftware.intro')}</p>
+        </div>
+      </Reveal>
 
       {loading && <p className="software-status">{t('supportedSoftware.loading')}</p>}
       {!loading && error && (
