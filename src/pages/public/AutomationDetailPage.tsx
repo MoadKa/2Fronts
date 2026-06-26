@@ -119,7 +119,11 @@ export function AutomationDetailPage() {
             <span className="detail-price-amount">
               {formatPrice(automation.price_cents, automation.currency)}
             </span>
-            <span className="detail-price-note">{t('automationDetail.priceOnceLabel', 'einmalig')}</span>
+            <span className="detail-price-note">
+              {automation.pricing_model === 'subscription'
+                ? t('automationDetail.priceMonthlyLabel', 'pro Monat')
+                : t('automationDetail.priceOnceLabel', 'einmalig')}
+            </span>
           </div>
 
           {user ? (

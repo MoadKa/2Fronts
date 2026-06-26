@@ -100,6 +100,58 @@ Deno.test('returns 500 with a generic message when the insert throws', async () 
   assertEquals(body.error, 'Could not submit your request — please try again')
 })
 
+Deno.test('emails the founder when Resend is configured', async () => {
+  const { deps, calls } = inserter()
+  const sent: Array<{ to: string; subject: string; text: string }> = []
+  const env = (k: string) =>
+    ({ RESEND_API_KEY: 're_x', ADMIN_EMAIL: 'founder@2fronts.de' } as Record<string, string>)[k]
+  const res = await handleSubmitWish(
+    jsonReq({ email: 'lead@x.de', message: 'Slack-Sync', industry: 'coaching' }),
+    {
+      ...deps,
+      env,
+      sendEmail: ({ to, subject, text }) => {
+        sent.push({ to, subject, text })
+        return Promise.resolve(true)
+      },
+    },
+  )
+  assertEquals(res.status, 200)
+  assertEquals(calls.length, 1) // wish still stored
+  assertEquals(sent.length, 1)
+  assertEquals(sent[0].to, 'founder@2fronts.de')
+  assertEquals(sent[0].subject.includes('Vorschlag'), true)
+  assertEquals(sent[0].text.includes('lead@x.de'), true)
+})
+
+Deno.test('does NOT email when Resend is not configured (still stores the wish)', async () => {
+  const { deps, calls } = inserter()
+  let called = false
+  const res = await handleSubmitWish(jsonReq({ email: 'a@b.com' }), {
+    ...deps,
+    env: () => undefined,
+    sendEmail: () => {
+      called = true
+      return Promise.resolve(true)
+    },
+  })
+  assertEquals(res.status, 200)
+  assertEquals(calls.length, 1)
+  assertEquals(called, false)
+})
+
+Deno.test('a notification failure never fails the wish', async () => {
+  const { deps, calls } = inserter()
+  const res = await handleSubmitWish(jsonReq({ email: 'a@b.com' }), {
+    ...deps,
+    env: (k: string) => ({ RESEND_API_KEY: 're_x', ADMIN_EMAIL: 'f@x.de' } as Record<string, string>)[k],
+    sendEmail: () => Promise.reject(new Error('resend down')),
+  })
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).ok, true)
+  assertEquals(calls.length, 1)
+})
+
 Deno.test('handles CORS preflight', async () => {
   const res = await handleSubmitWish(jsonReq(undefined, 'OPTIONS'), inserter().deps)
   assertEquals(res.status, 200)

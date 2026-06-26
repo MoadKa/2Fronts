@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.6.0.0] - 2026-06-26
+
+### Added
+- **Admin can set monthly (subscription) pricing.** The catalog admin form now has a billing select (one-time / monthly); choosing monthly stores `pricing_model='subscription'` + `recurring_interval='month'` (the columns + subscription checkout already existed). The catalog and detail pages show "/ Monat" for subscription automations.
+
+### Fixed
+- **Automation suggestions now notify the founder.** `submit-wish` sends a best-effort Resend email to `ADMIN_EMAIL` on a new suggestion (previously it only stored a row, so suggestions never reached an inbox).
+
 ## [1.5.1.0] - 2026-06-26
 
 ### Fixed

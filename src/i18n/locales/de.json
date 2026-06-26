@@ -75,7 +75,8 @@
     "emptyCatalog": "Noch keine Automatisierungen verfügbar.",
     "emptyCategory": "In dieser Kategorie gibt es noch keine Automatisierungen.",
     "finalCtaTitle": "Bereit, deine Routinearbeit zu automatisieren?",
-    "finalCtaBody": "Durchstöbere den Katalog und finde eine Automatisierung, die sich schon in der ersten Woche bezahlt macht."
+    "finalCtaBody": "Durchstöbere den Katalog und finde eine Automatisierung, die sich schon in der ersten Woche bezahlt macht.",
+    "perMonth": "/ Monat"
   },
   "automationDetail": {
     "loading": "Wird geladen…",
@@ -87,6 +88,7 @@
     "checkoutStarting": "Checkout wird gestartet…",
     "requestAutomation": "Diese Automatisierung anfragen",
     "priceOnceLabel": "einmalig",
+    "priceMonthlyLabel": "pro Monat",
     "secureCheckoutNote": "Sichere Zahlung über Stripe",
     "assuranceDelivery": "Einrichtung durch unser Team",
     "assuranceCancel": "Keine versteckten Kosten",
@@ -203,6 +205,9 @@
     "outcomeDescription": "Ergebnisbeschreibung",
     "category": "Kategorie",
     "priceCents": "Preis (Cent)",
+    "billing": "Abrechnung",
+    "billingOneTime": "Einmalig",
+    "billingMonthly": "Monatlich (Abo)",
     "connectorType": "Connector (Fulfillment)",
     "requiresProvisioning": "Einrichtung erforderlich (z. B. Twilio-Buchungslink)",
     "activeOnCreate": "Sofort aktiv (im Katalog sichtbar)",
