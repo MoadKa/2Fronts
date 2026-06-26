@@ -225,7 +225,7 @@ Deno.test('booking intent WITH contact on file: reply surfaces the link -> show_
   assertEquals(c.outcomeUpdate, 'booking_shown')
 })
 
-Deno.test('contact form submission stores name + email and returns the booking', async () => {
+Deno.test('contact form submission stores name + email and OPENS the conversation (no booking)', async () => {
   const c = makeCaptured()
   const res = await handleConciergeChat(
     postReq({ slug: 'acme', session_id: 'sess-1', contact: { name: 'Max Muster', email: 'max@example.com' } }),
@@ -233,15 +233,36 @@ Deno.test('contact form submission stores name + email and returns the booking',
   )
   assertEquals(res.status, 200)
   const json = await res.json()
-  assertEquals(json.show_booking, true)
-  assertEquals(json.calendar_url, 'https://cal.com/acme')
-  assertStringIncludes(json.reply, 'Termin')
-  // Stored on the conversation + advanced the outcome.
+  // Contact is now the OPENING step: greet by name, no booking yet.
+  assertEquals(json.show_booking, false)
+  assertEquals(json.calendar_url, undefined)
+  assertStringIncludes(json.reply, 'Max Muster')
+  // No criteria configured -> a gentle open lead, no quick replies.
+  assertEquals(json.quick_replies, undefined)
+  // Stored on the conversation; the outcome is NOT advanced to booking (it's the start).
   assertEquals(c.contactUpdate!.visitor_name, 'Max Muster')
   assertEquals(c.contactUpdate!.visitor_email, 'max@example.com')
-  assertEquals(c.outcomeUpdate, 'booking_shown')
+  assertEquals(c.outcomeUpdate, null)
   // The contact is logged to the transcript so the coach sees it.
   assertStringIncludes(c.insertedMessages[0].content as string, 'max@example.com')
+})
+
+Deno.test('contact form submission WITH criteria opens by asking the first criterion', async () => {
+  const c = makeCaptured()
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', contact: { name: 'Max', email: 'max@example.com' } }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('unused') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, false)
+  // Greets by name AND leads with the first qualifying question.
+  assertStringIncludes(json.reply, 'Max')
+  assertStringIncludes(json.reply, 'What is your budget?')
+  // The first unanswered criterion comes back as quick-reply buttons.
+  assertEquals(json.quick_replies.criterion_id, 'budget')
+  assertEquals(c.contactUpdate!.visitor_email, 'max@example.com')
 })
 
 Deno.test('a malformed contact email is rejected (no record, normal flow)', async () => {

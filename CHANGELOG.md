@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.5.0.0] - 2026-06-26
+
+### Changed
+- **Concierge captures the lead's name + email up front.** The chat now opens with a welcome and a name/email form; only after the visitor submits it does the bot lead the conversation (greets by name, asks the first qualifying question or an open lead). Contact moved from before-booking to the start.
+
+### Added
+- **Email notification to the admin on a new automation request.** A new `notify-request` edge function emails the admin (via Resend) when a customer requests an automation; `createRequest` fires it best-effort. No-ops safely until `RESEND_API_KEY` + `ADMIN_EMAIL` Supabase secrets are set.
+- **Email confirmation handling in sign-up.** Sign-up now sets the confirm-link redirect and, when confirmation is pending, shows a "check your inbox" state instead of assuming the user is logged in. Works whether or not the Supabase "Confirm email" toggle is on.
+
 ## [1.4.1.0] - 2026-06-26
 
 ### Changed

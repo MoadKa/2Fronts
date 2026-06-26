@@ -12,7 +12,48 @@ export async function createRequest(automationId: string): Promise<AutomationReq
     .select()
     .single()
   if (error) throw error
+
+  // Best-effort: tell the founder about the new request. The request already
+  // succeeded, so the notification must NEVER block it or fail it — ANY error
+  // (including the notify function not being deployed / Resend not configured) is
+  // swallowed. The edge function itself no-ops gracefully when unconfigured.
+  void notifyNewRequest((data as AutomationRequest).id, automationId, userData.user?.email ?? null)
+
   return data as AutomationRequest
+}
+
+// Fire-and-forget admin notification. Fetches the automation's display name with
+// a light select (it isn't otherwise loaded here) and passes the customer's email
+// so the founder's email is actionable. Everything is wrapped so a failure here
+// can never propagate back into createRequest.
+async function notifyNewRequest(
+  requestId: string,
+  automationId: string,
+  customerEmail: string | null,
+): Promise<void> {
+  try {
+    let automationName = ''
+    try {
+      const { data: auto } = await supabase
+        .from('automations')
+        .select('name')
+        .eq('id', automationId)
+        .single()
+      automationName = (auto as { name?: string } | null)?.name ?? ''
+    } catch {
+      // Name lookup is non-critical; send what we have.
+    }
+
+    await supabase.functions.invoke('notify-request', {
+      body: {
+        automation_name: automationName,
+        customer_email: customerEmail ?? '',
+        request_id: requestId,
+      },
+    })
+  } catch {
+    // Notification is best-effort; the request already succeeded. Swallow.
+  }
 }
 
 // Create the provision row for a paid request. Its connector_type DERIVES from

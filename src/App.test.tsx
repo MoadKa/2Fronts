@@ -40,9 +40,9 @@ describe('App routing — public concierge is standalone', () => {
     const T = i18n.getFixedT('de')
     renderAppAt('/c/some-coach')
 
-    // The concierge chat itself renders (its input placeholder is present).
+    // The concierge chat itself renders (it opens with the name/email contact form).
     await waitFor(() =>
-      expect(screen.getByLabelText(T('conciergePublic.inputPlaceholder'))).toBeInTheDocument(),
+      expect(screen.getByLabelText(T('conciergePublic.namePlaceholder'))).toBeInTheDocument(),
     )
 
     // No marketplace nav sign-in button, no footer legal links.

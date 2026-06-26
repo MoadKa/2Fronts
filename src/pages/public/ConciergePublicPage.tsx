@@ -37,9 +37,12 @@ export function ConciergePublicPage() {
   // The qualification quick-reply prompt to render under the latest assistant
   // bubble, if any. Cleared once the visitor answers it.
   const [quickReplies, setQuickReplies] = useState<QualPrompt | null>(null)
-  // When the server gates the booking behind contact, swap the composer for a
-  // name + email form. Cleared once the visitor submits it.
-  const [contactMode, setContactMode] = useState(false)
+  // The chat OPENS in contact mode: the first thing the visitor sees is the
+  // welcome bubble + a name/email form. After they submit, the server returns the
+  // opening reply with no `request_contact`, so contactMode flips to false and the
+  // normal composer/quick-replies take over. The booking-gate paths can also flip
+  // this back on later as a safety net.
+  const [contactMode, setContactMode] = useState(true)
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
 
