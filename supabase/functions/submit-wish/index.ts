@@ -22,8 +22,73 @@ export interface WishRow {
   marketing_consent: boolean
 }
 
+// Injectable email transport + env reader so the notification unit-tests offline,
+// mirroring notify-request. Returns true on a successful send.
+export type SendEmailFn = (args: {
+  apiKey: string
+  from: string
+  to: string
+  subject: string
+  text: string
+}) => Promise<boolean>
+
+const defaultSendEmail: SendEmailFn = async ({ apiKey, from, to, subject, text }) => {
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to, subject, text }),
+    })
+    if (!res.ok) {
+      console.error('submit-wish: resend responded', res.status)
+      return false
+    }
+    return true
+  } catch (e) {
+    console.error('submit-wish: send failed', e instanceof Error ? e.message : 'unknown')
+    return false
+  }
+}
+
+const defaultEnv = (key: string): string | undefined => {
+  try {
+    return Deno.env.get(key)
+  } catch {
+    return undefined
+  }
+}
+
+// Email the founder that a new automation suggestion came in. Best-effort: a
+// no-op when Resend isn't configured (RESEND_API_KEY/ADMIN_EMAIL), and any error
+// is swallowed so the wish is never lost just because the email failed.
+async function notifyAdminOfWish(
+  row: WishRow,
+  sendEmail: SendEmailFn,
+  env: (key: string) => string | undefined,
+): Promise<void> {
+  try {
+    const apiKey = env('RESEND_API_KEY')
+    const adminEmail = env('ADMIN_EMAIL')
+    if (!apiKey || !adminEmail) return
+    const from = env('RESEND_FROM') || '2Fronts <onboarding@resend.dev>'
+    const text = [
+      'Ein neuer Automatisierungs-Vorschlag ist eingegangen.',
+      '',
+      `Von: ${row.email}`,
+      `Branche: ${row.industry || '(keine)'}`,
+      `Vorschlag: ${row.message || '(kein Text)'}`,
+    ].join('\n')
+    await sendEmail({ apiKey, from, to: adminEmail, subject: 'Neuer Automatisierungs-Vorschlag', text })
+  } catch (e) {
+    console.error('submit-wish: notify failed', e instanceof Error ? e.message : 'unknown')
+  }
+}
+
 export interface WishDeps {
   insertWish: (row: WishRow) => Promise<void>
+  // Injectable for tests; default sends via Resend / reads real env.
+  sendEmail?: SendEmailFn
+  env?: (key: string) => string | undefined
 }
 
 async function defaultInsertWish(row: WishRow): Promise<void> {
@@ -80,7 +145,10 @@ export async function handleSubmitWish(req: Request, deps: WishDeps = defaultDep
   const marketing_consent = body.marketing_consent === true
 
   try {
-    await deps.insertWish({ email, message, industry, locale, marketing_consent })
+    const row = { email, message, industry, locale, marketing_consent }
+    await deps.insertWish(row)
+    // Best-effort founder notification after the wish is safely stored.
+    await notifyAdminOfWish(row, deps.sendEmail ?? defaultSendEmail, deps.env ?? defaultEnv)
     return jsonResponse({ ok: true }, 200)
   } catch (err) {
     console.error('submit-wish: insert failed', err)
