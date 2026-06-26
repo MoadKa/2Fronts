@@ -19,7 +19,9 @@ import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 import {
   type ChatCompleteFn,
   type ChatTurn,
+  type ClassifyAnswerFn,
   type ConciergeKnowledge,
+  createClassifyAnswer,
   createGeminiChatComplete,
   generateConciergeReply,
 } from '../_shared/conciergeChat.ts'
@@ -45,6 +47,11 @@ export interface ConciergeChatDeps {
   // Injectable per-key rate limiter (true = allowed). Defaults to the DB-backed
   // fixed-window limiter; tests inject a stub to assert the 429 path.
   checkRateLimit?: (key: string) => Promise<boolean>
+  // Injectable free-text qualification classifier (v1.3). When a quick-reply
+  // question is pending and the visitor TYPES instead of tapping, this interprets
+  // their text against that criterion. Defaults to a tiny Gemini classification
+  // call built from `complete`; tests inject a stub so they stay offline.
+  classifyAnswer?: ClassifyAnswerFn
 }
 
 const defaultDeps: ConciergeChatDeps = {
@@ -113,7 +120,13 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), { status: 405, headers: jsonHeaders })
   }
 
-  let body: { slug?: unknown; session_id?: unknown; message?: unknown; answer?: unknown }
+  let body: {
+    slug?: unknown
+    session_id?: unknown
+    message?: unknown
+    answer?: unknown
+    pending_criterion_id?: unknown
+  }
   try {
     body = await req.json()
   } catch {
@@ -126,6 +139,10 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   // A clicked quick-reply button: the visitor's qualification answer. When present
   // and valid we record it deterministically and skip the model for this turn.
   const answer = parseAnswer(body.answer)
+  // The visitor TYPED free text while this criterion's quick-reply question was
+  // pending. We classify the text against that criterion instead of ignoring it.
+  const pendingCriterionId =
+    typeof body.pending_criterion_id === 'string' ? body.pending_criterion_id.trim() : ''
   if (!slug || !sessionId || !message) {
     return new Response(JSON.stringify({ error: 'slug, session_id and message are required' }), { status: 400, headers: jsonHeaders })
   }
@@ -216,14 +233,54 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       .limit(HISTORY_LIMIT)
     const history = ((historyData ?? []) as ChatTurn[]).reverse()
 
+    const complete = deps.complete ?? createGeminiChatComplete()
+
+    // 3b. FREE-TEXT QUALIFICATION (v1.3). The visitor TYPED while a quick-reply
+    //     question was pending. Interpret the text against that criterion so a
+    //     typed answer is never silently dropped (the old bug: the same criterion
+    //     was re-attached and the buttons never cleared). The LLM classifier
+    //     decides: matched option, OTHER (answered off-menu), or NONE (not an
+    //     answer — a real question). We only record when it's an actual answer.
+    let workingAnswers: QualAnswer[] = priorAnswers
+    if (pendingCriterionId) {
+      const pending = criteria.find((c) => c.id === pendingCriterionId)
+      const alreadyAnswered = priorAnswers.some((a) => a.criterion_id === pendingCriterionId)
+      if (pending && !alreadyAnswered) {
+        const classify = deps.classifyAnswer ?? createClassifyAnswer(complete)
+        const verdict = await classify(pending, message)
+        if (verdict.kind === 'matched') {
+          // The typed text maps to a real option: record it with the VERBATIM user
+          // text as the label, but the option's qualifies value.
+          workingAnswers = [
+            ...priorAnswers,
+            { criterion_id: pending.id, label: message, qualifies: verdict.option.qualifies },
+          ]
+        } else if (verdict.kind === 'other') {
+          // An answer, but off-menu -> record it as non-qualifying and advance.
+          workingAnswers = [
+            ...priorAnswers,
+            { criterion_id: pending.id, label: message, qualifies: false },
+          ]
+        }
+        // NONE -> not an answer; leave the criterion pending (do not record).
+        if (workingAnswers !== priorAnswers) {
+          const qualified = evaluateQualified(workingAnswers)
+          await admin
+            .from('concierge_conversations')
+            .update({ qualification_answers: workingAnswers, qualified })
+            .eq('id', conversationId)
+        }
+      }
+    }
+
     // 4. Generate the grounded reply. The LLM client is built lazily so the key
     //    is only required when we actually call the model. The next unanswered
     //    criterion (if any) is passed in so the BOT asks it in its own words —
     //    the buttons below are just the answer options. This keeps the reply text
     //    and the buttons coherent (the bot leads), instead of bolting a stray
-    //    question onto an unrelated reply.
-    const next = nextUnansweredCriterion(criteria, priorAnswers)
-    const complete = deps.complete ?? createGeminiChatComplete()
+    //    question onto an unrelated reply. After a typed answer was recorded the
+    //    "next" advances; after NONE it re-asks the same still-pending criterion.
+    const next = nextUnansweredCriterion(criteria, workingAnswers)
     const result = await generateConciergeReply(
       {
         concierge: {

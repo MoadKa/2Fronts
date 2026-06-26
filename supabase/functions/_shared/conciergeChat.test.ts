@@ -3,10 +3,12 @@ import {
   buildConciergeSystemPrompt,
   type ChatCompleteFn,
   type ChatTurn,
+  createClassifyAnswer,
   createGeminiChatComplete,
   detectShowBooking,
   generateConciergeReply,
 } from './conciergeChat.ts'
+import type { QualCriterion } from './qualification.ts'
 
 const concierge = {
   business_name: 'Acme Coaching',
@@ -159,6 +161,39 @@ Deno.test('generateConciergeReply passes the full multi-turn history to complete
   assertEquals(received!.turns.length, 3)
   assertEquals(received!.turns[0], { role: 'user', content: 'Hallo' })
   assertEquals(received!.turns[2], { role: 'user', content: 'Was kostet es?' })
+})
+
+// --- Free-text qualification classifier (v1.3) -------------------------------
+
+const budget: QualCriterion = {
+  id: 'budget',
+  question: 'What is your budget?',
+  options: [
+    { label: '5k+', qualifies: true },
+    { label: '<1k', qualifies: false },
+  ],
+}
+
+Deno.test('createClassifyAnswer maps an exact option label (case-insensitive) to a matched option', async () => {
+  const classify = createClassifyAnswer(cannedChat('5K+'))
+  const r = await classify(budget, 'we can do 5k+')
+  assertEquals(r.kind, 'matched')
+  if (r.kind === 'matched') assertEquals(r.option.label, '5k+')
+})
+
+Deno.test('createClassifyAnswer maps a contained option label even with extra model text', async () => {
+  const classify = createClassifyAnswer(cannedChat('The answer is "<1k"'))
+  const r = await classify(budget, 'tiny budget')
+  assertEquals(r.kind, 'matched')
+  if (r.kind === 'matched') assertEquals(r.option.label, '<1k')
+})
+
+Deno.test('createClassifyAnswer returns OTHER and NONE verbatim, and treats unmappable output as NONE', async () => {
+  assertEquals((await createClassifyAnswer(cannedChat('OTHER'))(budget, 'depends')).kind, 'other')
+  assertEquals((await createClassifyAnswer(cannedChat('NONE'))(budget, 'what is included?')).kind, 'none')
+  // Empty or unrecognizable model output is safest as NONE (never fabricate an answer).
+  assertEquals((await createClassifyAnswer(cannedChat(''))(budget, 'x')).kind, 'none')
+  assertEquals((await createClassifyAnswer(cannedChat('banana'))(budget, 'x')).kind, 'none')
 })
 
 Deno.test('createGeminiChatComplete throws a clear error when the API key is missing (never prints it)', () => {

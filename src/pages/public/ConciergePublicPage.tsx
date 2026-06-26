@@ -56,7 +56,18 @@ export function ConciergePublicPage() {
     setInput('')
     setSending(true)
     try {
-      const reply = await sendConciergeMessage(slug, sessionRef.current, text)
+      // If a quick-reply question is pending and the visitor TYPED instead of
+      // tapping, pass that criterion id so the server interprets the text against
+      // it (matched option / off-menu answer / a real question) rather than
+      // silently dropping it and re-asking forever. We do NOT optimistically clear
+      // the buttons: the server response drives them (it advances or re-asks).
+      const reply = await sendConciergeMessage(
+        slug,
+        sessionRef.current,
+        text,
+        undefined,
+        quickReplies?.criterion_id,
+      )
       setMessages((prev) => [...prev, { role: 'assistant', content: reply.reply }])
       if (reply.show_booking && reply.calendar_url) setBookingUrl(reply.calendar_url)
       // Render the next qualification prompt as buttons (or clear if none).
@@ -107,14 +118,35 @@ export function ConciergePublicPage() {
       <div className="concierge-chat">
         <div className="concierge-messages" aria-live="polite">
           {messages.map((m, i) => (
-            <div key={i} className={`concierge-bubble concierge-bubble-${m.role}`}>
-              {m.content}
+            <div key={i} className={`concierge-row concierge-row-${m.role} rise`}>
+              {m.role === 'assistant' && (
+                <span className="concierge-avatar" aria-hidden="true">
+                  <SparkIcon />
+                </span>
+              )}
+              <div className={`concierge-bubble concierge-bubble-${m.role}`}>{m.content}</div>
             </div>
           ))}
-          {sending && <div className="concierge-bubble concierge-bubble-assistant concierge-typing">{t('conciergePublic.thinking')}</div>}
+          {sending && (
+            <div className="concierge-row concierge-row-assistant rise">
+              <span className="concierge-avatar" aria-hidden="true">
+                <SparkIcon />
+              </span>
+              {/* Animated dots typing indicator. The localized "thinking" text is
+                  kept for screen readers via an offscreen label. */}
+              <div className="concierge-bubble concierge-bubble-assistant concierge-typing">
+                <span className="concierge-sr-only">{t('conciergePublic.thinking')}</span>
+                <span className="concierge-dots" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+              </div>
+            </div>
+          )}
 
           {quickReplies && !sending && (
-            <div className="concierge-quick-replies">
+            <div className="concierge-quick-replies rise">
               {/* The bot asks the question in its own reply above; these are just
                   the answer options. aria-label keeps the group labelled for SR. */}
               <div className="concierge-quick-options" role="group" aria-label={quickReplies.question}>
@@ -122,7 +154,7 @@ export function ConciergePublicPage() {
                   <button
                     key={i}
                     type="button"
-                    className="btn btn-secondary concierge-quick-option"
+                    className="concierge-quick-option"
                     onClick={() => handleQuickReply(quickReplies, opt)}
                   >
                     {opt.label}
@@ -134,8 +166,9 @@ export function ConciergePublicPage() {
         </div>
 
         {bookingUrl && (
-          <div className="concierge-booking">
-            <a className="btn btn-primary" href={bookingUrl} target="_blank" rel="noopener noreferrer">
+          <div className="concierge-booking rise">
+            <a className="concierge-book-cta" href={bookingUrl} target="_blank" rel="noopener noreferrer">
+              <CalendarIcon />
               {t('conciergePublic.bookCta')}
             </a>
           </div>
@@ -150,11 +183,44 @@ export function ConciergePublicPage() {
             aria-label={t('conciergePublic.inputPlaceholder')}
             disabled={sending}
           />
-          <button type="submit" className="btn btn-primary" disabled={sending || !input.trim()}>
-            {sending ? t('conciergePublic.sending') : t('conciergePublic.send')}
+          <button
+            type="submit"
+            className="concierge-send"
+            disabled={sending || !input.trim()}
+            aria-label={t('conciergePublic.send')}
+          >
+            {sending ? t('conciergePublic.sending') : <SendIcon />}
           </button>
         </form>
       </div>
     </div>
+  )
+}
+
+// --- Inline SVG icons (no emoji), sized to inherit currentColor. -------------
+
+function SparkIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+    </svg>
+  )
+}
+
+function SendIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 2L11 13" />
+      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
+    </svg>
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
+    </svg>
   )
 }
