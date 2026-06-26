@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
+import { useAuth } from '../../contexts/AuthContext'
 import { submitWish } from '../../services/WishService'
 import { INDUSTRIES, industryLabel } from '../../lib/industries'
 
@@ -16,6 +17,10 @@ type Status = 'idle' | 'submitting' | 'success' | 'already' | 'error'
 
 export function CatalogRequestSection() {
   const { t, i18n } = useTranslation()
+  // Logged-in users can still suggest automations, but the waitlist bits drop
+  // away: we already know their email, and we don't ask an existing customer to
+  // opt into marketing again. They just write what they're missing and send.
+  const { user } = useAuth()
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [industry, setIndustry] = useState('')
@@ -28,29 +33,33 @@ export function CatalogRequestSection() {
     e.preventDefault()
     if (status === 'submitting') return
 
-    const trimmed = email.trim()
-    if (trimmed === '') {
-      setEmailError(t('catalogRequest.emailRequired'))
-      return
-    }
-    if (!EMAIL_RE.test(trimmed)) {
-      setEmailError(t('catalogRequest.emailInvalid'))
-      return
-    }
-    if (!consent) {
-      setConsentError(t('catalogRequest.consentRequired'))
-      return
+    // Logged in: use the account email, no email/consent friction. Anonymous:
+    // validate the typed email and require the marketing consent (waitlist).
+    const effectiveEmail = user?.email ?? email.trim()
+    if (!user) {
+      if (effectiveEmail === '') {
+        setEmailError(t('catalogRequest.emailRequired'))
+        return
+      }
+      if (!EMAIL_RE.test(effectiveEmail)) {
+        setEmailError(t('catalogRequest.emailInvalid'))
+        return
+      }
+      if (!consent) {
+        setConsentError(t('catalogRequest.consentRequired'))
+        return
+      }
     }
     setEmailError('')
     setConsentError('')
     setStatus('submitting')
     try {
       await submitWish({
-        email: trimmed,
+        email: effectiveEmail,
         locale: i18n.language,
         message: message.trim() || undefined,
         industry: industry || undefined,
-        marketingConsent: true,
+        marketingConsent: user ? false : true,
       })
       setStatus('success')
       setEmail('')
@@ -75,15 +84,17 @@ export function CatalogRequestSection() {
         </p>
       ) : (
         <form className="catalog-request-form" onSubmit={handleSubmit} noValidate>
-          <Input
-            label={t('catalogRequest.emailLabel')}
-            type="email"
-            autoComplete="email"
-            placeholder={t('catalogRequest.emailPlaceholder')}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={emailError}
-          />
+          {!user && (
+            <Input
+              label={t('catalogRequest.emailLabel')}
+              type="email"
+              autoComplete="email"
+              placeholder={t('catalogRequest.emailPlaceholder')}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              error={emailError}
+            />
+          )}
           <div className="input-field">
             <label htmlFor="catalog-request-message">{t('catalogRequest.messageLabel')}</label>
             <textarea
@@ -109,12 +120,16 @@ export function CatalogRequestSection() {
               ))}
             </select>
           </div>
-          <label className="catalog-request-consent">
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-            <span>{t('catalogRequest.consentLabel')}</span>
-          </label>
-          {consentError && <p className="input-error" role="alert">{consentError}</p>}
-          <Button type="submit" disabled={status === 'submitting' || !consent}>
+          {!user && (
+            <>
+              <label className="catalog-request-consent">
+                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+                <span>{t('catalogRequest.consentLabel')}</span>
+              </label>
+              {consentError && <p className="input-error" role="alert">{consentError}</p>}
+            </>
+          )}
+          <Button type="submit" disabled={status === 'submitting' || (!user && !consent)}>
             {status === 'submitting' ? t('catalogRequest.submitting') : t('catalogRequest.submit')}
           </Button>
           {status === 'error' && (

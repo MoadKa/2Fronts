@@ -4,11 +4,13 @@ import { MemoryRouter } from 'react-router-dom'
 import i18n from '../../i18n'
 import { industryLabel } from '../../lib/industries'
 import { CatalogRequestSection } from './CatalogRequestSection'
+import { useAuth } from '../../contexts/AuthContext'
 
 const submitWish = vi.fn()
 vi.mock('../../services/WishService', () => ({
   submitWish: (...a: unknown[]) => submitWish(...a),
 }))
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: vi.fn(() => ({ user: null })) }))
 
 function renderSection() {
   return render(
@@ -21,7 +23,32 @@ function renderSection() {
 describe('CatalogRequestSection', () => {
   beforeEach(async () => {
     submitWish.mockReset()
+    vi.mocked(useAuth).mockReturnValue({ user: null } as never)
     await i18n.changeLanguage('de')
+  })
+
+  // Logged-in users can still suggest automations, but the waitlist bits drop
+  // away: no email field, no marketing-consent gate, submit uses the account email.
+  it('for a logged-in user: no email/consent, submits with the account email', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { email: 'coach@firma.de' } } as never)
+    submitWish.mockResolvedValue({ ok: true })
+    renderSection()
+    const T = i18n.getFixedT('de')
+
+    expect(screen.queryByLabelText(T('catalogRequest.emailLabel'))).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(T('catalogRequest.consentLabel'))).not.toBeInTheDocument()
+    const btn = screen.getByRole('button', { name: T('catalogRequest.submit') })
+    expect(btn).toBeEnabled()
+
+    fireEvent.change(screen.getByLabelText(T('catalogRequest.messageLabel')), { target: { value: 'Slack-Sync' } })
+    fireEvent.click(btn)
+
+    await waitFor(() =>
+      expect(submitWish).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'coach@firma.de', message: 'Slack-Sync', marketingConsent: false }),
+      ),
+    )
+    await waitFor(() => expect(screen.getByText(T('catalogRequest.success'))).toBeInTheDocument())
   })
 
   it('disables submit until the marketing consent is ticked (DSGVO active opt-in)', () => {
