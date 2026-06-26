@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.8.0.0] - 2026-06-26
+
+### Added
+- **Widerrufsbelehrung page** (`/widerruf`, linked in the footer) with the statutory model withdrawal form — required now that consumers can buy subscriptions (§§ 312g, 355 BGB).
+
+### Changed
+- **Legal pass for launch.** Impressum contact updated (email `moad@2fronts.de`, phone removed). Datenschutz now discloses the AI Concierge (Google Gemini processes visitor name/email/chat; US transfer + SCCs), Resend email delivery, and the concierge/suggestion data — closing a real GDPR gap. AGB corrected to Kleinunternehmer §19 UStG (no VAT), now covers consumers + subscriptions (monthly billing, cancel to end of period via the portal) and references the withdrawal policy.
+
+### Note
+- AI-assisted legal drafting; a one-time review by a lawyer is recommended for a business taking payments.
+
 ## [1.7.0.0] - 2026-06-26
 
 ### Added
