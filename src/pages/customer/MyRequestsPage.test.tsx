@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { MyRequestsPage } from './MyRequestsPage'
-import { listMyRequests } from '../../services/RequestService'
+import { listMyRequests, createPortalSession } from '../../services/RequestService'
 
-vi.mock('../../services/RequestService', () => ({ listMyRequests: vi.fn() }))
+vi.mock('../../services/RequestService', () => ({ listMyRequests: vi.fn(), createPortalSession: vi.fn() }))
 
 const baseRequest = {
   id: 'req-1', automation_id: 'auto-1', customer_id: 'user-1',
@@ -139,6 +139,33 @@ describe('MyRequestsPage', () => {
     expect(link).toHaveAttribute('href', '/connect/prov-1/confirm')
     // It must NOT fall back to the Twilio "setting up" message.
     expect(screen.queryByText(/KI-Telefonassistenten/i)).not.toBeInTheDocument()
+  })
+
+  it('shows a manage/cancel button for an active subscription and opens the portal', async () => {
+    vi.mocked(createPortalSession).mockResolvedValue('https://billing.stripe.test/s')
+    const assign = vi.fn()
+    Object.defineProperty(window, 'location', { value: { ...window.location, assign }, writable: true })
+    vi.mocked(listMyRequests).mockResolvedValue([
+      withProvision('active', {
+        connector_type: 'booking_concierge',
+        config: { concierge_id: 'c-1' },
+        twilio_phone_number: null,
+        stripe_subscription_id: 'sub_1',
+      }),
+    ])
+    render(<MemoryRouter><MyRequestsPage /></MemoryRouter>)
+    const btn = await screen.findByRole('button', { name: /Abo verwalten/i })
+    fireEvent.click(btn)
+    await waitFor(() => expect(createPortalSession).toHaveBeenCalledWith('prov-1'))
+  })
+
+  it('does NOT show a subscription manage button when there is no subscription', async () => {
+    vi.mocked(listMyRequests).mockResolvedValue([
+      withProvision('active', { connector_type: 'booking_concierge', config: { concierge_id: 'c-1' }, twilio_phone_number: null }),
+    ])
+    render(<MemoryRouter><MyRequestsPage /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Abo verwalten/i })).not.toBeInTheDocument()
   })
 
   it('shows a ready note and no setup button once the concierge is configured', async () => {

@@ -1,6 +1,22 @@
 import { supabase } from '../lib/supabaseClient'
 import type { AutomationRequest, AutomationRequestWithAutomation, RequestStatus } from '../types/database'
 
+/**
+ * Open the Stripe Billing Portal for a subscription provision so the customer can
+ * update their card, view invoices, and cancel (self-serve / Kündigungsbutton).
+ * The edge function resolves the Stripe customer from the provision under RLS, so
+ * a caller can only open the portal for their own subscription. Returns the URL.
+ */
+export async function createPortalSession(provisionId: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('create-portal-session', {
+    body: { provisionId },
+  })
+  if (error) throw new Error('myRequests.portalError')
+  const url = (data as { url?: string } | null)?.url
+  if (!url) throw new Error('myRequests.portalError')
+  return url
+}
+
 export async function createRequest(automationId: string): Promise<AutomationRequest> {
   const { data: userData } = await supabase.auth.getUser()
   const userId = userData.user?.id

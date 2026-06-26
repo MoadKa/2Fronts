@@ -148,6 +148,8 @@
     "setUpConcierge": "Set up your concierge",
     "conciergeReady": "Your concierge is set up and live.",
     "openDashboard": "Open dashboard",
+    "manageSubscription": "Manage / cancel subscription",
+    "portalError": "Couldn't open the subscription portal right now. Please try again.",
     "failedPrefix": "We hit a snag setting this up for {{businessName}} — we're on it. Need help sooner?",
     "contactSupport": "Contact support",
     "active": "{{businessName}} is live — calls to {{phone}} are now answered by your AI receptionist.",
