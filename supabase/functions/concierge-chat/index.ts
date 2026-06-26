@@ -122,6 +122,21 @@ function contactRequest(language: ConciergeKnowledge['language']): string {
     : 'Perfekt! Damit wir alles für dich vorbereiten und deinen Platz bestätigen können — wie heißt du, und unter welcher E-Mail erreichen wir dich am besten?'
 }
 
+// The bot's FIRST line after the visitor hands over name + email. The contact
+// form is now the OPENING step, so the bot greets by name and immediately leads:
+// it asks the first qualifying question (when criteria are configured) or a gentle
+// open lead otherwise. Keeps the de/en split used elsewhere.
+function conversationOpening(
+  language: ConciergeKnowledge['language'],
+  name: string,
+  next: QualCriterion | null,
+): string {
+  if (language === 'en') {
+    return `Thanks, ${name}! ` + (next ? next.question : "Tell me a bit about what's going on for you right now.")
+  }
+  return `Danke, ${name}! ` + (next ? next.question : 'Erzähl mir kurz, worum es bei dir gerade geht.')
+}
+
 // The visitor's typed contact details, submitted from the name/email form. Both
 // required; email is lightly validated so a coach never gets an obviously bogus
 // address. Returns null when malformed so we fall back to the normal flow.
@@ -233,22 +248,26 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       await resolveConversation(admin, concierge.id, sessionId)
     const hasContact = Boolean(visitor_email)
 
-    // 2a. CONTACT BRANCH. The visitor submitted the name/email form. Store it on
-    //     the conversation (so the coach always has the lead's contact), log it to
-    //     the transcript, and move straight to the booking — this form only ever
-    //     appears as the step right before booking. No model call this turn.
+    // 2a. CONTACT BRANCH. The visitor submitted the name/email form. This is now
+    //     the OPENING step of the conversation: store the contact (so the coach
+    //     always has the lead), log it to the transcript, then OPEN the chat — greet
+    //     by name and either ask the first qualifying question (when criteria exist)
+    //     or a gentle open lead. The bot takes initiative; booking comes later, once
+    //     qualification is done (the booking-gate paths below stay as the safety net).
+    //     No model call this turn.
     if (contact) {
       await admin
         .from('concierge_conversations')
-        .update({ visitor_name: contact.name, visitor_email: contact.email, outcome: 'booking_shown' })
+        .update({ visitor_name: contact.name, visitor_email: contact.email })
         .eq('id', conversationId)
-      const reply = bookingInvite(concierge.language)
+      const next = nextUnansweredCriterion(criteria, priorAnswers)
+      const reply = conversationOpening(concierge.language, contact.name, next)
       await admin.from('concierge_messages').insert([
         { conversation_id: conversationId, role: 'user', content: `${contact.name} · ${contact.email}` },
         { conversation_id: conversationId, role: 'assistant', content: reply },
       ])
       return new Response(
-        JSON.stringify({ reply, show_booking: true, calendar_url: concierge.calendar_url }),
+        JSON.stringify({ reply, show_booking: false, ...(next ? { quick_replies: toQualPrompt(next) } : {}) }),
         { status: 200, headers: jsonHeaders },
       )
     }
