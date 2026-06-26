@@ -357,7 +357,7 @@
     "privacyLink": "Privacy Policy"
   },
   "conciergePublic": {
-    "greeting": "Hi! I'm here to answer your questions and help you book a call. What would you like to know?",
+    "greeting": "Hi! I'll help you figure out if this is a fit — and book a call right here. Tell me a bit: what's going on for you right now?",
     "inputPlaceholder": "Type your message…",
     "send": "Send",
     "sending": "…",

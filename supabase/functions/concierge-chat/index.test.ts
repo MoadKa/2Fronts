@@ -363,17 +363,22 @@ Deno.test('sending an answer records it, sets qualified, returns the next prompt
   )
   assertEquals(res.status, 200)
   const json = await res.json()
-  // Localized ack (de), no booking, and the model was never invoked.
-  assertEquals(json.reply, 'Danke!')
+  // No model call this turn, but the bot line is coherent: a short ack PLUS the
+  // next question, so the text above the next buttons reads as the bot asking it.
+  assertEquals(json.reply.startsWith('Danke!'), true)
+  assertEquals(json.reply.includes('When do you want to start?'), true)
   assertEquals(json.show_booking, false)
   assertEquals(modelCalled, false)
   // The answer was appended and qualified recomputed (one qualifying answer).
   assertEquals(c.qualificationUpdate!.qualification_answers.length, 1)
   assertEquals(c.qualificationUpdate!.qualified, true)
-  // The clicked label was logged as a user message for history continuity.
-  assertEquals(c.insertedMessages.length, 1)
+  // The clicked label is logged as a user message AND the ack as an assistant
+  // message, so the thread stays coherent for history.
+  assertEquals(c.insertedMessages.length, 2)
   assertEquals(c.insertedMessages[0].role, 'user')
   assertEquals(c.insertedMessages[0].content, '5k+')
+  assertEquals(c.insertedMessages[1].role, 'assistant')
+  assertEquals(c.insertedMessages[1].content, json.reply)
   // The NEXT unanswered criterion is returned.
   assertEquals(json.quick_replies.criterion_id, 'timeline_role')
 })

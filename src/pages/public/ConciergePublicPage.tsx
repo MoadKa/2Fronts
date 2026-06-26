@@ -115,8 +115,9 @@ export function ConciergePublicPage() {
 
           {quickReplies && !sending && (
             <div className="concierge-quick-replies">
-              <div className="concierge-quick-question">{quickReplies.question}</div>
-              <div className="concierge-quick-options">
+              {/* The bot asks the question in its own reply above; these are just
+                  the answer options. aria-label keeps the group labelled for SR. */}
+              <div className="concierge-quick-options" role="group" aria-label={quickReplies.question}>
                 {quickReplies.options.map((opt, i) => (
                   <button
                     key={i}

@@ -60,6 +60,10 @@ export interface GenerateConciergeReplyInput {
   history: ChatTurn[]
   // The visitor's new message.
   message: string
+  // The qualification question that should be asked on this turn (if any). The
+  // model weaves it into its reply so the bot itself asks it — the buttons are
+  // just the answer options. Null/absent = nothing to ask this turn.
+  pendingCriterion?: QualCriterion | null
 }
 
 export interface ConciergeReply {
@@ -96,7 +100,10 @@ function emptyReplyFallback(c: ConciergeKnowledge): string {
 // its behaviour. Everything the AI is allowed to say comes from offer + qa; the
 // rest of the prompt is guardrails (never invent, honestly route to the booking
 // link when it can't answer -- never a fake follow-up, surface booking).
-export function buildConciergeSystemPrompt(c: ConciergeKnowledge): string {
+export function buildConciergeSystemPrompt(
+  c: ConciergeKnowledge,
+  pendingCriterion?: QualCriterion | null,
+): string {
   return [
     `You are the AI booking assistant for "${c.business_name}". You chat with`,
     "visitors on the coach's public page, answer their questions, gently handle",
@@ -127,8 +134,19 @@ export function buildConciergeSystemPrompt(c: ConciergeKnowledge): string {
     '- When the visitor wants to book, is ready, or asks how to get started, share',
     `  the booking link verbatim: ${c.calendar_url}`,
     '- Keep replies short, warm, and conversational. One idea at a time.',
-    '- Another part of the system asks the visitor any qualifying questions via',
-    '  quick-reply buttons, so do NOT ask qualifying questions yourself.',
+    '- TAKE INITIATIVE — you lead, you do not just wait. Briefly address what the',
+    '  visitor said, then move things forward with ONE next step: a guiding question,',
+    '  or (when they are ready or it fits) the booking link above. Never end flat or',
+    '  passive, and never just ask "what would you like to know?".',
+    ...(pendingCriterion
+      ? [
+          '- IMPORTANT: ask the visitor this ONE qualifying question on this turn. After',
+          '  a short, natural lead-in, ask it in your own words (one question, in',
+          `  ${languageName(c.language)}), matching the intent of: "${pendingCriterion.question}"`,
+          '  Then STOP. The visitor answers by tapping buttons shown under your message,',
+          '  so do NOT list or mention the answer options, and do NOT ask anything else.',
+        ]
+      : []),
   ].join('\n')
 }
 
@@ -152,7 +170,7 @@ export async function generateConciergeReply(
   input: GenerateConciergeReplyInput,
   deps: ConciergeChatDeps,
 ): Promise<ConciergeReply> {
-  const system = buildConciergeSystemPrompt(input.concierge)
+  const system = buildConciergeSystemPrompt(input.concierge, input.pendingCriterion)
   const turns: ChatTurn[] = [...input.history, { role: 'user', content: input.message }]
   const reply = await deps.complete(system, turns)
 

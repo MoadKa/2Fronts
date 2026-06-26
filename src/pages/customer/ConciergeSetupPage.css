@@ -191,3 +191,169 @@
 .wizard-chip:hover {
   border-color: var(--color-primary, #4f46e5);
 }
+
+/* ---- Qualification step: the coach's ideal-customer criteria (#lead-qual) ---- */
+.wizard-qualify {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Each criterion is a soft claymorphism card. */
+.wizard-qualify-criterion {
+  border: 2px solid var(--color-border, var(--color-muted, #e5e7eb));
+  border-radius: var(--radius-lg, 16px);
+  background: var(--color-surface, var(--color-background, #fff));
+  box-shadow: var(--shadow-clay-sm);
+  overflow: hidden;
+  transition: border-color 160ms ease, box-shadow 200ms ease;
+}
+
+.wizard-qualify-criterion:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-clay-md);
+}
+
+/* The enable checkbox is the card header for a built-in criterion. */
+.wizard-qualify-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  margin: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wizard-qualify-toggle input,
+.wizard-qualify-qualifies input {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+/* The editable body appears once a criterion is enabled — gently rises in. */
+.wizard-qualify-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: 0 var(--space-md) var(--space-md);
+  animation: wizard-rise 220ms ease both;
+}
+
+/* A custom criterion has no toggle header, so pad its whole body. */
+.wizard-qualify-criterion > .input-field:first-child {
+  padding: var(--space-md) var(--space-md) 0;
+}
+.wizard-qualify-criterion > .wizard-qualify-option,
+.wizard-qualify-criterion > .wizard-qualify-actions {
+  padding-left: var(--space-md);
+  padding-right: var(--space-md);
+}
+
+.wizard-qualify-body input[type='text'],
+.wizard-qualify-option input[type='text'] {
+  width: 100%;
+  padding: 8px var(--space-sm);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md, 10px);
+  font: inherit;
+  color: var(--color-foreground);
+  background: var(--color-background, #fff);
+}
+
+/* One answer-option row: label input + "qualifies" toggle + remove. */
+.wizard-qualify-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.wizard-qualify-option input[type='text'] {
+  flex: 1 1 8rem;
+}
+
+.wizard-qualify-qualifies {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: var(--color-text, var(--color-muted-foreground, #6b7280));
+  cursor: pointer;
+}
+
+/* Compact the inline remove/add buttons inside option rows. */
+.wizard-qualify-option .btn {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.wizard-qualify-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+/* ---- Brand-fit wizard motion (claymorphism: soft, warm, tactile) ---- */
+/* Each step rises + fades in as it mounts (steps are separate conditional
+   blocks, so switching step remounts and replays this). */
+@keyframes wizard-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.wizard-step {
+  animation: wizard-rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Tactile cards: lift on hover, press down on click — clay you can squish. */
+.wizard-choice {
+  box-shadow: var(--shadow-clay-sm);
+  transition: border-color 160ms ease, background 160ms ease,
+    transform 140ms ease, box-shadow 160ms ease;
+}
+.wizard-choice:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-clay-md);
+}
+.wizard-choice:active,
+.wizard-choice.is-selected:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* Buttons in the wizard get the same press feedback. */
+.wizard-card .btn {
+  transition: transform 120ms ease, filter 120ms ease, background 160ms ease;
+}
+.wizard-card .btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Respect users who don't want motion. */
+@media (prefers-reduced-motion: reduce) {
+  .wizard-step,
+  .wizard-qualify-body {
+    animation: none;
+  }
+  .wizard-choice,
+  .wizard-card .btn {
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+  .wizard-choice:hover {
+    transform: none;
+  }
+  .wizard-choice:active,
+  .wizard-card .btn:active {
+    transform: none;
+  }
+}
