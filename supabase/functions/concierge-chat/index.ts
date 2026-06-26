@@ -103,6 +103,16 @@ function answerAck(language: ConciergeKnowledge['language']): string {
   return language === 'en' ? 'Thanks!' : 'Danke!'
 }
 
+// Said when the visitor finishes the qualifying questions via buttons (no model
+// call that turn). The bot must NOT just stop at "thanks": it invites the booking
+// (hybrid model = everyone who finishes is invited; the `qualified` flag is only
+// for the coach's tagging). The page shows the booking button off `show_booking`.
+function bookingInvite(language: ConciergeKnowledge['language']): string {
+  return language === 'en'
+    ? "Thanks! Based on that, the best next step is a quick call. Grab a time that works for you right here:"
+    : 'Danke! Auf der Basis ist der beste nächste Schritt ein kurzes Gespräch. Schnapp dir hier direkt einen passenden Termin:'
+}
+
 // Validate an inbound quick-reply answer from the public body. Returns null when
 // it isn't a well-formed QualAnswer so we fall back to the normal text flow.
 function parseAnswer(raw: unknown): QualAnswer | null {
@@ -203,21 +213,32 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
         .from('concierge_messages')
         .insert([{ conversation_id: conversationId, role: 'user', content: answer.label }])
 
-      // No model call this turn, so build a coherent bot line ourselves: a short
-      // ack, and — when another criterion remains — the next question, so the text
-      // above the next set of buttons reads as the bot asking it (not a stray label).
+      // No model call this turn, so build a coherent bot line ourselves.
       const next = nextUnansweredCriterion(criteria, updatedAnswers)
-      const ack = answerAck(concierge.language)
-      const reply = next ? `${ack} ${next.question}` : ack
+      if (next) {
+        // Another criterion remains: ack + ask it, so the text above the next set
+        // of buttons reads as the bot asking it (not a stray label).
+        const reply = `${answerAck(concierge.language)} ${next.question}`
+        await admin
+          .from('concierge_messages')
+          .insert([{ conversation_id: conversationId, role: 'assistant', content: reply }])
+        return new Response(
+          JSON.stringify({ reply, show_booking: false, quick_replies: toQualPrompt(next) }),
+          { status: 200, headers: jsonHeaders },
+        )
+      }
+      // Qualification COMPLETE on this click: do not stop at "thanks" — invite the
+      // booking and surface the calendar link + button so the visitor can book now.
+      const reply = bookingInvite(concierge.language)
       await admin
         .from('concierge_messages')
         .insert([{ conversation_id: conversationId, role: 'assistant', content: reply }])
+      await admin
+        .from('concierge_conversations')
+        .update({ outcome: 'booking_shown' })
+        .eq('id', conversationId)
       return new Response(
-        JSON.stringify({
-          reply,
-          show_booking: false,
-          ...(next ? { quick_replies: toQualPrompt(next) } : {}),
-        }),
+        JSON.stringify({ reply, show_booking: true, calendar_url: concierge.calendar_url }),
         { status: 200, headers: jsonHeaders },
       )
     }

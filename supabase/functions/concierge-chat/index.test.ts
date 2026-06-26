@@ -1,4 +1,4 @@
-import { assertEquals } from 'jsr:@std/assert@1'
+import { assertEquals, assertStringIncludes } from 'jsr:@std/assert@1'
 import { handleConciergeChat } from './index.ts'
 import type { ChatCompleteFn, ClassifyAnswerFn, ClassifyResult } from '../_shared/conciergeChat.ts'
 
@@ -404,6 +404,11 @@ Deno.test('answering the last criterion returns no quick_replies and a disqualif
   const json = await res.json()
   // All criteria now answered -> no further prompt.
   assertEquals(json.quick_replies, undefined)
+  // Completion must NOT stop at "thanks": it invites the booking and surfaces the
+  // calendar link + button (hybrid model = everyone who finishes is invited).
+  assertEquals(json.show_booking, true)
+  assertEquals(json.calendar_url, 'https://cal.com/acme')
+  assertStringIncludes(json.reply, 'Termin')
   // AND-rule: one disqualifying answer makes the whole conversation not qualified.
   assertEquals(c.qualificationUpdate!.qualification_answers.length, 2)
   assertEquals(c.qualificationUpdate!.qualified, false)
