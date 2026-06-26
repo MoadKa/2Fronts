@@ -102,7 +102,7 @@ Deno.test('returns 500 with a generic message when the insert throws', async () 
 
 Deno.test('emails the founder when Resend is configured', async () => {
   const { deps, calls } = inserter()
-  const sent: Array<{ to: string; subject: string; text: string }> = []
+  const sent: Array<{ to: string | string[]; subject: string; text: string }> = []
   const env = (k: string) =>
     ({ RESEND_API_KEY: 're_x', ADMIN_EMAIL: 'founder@2fronts.de' } as Record<string, string>)[k]
   const res = await handleSubmitWish(
@@ -122,6 +122,23 @@ Deno.test('emails the founder when Resend is configured', async () => {
   assertEquals(sent[0].to, 'founder@2fronts.de')
   assertEquals(sent[0].subject.includes('Vorschlag'), true)
   assertEquals(sent[0].text.includes('lead@x.de'), true)
+})
+
+Deno.test('a comma-separated ADMIN_EMAIL notifies all recipients (e.g. also Gmail)', async () => {
+  const { deps } = inserter()
+  const sent: Array<{ to: string | string[] }> = []
+  const env = (k: string) =>
+    ({ RESEND_API_KEY: 're_x', ADMIN_EMAIL: 'moad@2fronts.de, founder@gmail.com' } as Record<string, string>)[k]
+  await handleSubmitWish(jsonReq({ email: 'lead@x.de', message: 'Hi' }), {
+    ...deps,
+    env,
+    sendEmail: ({ to }) => {
+      sent.push({ to })
+      return Promise.resolve(true)
+    },
+  })
+  assertEquals(sent.length, 1)
+  assertEquals(sent[0].to, ['moad@2fronts.de', 'founder@gmail.com'])
 })
 
 Deno.test('does NOT email when Resend is not configured (still stores the wish)', async () => {

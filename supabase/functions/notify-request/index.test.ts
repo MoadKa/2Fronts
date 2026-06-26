@@ -60,6 +60,16 @@ Deno.test('sends once to ADMIN_EMAIL with the automation name in the subject whe
   assertEquals(calls[0].text.includes('req-1'), true)
 })
 
+Deno.test('a comma-separated ADMIN_EMAIL goes to all recipients (e.g. also Gmail)', async () => {
+  const { calls, deps } = harness({
+    RESEND_API_KEY: 'rk_test',
+    ADMIN_EMAIL: 'moad@2fronts.de, founder@gmail.com',
+  })
+  await handleNotifyRequest(jsonReq({ automation_name: 'X' }), deps)
+  assertEquals(calls.length, 1)
+  assertEquals(calls[0].to, ['moad@2fronts.de', 'founder@gmail.com'])
+})
+
 Deno.test('falls back to the default sender when RESEND_FROM is unset', async () => {
   const { calls, deps } = harness({ RESEND_API_KEY: 'rk_test', ADMIN_EMAIL: 'founder@example.com' })
   await handleNotifyRequest(jsonReq({ automation_name: 'X' }), deps)

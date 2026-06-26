@@ -29,7 +29,9 @@ const MAX_ID = 100
 export interface SendEmailArgs {
   apiKey: string
   from: string
-  to: string
+  // One address, or several (Resend accepts an array) so the founder can also
+  // receive at e.g. a Gmail address. Built from a comma-separated ADMIN_EMAIL.
+  to: string | string[]
   subject: string
   text: string
 }
@@ -121,7 +123,16 @@ export async function handleNotifyRequest(req: Request, deps: NotifyRequestDeps 
     `Anfrage-ID: ${requestId || '(unbekannt)'}`,
   ].join('\n')
 
-  const sent = await sendEmail({ apiKey, from, to: adminEmail, subject, text })
+  // ADMIN_EMAIL may list several recipients, comma-separated (e.g. a 2fronts
+  // address + a Gmail) so the founder can also see it in Google.
+  const recipients = adminEmail.split(',').map((s) => s.trim()).filter(Boolean)
+  const sent = await sendEmail({
+    apiKey,
+    from,
+    to: recipients.length === 1 ? recipients[0] : recipients,
+    subject,
+    text,
+  })
 
   // Best-effort: even on a send failure we answer 200 so nothing ever surfaces a
   // 5xx to the caller (and thus the user). `sent` tells the truth for debugging.
