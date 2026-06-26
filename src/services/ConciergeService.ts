@@ -98,6 +98,69 @@ export async function sendConciergeMessage(
   return data as ConciergeChatReply
 }
 
+// ---- Coach chat dashboard (#concierge-dashboard) ---------------------------
+// One conversation row as the owner sees it in the dashboard list.
+export interface ConciergeChatSummary {
+  id: string
+  visitor_session_id: string
+  outcome: 'open' | 'booking_shown' | 'booking_clicked'
+  qualified: boolean | null
+  qualification_answers: QualAnswer[]
+  created_at: string
+  concierge: { slug: string; business_name: string } | null
+}
+
+export interface ConciergeChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+}
+
+/**
+ * List every conversation across the signed-in coach's concierge(s), newest
+ * first. RLS scopes the rows to concierges the caller owns (owners-read policy),
+ * so no filter is needed here. Throws an i18n-key Error on failure.
+ */
+export async function listConciergeChats(): Promise<ConciergeChatSummary[]> {
+  const { data, error } = await supabase
+    .from('concierge_conversations')
+    .select(
+      'id, visitor_session_id, outcome, qualified, qualification_answers, created_at, concierge:concierges(slug, business_name)',
+    )
+    .order('created_at', { ascending: false })
+  if (error) throw new Error('conciergeChats.loadFailed')
+  return (data ?? []).map((r) => {
+    const row = r as Record<string, unknown>
+    const c = row.concierge
+    const concierge = Array.isArray(c) ? (c[0] ?? null) : (c ?? null)
+    return {
+      id: row.id as string,
+      visitor_session_id: row.visitor_session_id as string,
+      outcome: row.outcome as ConciergeChatSummary['outcome'],
+      qualified: (row.qualified as boolean | null) ?? null,
+      qualification_answers: Array.isArray(row.qualification_answers)
+        ? (row.qualification_answers as QualAnswer[])
+        : [],
+      created_at: row.created_at as string,
+      concierge: concierge as ConciergeChatSummary['concierge'],
+    }
+  })
+}
+
+/**
+ * Load the full transcript of one conversation (oldest first). RLS lets the
+ * owner read only messages from their own concierge's conversations.
+ */
+export async function getConciergeChatMessages(conversationId: string): Promise<ConciergeChatMessage[]> {
+  const { data, error } = await supabase
+    .from('concierge_messages')
+    .select('role, content, created_at')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true })
+  if (error) throw new Error('conciergeChats.loadFailed')
+  return (data ?? []) as ConciergeChatMessage[]
+}
+
 /**
  * Create the coach's concierge row at setup time (after purchase). owner_id is
  * the signed-in user; RLS only lets a user write their own. A duplicate slug

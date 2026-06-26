@@ -12,6 +12,7 @@ import { MarketplaceTestPage } from './pages/public/MarketplaceTestPage'
 import { ConciergePublicPage } from './pages/public/ConciergePublicPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { MyRequestsPage } from './pages/customer/MyRequestsPage'
+import { ConciergeChatsPage } from './pages/customer/ConciergeChatsPage'
 import { ConnectConfirmRoute } from './pages/customer/ConnectConfirmRoute'
 import { AdminCatalogPage } from './pages/admin/AdminCatalogPage'
 import { AdminRequestsPage } from './pages/admin/AdminRequestsPage'
@@ -46,6 +47,7 @@ export default function App() {
                 <Route path="/marketplace-test" element={<MarketplaceTestPage />} />
                 <Route element={<ProtectedRoute />}>
                   <Route path="/my-requests" element={<MyRequestsPage />} />
+                  <Route path="/app/chats" element={<ConciergeChatsPage />} />
                   <Route path="/connect/:provisionId/confirm" element={<ConnectConfirmRoute />} />
                 </Route>
                 <Route element={<ProtectedRoute requireRole="admin" />}>

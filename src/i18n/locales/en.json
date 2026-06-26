@@ -12,6 +12,7 @@
     "adminCatalog": "Admin catalog",
     "adminRequests": "Admin requests",
     "myRequests": "My requests",
+    "chats": "Chats",
     "signOut": "Sign out",
     "signInRegister": "Sign in / Register"
   },
@@ -105,6 +106,26 @@
     "empty": "No integrations available yet.",
     "available": "● Available",
     "soon": "Soon"
+  },
+  "conciergeChats": {
+    "title": "Chats",
+    "subtitle": "Every conversation happening on your concierge link.",
+    "loading": "Loading chats…",
+    "empty": "No chats yet. As soon as someone uses your concierge link, conversations show up here.",
+    "visitor": "Visitor",
+    "qualified": "Qualified",
+    "notQualified": "Not qualified",
+    "qualifies": "counts",
+    "notQualifies": "doesn't count",
+    "answersTitle": "Answers",
+    "transcript": "Transcript",
+    "noMessages": "No messages.",
+    "loadFailed": "Could not load chats.",
+    "outcome": {
+      "open": "Open",
+      "booking_shown": "Booking shown",
+      "booking_clicked": "Booking clicked"
+    }
   },
   "myRequests": {
     "title": "My requests",
