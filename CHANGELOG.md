@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.4.0.0] - 2026-06-26
+
+### Added
+- **Coach chat dashboard (`/app/chats`).** A second, authed link where the coach sees every conversation on their concierge: a list with qualified + outcome badges, click into the full transcript and the visitor's qualification answers. New owners-read RLS policy lets an owner read only their own concierge's conversations/messages (writes stay server-only).
+- **Lead contact capture in the concierge chat.** Right before showing the booking link, the bot asks for the visitor's name + email via a real form (email validated); only after they submit it does the booking appear. So the coach always has a contact person + email for any lead who reaches the booking step. Name/email are stored on the conversation and shown in the dashboard.
+
+### Fixed
+- **The concierge invites the booking after the last qualifying question** instead of stopping at "thanks" (quick-reply completion now leads into the contact step, then the booking).
+
 ## [1.3.0.0] - 2026-06-26
 
 ### Added

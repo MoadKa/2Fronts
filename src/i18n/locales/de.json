@@ -12,6 +12,7 @@
     "adminCatalog": "Admin-Katalog",
     "adminRequests": "Admin-Anfragen",
     "myRequests": "Meine Anfragen",
+    "chats": "Chats",
     "signOut": "Abmelden",
     "signInRegister": "Anmelden / Registrieren"
   },
@@ -105,6 +106,26 @@
     "empty": "Es sind noch keine Anbindungen verfügbar.",
     "available": "● Verfügbar",
     "soon": "Bald"
+  },
+  "conciergeChats": {
+    "title": "Chats",
+    "subtitle": "Alle Gespräche, die auf deinem Concierge-Link laufen.",
+    "loading": "Lade Chats…",
+    "empty": "Noch keine Chats. Sobald jemand deinen Concierge-Link nutzt, erscheinen die Gespräche hier.",
+    "visitor": "Besucher",
+    "qualified": "Qualifiziert",
+    "notQualified": "Nicht qualifiziert",
+    "qualifies": "zählt",
+    "notQualifies": "zählt nicht",
+    "answersTitle": "Antworten",
+    "transcript": "Verlauf",
+    "noMessages": "Keine Nachrichten.",
+    "loadFailed": "Chats konnten nicht geladen werden.",
+    "outcome": {
+      "open": "Offen",
+      "booking_shown": "Termin gezeigt",
+      "booking_clicked": "Termin geklickt"
+    }
   },
   "myRequests": {
     "title": "Meine Anfragen",
@@ -366,6 +387,9 @@
     "send": "Senden",
     "sending": "…",
     "bookCta": "Termin buchen",
+    "namePlaceholder": "Dein Name",
+    "emailPlaceholder": "Deine E-Mail",
+    "contactSubmit": "Weiter zum Termin",
     "unavailableTitle": "Diese Seite ist nicht verfügbar",
     "unavailableBody": "Dieser Concierge-Link ist inaktiv oder existiert nicht. Bitte überprüfe den Link und versuche es erneut.",
     "thinking": "Schreibt…"

@@ -40,6 +40,7 @@ export function AppLayout() {
                 </>
               )}
               <NavLink to="/my-requests" className={navClass}>{t('nav.myRequests')}</NavLink>
+              <NavLink to="/app/chats" className={navClass}>{t('nav.chats')}</NavLink>
               <span className="app-nav-company">{profile?.company_name}</span>
               <Button variant="secondary" onClick={() => signOut()}>{t('nav.signOut')}</Button>
             </>

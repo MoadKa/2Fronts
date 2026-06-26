@@ -5,6 +5,9 @@ import { sendConciergeMessage, newSessionId } from '../../services/ConciergeServ
 import type { QualOption, QualPrompt } from '../../lib/qualification'
 import './ConciergePublicPage.css'
 
+// Light client-side email check; the server validates authoritatively.
+const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
+
 // The public face of the AI Booking Concierge (#23): a no-auth chat at /c/:slug.
 // A visitor types, the AI answers (grounded only in the coach's content,
 // server-side), and a booking CTA appears when the AI surfaces the calendar
@@ -34,6 +37,11 @@ export function ConciergePublicPage() {
   // The qualification quick-reply prompt to render under the latest assistant
   // bubble, if any. Cleared once the visitor answers it.
   const [quickReplies, setQuickReplies] = useState<QualPrompt | null>(null)
+  // When the server gates the booking behind contact, swap the composer for a
+  // name + email form. Cleared once the visitor submits it.
+  const [contactMode, setContactMode] = useState(false)
+  const [contactName, setContactName] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
 
   // Apply the unavailable/error handling shared by text + quick-reply sends.
   function handleSendError(err: unknown) {
@@ -72,6 +80,30 @@ export function ConciergePublicPage() {
       if (reply.show_booking && reply.calendar_url) setBookingUrl(reply.calendar_url)
       // Render the next qualification prompt as buttons (or clear if none).
       setQuickReplies(reply.quick_replies ?? null)
+      setContactMode(reply.request_contact ?? false)
+    } catch (err) {
+      handleSendError(err)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  // Visitor submitted the name/email form: send it as the contact, show a
+  // confirming bubble, and process the booking reply that comes back.
+  async function handleContactSubmit(e: FormEvent) {
+    e.preventDefault()
+    const name = contactName.trim()
+    const email = contactEmail.trim()
+    if (!name || !isEmail(email) || !slug || sending) return
+    setMessages((prev) => [...prev, { role: 'user', content: `${name} · ${email}` }])
+    setContactMode(false)
+    setSending(true)
+    try {
+      const reply = await sendConciergeMessage(slug, sessionRef.current, name, undefined, undefined, { name, email })
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply.reply }])
+      if (reply.show_booking && reply.calendar_url) setBookingUrl(reply.calendar_url)
+      setQuickReplies(reply.quick_replies ?? null)
+      setContactMode(reply.request_contact ?? false)
     } catch (err) {
       handleSendError(err)
     } finally {
@@ -95,6 +127,7 @@ export function ConciergePublicPage() {
       setMessages((prev) => [...prev, { role: 'assistant', content: reply.reply }])
       if (reply.show_booking && reply.calendar_url) setBookingUrl(reply.calendar_url)
       setQuickReplies(reply.quick_replies ?? null)
+      setContactMode(reply.request_contact ?? false)
     } catch (err) {
       handleSendError(err)
     } finally {
@@ -174,24 +207,54 @@ export function ConciergePublicPage() {
           </div>
         )}
 
-        <form className="concierge-input" onSubmit={handleSend}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={t('conciergePublic.inputPlaceholder')}
-            aria-label={t('conciergePublic.inputPlaceholder')}
-            disabled={sending}
-          />
-          <button
-            type="submit"
-            className="concierge-send"
-            disabled={sending || !input.trim()}
-            aria-label={t('conciergePublic.send')}
-          >
-            {sending ? t('conciergePublic.sending') : <SendIcon />}
-          </button>
-        </form>
+        {contactMode ? (
+          <form className="concierge-contact" onSubmit={handleContactSubmit}>
+            <input
+              type="text"
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              placeholder={t('conciergePublic.namePlaceholder')}
+              aria-label={t('conciergePublic.namePlaceholder')}
+              autoComplete="name"
+              disabled={sending}
+            />
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              placeholder={t('conciergePublic.emailPlaceholder')}
+              aria-label={t('conciergePublic.emailPlaceholder')}
+              autoComplete="email"
+              disabled={sending}
+            />
+            <button
+              type="submit"
+              className="concierge-contact-submit"
+              disabled={sending || !contactName.trim() || !isEmail(contactEmail.trim())}
+            >
+              {t('conciergePublic.contactSubmit')}
+            </button>
+          </form>
+        ) : (
+          <form className="concierge-input" onSubmit={handleSend}>
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t('conciergePublic.inputPlaceholder')}
+              aria-label={t('conciergePublic.inputPlaceholder')}
+              disabled={sending}
+            />
+            <button
+              type="submit"
+              className="concierge-send"
+              disabled={sending || !input.trim()}
+              aria-label={t('conciergePublic.send')}
+            >
+              {sending ? t('conciergePublic.sending') : <SendIcon />}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )

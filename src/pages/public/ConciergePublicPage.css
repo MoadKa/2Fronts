@@ -176,6 +176,81 @@
   outline-offset: 2px;
 }
 
+/* Contact capture: name + email + continue, swapped in where the composer sits
+   when the server gates the booking behind contact. Same clay card look. */
+.concierge-contact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-clay-md);
+  position: sticky;
+  bottom: var(--space-sm);
+}
+
+.concierge-contact input {
+  min-height: 44px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font: inherit;
+  color: var(--color-foreground);
+  background: var(--color-muted);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.concierge-contact input::placeholder {
+  color: var(--color-text);
+  opacity: 0.7;
+}
+
+.concierge-contact input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.concierge-contact-submit {
+  min-height: 48px;
+  padding: var(--space-sm) var(--space-xl);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-family: var(--heading);
+  font-weight: 600;
+  font-size: 1.02rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-clay-sm);
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+
+.concierge-contact-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-clay-md);
+}
+
+.concierge-contact-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.concierge-contact-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .concierge-contact-submit {
+    transition: box-shadow var(--dur-base) var(--ease-out);
+  }
+  .concierge-contact-submit:hover:not(:disabled),
+  .concierge-contact-submit:active:not(:disabled) {
+    transform: none;
+  }
+}
+
 /* Composer: input + send pinned at the bottom, comfortable tap targets. */
 .concierge-input {
   display: flex;
