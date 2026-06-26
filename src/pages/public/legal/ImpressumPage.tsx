@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next'
 import { LegalLayout, LegalSection } from './LegalLayout'
 
-// Impressum (legal notice) pursuant to Section 5 TMG. Founder-specific values
-// are placeholders ([NAME], [ANSCHRIFT], [EMAIL], [TELEFON], [USt-IdNr ...])
-// to be filled with eRecht24-generated data before publication.
+// Impressum (legal notice) pursuant to Section 5 TMG. Provider data lives in the
+// `legal.impressum.*` i18n keys (Moad Kaoukab, Kleinunternehmer §19 UStG — no
+// USt-IdNr; contact by email, no phone).
 export function ImpressumPage() {
   const { t } = useTranslation()
   return (
@@ -17,9 +17,6 @@ export function ImpressumPage() {
 
       <section>
         <h2>{t('legal.impressum.contactHeading')}</h2>
-        <p>
-          {t('legal.impressum.contactPhoneLabel')}: {t('legal.impressum.contactPhone')}
-        </p>
         <p>
           {t('legal.impressum.contactEmailLabel')}: {t('legal.impressum.contactEmail')}
         </p>

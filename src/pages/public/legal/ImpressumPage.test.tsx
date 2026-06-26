@@ -21,7 +21,7 @@ describe('Legal pages render publicly (DE)', () => {
     // Real provider data from the eRecht24 Impressum is filled in (appears in
     // both the Diensteanbieter and Verantwortlich sections).
     expect(screen.getAllByText(/Moad Kaoukab/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/support@2fronts\.de/)).toBeInTheDocument()
+    expect(screen.getByText(/moad@2fronts\.de/)).toBeInTheDocument()
   })
 
   it('Datenschutz renders in German and contains the Google Limited Use clause verbatim', () => {

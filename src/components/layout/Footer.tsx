@@ -21,6 +21,7 @@ export function Footer() {
         <Link to="/impressum">{t('footer.impressum')}</Link>
         <Link to="/datenschutz">{t('footer.datenschutz')}</Link>
         <Link to="/agb">{t('footer.agb')}</Link>
+        <Link to="/widerruf">{t('footer.widerruf')}</Link>
       </nav>
       <div className="app-footer-meta">
         <span className="app-footer-rights">{t('footer.rights', { year })}</span>
