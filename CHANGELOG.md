@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.9.0.0] - 2026-06-27
+
+### Changed
+- **Launch repositioning + full public-copy rewrite.** The homepage/catalog now lead with the horizontal platform promise ("Fertige Automatisierungen, die sofort für dich arbeiten", live in under a minute), with the AI Booking Concierge as the flagship card aimed at coaches. All public copy was rewritten natively in German and English (no longer mirror-translations), em dashes removed, and the address standardised to "du" (fixing a Sie/du mix in `mapping` and `supportedSoftware`). Touches catalog, appHome, automationDetail, checkoutResult, supportedSoftware, myRequests, mapping, waitlist, catalogRequest, conciergePublic, conciergeOnboarding, conciergeSetup.
+
+### Added
+- **14-day free trial on subscription checkout.** `create-checkout-session` now sets `subscription_data.trial_period_days: 14`: the customer enters a card up front, is charged nothing during the trial, then is auto-billed at the plan price. Supports the AI Booking Concierge launch price of €99/month.
+
 ## [1.8.1.0] - 2026-06-26
 
 ### Added
