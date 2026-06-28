@@ -11,6 +11,8 @@ four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 - **Removed the "M" logo mark.** The header is now just the "2Fronts" wordmark; dropped the SVG mark from `AppLayout` and its CSS rule.
 
 ### Fixed
+- **Undefined CSS tokens.** `index.css` now defines `--color-text-muted`, `--color-muted-foreground`, and a `--font-size-*` scale. `AppHomePage`, `AuthModal`, `ProgressBar`, and `ConciergeSetup` referenced these with no definition, so muted text and the small eyebrow/note text fell back to inherited color/size.
+- **Render-blocking font load.** Moved Google Fonts (DM Sans + Space Grotesk) from a CSS `@import` to `<link rel="preconnect">` + stylesheet in `index.html`. The `@import` chained the font fetch behind the app stylesheet and blocked first paint; loading in parallel with `display=swap` cut first contentful paint from ~3.7s to ~0.4s on a local preview.
 - Realigned `package.json` version (was drifted at 1.8.1.0) to match the `VERSION` file.
 
 ## [1.10.0.0] - 2026-06-28
