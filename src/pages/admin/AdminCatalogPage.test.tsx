@@ -45,7 +45,7 @@ describe('AdminCatalogPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Automatisierung hinzufügen' }))
     await waitFor(() =>
       expect(createAutomation).toHaveBeenCalledWith({
-        name: 'Invoice Sync', summary: 'x', outcome_description: 'y', category: 'finance', price_cents: 49900,
+        name: 'Invoice Sync', summary: 'x', outcome_description: 'y', translations: {}, category: 'finance', price_cents: 49900,
         connector_type: 'twilio_missed_call', requires_provisioning: true, is_active: true,
         pricing_model: 'one_time', recurring_interval: null,
       })

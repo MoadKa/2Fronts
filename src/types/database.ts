@@ -20,11 +20,23 @@ export interface Profile {
   email: string
 }
 
+// Per-locale, human-authored overrides for the catalog text fields. Keyed by a
+// 2-letter language code (e.g. "en"). Any field may be omitted; the frontend
+// falls back to the base column. See lib/localizeAutomation.ts.
+export interface AutomationTranslations {
+  [language: string]:
+    | { name?: string; summary?: string; outcome_description?: string }
+    | undefined
+}
+
 export interface Automation {
   id: string
   name: string
   summary: string
   outcome_description: string
+  // Localised overrides of name/summary/outcome_description. Base columns are
+  // the primary language (German); this carries other locales (e.g. "en").
+  translations?: AutomationTranslations | null
   category: string
   price_cents: number
   currency: string

@@ -1,10 +1,13 @@
 import { supabase } from '../lib/supabaseClient'
-import type { Automation } from '../types/database'
+import type { Automation, AutomationTranslations } from '../types/database'
 
 export interface NewAutomationInput {
   name: string
   summary: string
   outcome_description: string
+  // Per-locale overrides (e.g. { en: { name, summary, outcome_description } }).
+  // Base fields above stay the primary language (German).
+  translations?: AutomationTranslations
   category: string
   price_cents: number
   currency?: string

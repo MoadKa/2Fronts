@@ -2,6 +2,7 @@ import { useEffect, useState, type SVGProps } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getAutomationById } from '../../services/AutomationService'
+import { localizeAutomation } from '../../lib/localizeAutomation'
 import { createRequest, createCheckoutSession, createProvisionDetails } from '../../services/RequestService'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../components/ui/Toast'
@@ -49,7 +50,7 @@ export function AutomationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
   const { showToast } = useToast()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [automation, setAutomation] = useState<Automation | null>(null)
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
@@ -97,6 +98,8 @@ export function AutomationDetailPage() {
   if (loading) return <p className="detail-status">{t('automationDetail.loading')}</p>
   if (!automation) return <p className="detail-status">{t('automationDetail.notFound')}</p>
 
+  const loc = localizeAutomation(automation, i18n.language)
+
   return (
     <div className="detail-page page-stack">
       <Link to="/automations" className="detail-back">
@@ -107,10 +110,10 @@ export function AutomationDetailPage() {
       <div className="detail-layout">
         <Card className="detail-main rise">
           <Badge>{automation.category}</Badge>
-          <h2>{automation.name}</h2>
-          <p className="detail-outcome">{automation.outcome_description}</p>
-          {automation.summary && automation.summary !== automation.outcome_description && (
-            <p className="detail-summary">{automation.summary}</p>
+          <h2>{loc.name}</h2>
+          <p className="detail-outcome">{loc.outcome_description}</p>
+          {loc.summary && loc.summary !== loc.outcome_description && (
+            <p className="detail-summary">{loc.summary}</p>
           )}
         </Card>
 
