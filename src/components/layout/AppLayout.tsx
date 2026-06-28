@@ -22,11 +22,6 @@ export function AppLayout() {
     <div className="app-shell">
       <nav className="app-nav">
         <Link to="/" className="app-logo">
-          <span className="app-logo-mark" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 18V7l8 5 8-5v11" />
-            </svg>
-          </span>
           <span className="app-logo-word">2Fronts</span>
         </Link>
         <div className="app-nav-links">

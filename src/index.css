@@ -37,6 +37,16 @@
   --shadow-clay-md: 0 4px 0 var(--color-border), 0 10px 20px rgba(154, 52, 18, 0.12);
   --shadow-clay-lg: 0 6px 0 var(--color-border), 0 18px 32px rgba(154, 52, 18, 0.16);
 
+  /* Glassmorphism layer. Frosted translucent panels that refract the warm page
+     tint behind them. Keeps the existing palette — these are just white/light
+     alphas + blur. Apply to panels, NOT to inputs (they need to stay opaque). */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-bg-strong: rgba(255, 255, 255, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-shadow: 0 10px 30px rgba(154, 52, 18, 0.1);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+
   /* Motion system (v1.3 UI overhaul). Shared easing + durations so every surface
      animates with one rhythm. Enter from below = ease-out; springy for delight. */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -76,6 +86,14 @@ html {
 body {
   margin: 0;
   min-height: 100svh;
+  /* Soft warm/cool tints behind everything so the frosted glass panels have
+     something to refract. Fixed so it stays put as glass scrolls over it. */
+  background:
+    radial-gradient(circle at 12% 6%, rgba(249, 115, 22, 0.12), transparent 42%),
+    radial-gradient(circle at 88% 2%, rgba(37, 99, 235, 0.09), transparent 40%),
+    radial-gradient(circle at 70% 95%, rgba(251, 146, 60, 0.1), transparent 45%),
+    var(--color-background);
+  background-attachment: fixed;
 }
 
 #root {

@@ -11,13 +11,15 @@
 }
 
 .modal-content {
-  background: var(--color-surface);
-  border: 2px solid var(--color-border);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
   min-width: 320px;
   max-width: 440px;
   width: 90vw;
-  box-shadow: var(--shadow-clay-lg);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
   text-align: left;
 }
