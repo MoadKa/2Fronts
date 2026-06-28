@@ -12,6 +12,6 @@
 
 .catalog-card-link:hover .card {
   background: var(--glass-bg-strong);
-  box-shadow: 0 16px 40px rgba(154, 52, 18, 0.16), var(--glass-highlight);
+  box-shadow: var(--glass-shadow-hover), var(--glass-highlight);
   transform: translateY(-3px);
 }
