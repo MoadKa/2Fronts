@@ -1,5 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
+/* Fonts load via <link rel="preconnect"> + stylesheet in index.html, NOT an
+   @import here. An @import chains the font-CSS fetch behind this stylesheet
+   (download app CSS → discover font CSS → fetch fonts), blocking first paint. */
 :root {
   --color-primary: #f97316;
   --color-primary-dark: #ea580c;
@@ -20,6 +21,11 @@
   --color-destructive: #dc2626;
   --color-destructive-bg: #fee2e2;
   --color-ring: #f97316;
+  /* Muted text. Used by AppHomePage, AuthModal, ProgressBar, ConciergeSetup —
+     previously undefined, so those references fell back to inherited color.
+     #6b6157 (not lighter) keeps >=4.5:1 even over the translucent glass panels. */
+  --color-text-muted: #6b6157;
+  --color-muted-foreground: var(--color-text-muted);
 
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
@@ -29,6 +35,10 @@
   --space-2xl: 3rem;
   --space-3xl: 4rem;
 
+  /* --font-size-sm was referenced by AppHomePage with no definition, so the
+     eyebrow/note text rendered at the inherited size. */
+  --font-size-sm: 0.875rem;
+
   --radius-sm: 10px;
   --radius-md: 16px;
   --radius-lg: 20px;
@@ -36,6 +46,17 @@
   --shadow-clay-sm: 0 2px 0 var(--color-border), 0 4px 10px rgba(154, 52, 18, 0.08);
   --shadow-clay-md: 0 4px 0 var(--color-border), 0 10px 20px rgba(154, 52, 18, 0.12);
   --shadow-clay-lg: 0 6px 0 var(--color-border), 0 18px 32px rgba(154, 52, 18, 0.16);
+
+  /* Glassmorphism layer. Frosted translucent panels that refract the warm page
+     tint behind them. Keeps the existing palette — these are just white/light
+     alphas + blur. Apply to panels, NOT to inputs (they need to stay opaque). */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-bg-strong: rgba(255, 255, 255, 0.66);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-blur: blur(16px) saturate(160%);
+  --glass-shadow: 0 10px 30px rgba(154, 52, 18, 0.1);
+  --glass-shadow-hover: 0 16px 40px rgba(154, 52, 18, 0.16);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 
   /* Motion system (v1.3 UI overhaul). Shared easing + durations so every surface
      animates with one rhythm. Enter from below = ease-out; springy for delight. */
@@ -76,6 +97,32 @@ html {
 body {
   margin: 0;
   min-height: 100svh;
+  background: var(--color-background);
+}
+
+/* Soft warm/cool tints behind everything so the frosted glass panels have
+   something to refract. Painted on a fixed pseudo-element (a static GPU layer)
+   instead of `background-attachment: fixed`, which janks during scroll when
+   combined with backdrop-filter panels. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 12% 6%, rgba(249, 115, 22, 0.12), transparent 42%),
+    radial-gradient(circle at 88% 2%, rgba(37, 99, 235, 0.09), transparent 40%),
+    radial-gradient(circle at 70% 95%, rgba(251, 146, 60, 0.1), transparent 45%);
+}
+
+/* If backdrop-filter is unsupported, the translucent glass fills would let
+   content bleed through and drop text contrast. Fall back to near-opaque. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.92);
+    --glass-bg-strong: rgba(255, 255, 255, 0.97);
+  }
 }
 
 #root {

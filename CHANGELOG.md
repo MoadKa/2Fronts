@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.10.1.0] - 2026-06-28
+
+### Changed
+- **Glassmorphism UI refresh.** Same warm orange palette and fonts (DM Sans + Space Grotesk), restyled as frosted glass: a reusable token set (`--glass-bg`, `--glass-bg-strong`, `--glass-border`, `--glass-blur`, `--glass-shadow`, `--glass-highlight`) in `index.css`, plus a faint fixed page-background tint so the translucent panels have something to refract. Applied to the shared `Card` and `Modal` (covers catalog, admin, and customer cards) and the landing surfaces (hero, trust cards, steps, category chips, the request box, AppHome feature/sign-in panels). Inputs stay opaque on purpose. Bundle impact is +0.24 KB gzipped, zero new requests.
+- **Removed the "M" logo mark.** The header is now just the "2Fronts" wordmark; dropped the SVG mark from `AppLayout` and its CSS rule.
+
+### Fixed
+- **Undefined CSS tokens.** `index.css` now defines `--color-text-muted`, `--color-muted-foreground`, and a `--font-size-*` scale. `AppHomePage`, `AuthModal`, `ProgressBar`, and `ConciergeSetup` referenced these with no definition, so muted text and the small eyebrow/note text fell back to inherited color/size.
+- **Render-blocking font load.** Moved Google Fonts (DM Sans + Space Grotesk) from a CSS `@import` to `<link rel="preconnect">` + stylesheet in `index.html`. The `@import` chained the font fetch behind the app stylesheet and blocked first paint; loading in parallel with `display=swap` cut first contentful paint from ~3.7s to ~0.4s on a local preview.
+- Realigned `package.json` version (was drifted at 1.8.1.0) to match the `VERSION` file.
+- **Glass hardening (pre-landing review).** Muted text darkened (`--color-text-muted` → `#6b6157`) to keep ≥4.5:1 contrast on translucent panels; added an `@supports` opaque fallback so panels stay readable where `backdrop-filter` is unsupported; moved the page-tint gradient to a fixed pseudo-element instead of `background-attachment: fixed` (avoids scroll jank with backdrop-filter); deduped the muted-color token and the hover-shadow literal.
+
 ## [1.10.0.0] - 2026-06-28
 
 ### Added

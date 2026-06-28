@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>2Fronts</title>
+    <!-- Fonts loaded here (not via CSS @import) so the browser fetches them in
+         parallel with the app CSS instead of chaining behind it. display=swap
+         renders fallback text immediately, avoiding invisible-text on first paint. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+    />
   </head>
   <body>
     <div id="root"></div>

@@ -10,10 +10,10 @@
   justify-content: space-between;
   gap: var(--space-md);
   padding: 0.85rem 2rem;
-  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
-  -webkit-backdrop-filter: saturate(140%) blur(10px);
-  backdrop-filter: saturate(140%) blur(10px);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -39,18 +39,6 @@
 
 .app-logo:hover {
   transform: translateY(-1px);
-}
-
-.app-logo-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-  box-shadow: var(--shadow-clay-sm);
 }
 
 .app-logo-word {
