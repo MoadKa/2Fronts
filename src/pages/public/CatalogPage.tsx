@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type SVGProps } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { listActiveAutomations } from '../../services/AutomationService'
+import { localizeAutomation } from '../../lib/localizeAutomation'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Reveal } from '../../components/ui/Reveal'
@@ -82,7 +83,7 @@ function ArrowRightIcon(props: IconProps) {
 }
 
 export function CatalogPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
@@ -247,13 +248,15 @@ export function CatalogPage() {
               </div>
             ) : (
               <div className="catalog-grid">
-                {filteredAutomations.map((automation, index) => (
+                {filteredAutomations.map((automation, index) => {
+                  const loc = localizeAutomation(automation, i18n.language)
+                  return (
                   <Reveal key={automation.id} delay={index * 40}>
                     <Link to={`/automations/${automation.id}`} className="catalog-card-link">
                       <Card>
                         <Badge>{automation.category}</Badge>
-                        <h3>{automation.name}</h3>
-                        <p>{automation.summary}</p>
+                        <h3>{loc.name}</h3>
+                        <p>{loc.summary}</p>
                         <strong>
                           {formatPrice(automation.price_cents, automation.currency)}
                           {automation.pricing_model === 'subscription' && ` ${t('catalog.perMonth')}`}
@@ -261,7 +264,8 @@ export function CatalogPage() {
                       </Card>
                     </Link>
                   </Reveal>
-                ))}
+                  )
+                })}
               </div>
             )}
           </>

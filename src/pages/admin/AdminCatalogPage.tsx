@@ -21,6 +21,7 @@ const EMPTY_FORM: NewAutomationInput = {
   name: '',
   summary: '',
   outcome_description: '',
+  translations: {},
   category: '',
   price_cents: 0,
   connector_type: 'google_sheets',
@@ -87,6 +88,7 @@ export function AdminCatalogPage() {
       name: automation.name,
       summary: automation.summary,
       outcome_description: automation.outcome_description,
+      translations: automation.translations ?? {},
       category: automation.category,
       price_cents: automation.price_cents,
       pricing_model: automation.pricing_model ?? 'one_time',
@@ -120,6 +122,10 @@ export function AdminCatalogPage() {
         <Input label={t('adminCatalog.name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <Input label={t('adminCatalog.summary')} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} />
         <Input label={t('adminCatalog.outcomeDescription')} value={form.outcome_description} onChange={(e) => setForm({ ...form, outcome_description: e.target.value })} />
+        <p className="admin-section-label">{t('adminCatalog.englishHeading')}</p>
+        <Input label={t('adminCatalog.nameEn')} value={form.translations?.en?.name ?? ''} onChange={(e) => setForm({ ...form, translations: { ...form.translations, en: { ...form.translations?.en, name: e.target.value } } })} />
+        <Input label={t('adminCatalog.summaryEn')} value={form.translations?.en?.summary ?? ''} onChange={(e) => setForm({ ...form, translations: { ...form.translations, en: { ...form.translations?.en, summary: e.target.value } } })} />
+        <Input label={t('adminCatalog.outcomeDescriptionEn')} value={form.translations?.en?.outcome_description ?? ''} onChange={(e) => setForm({ ...form, translations: { ...form.translations, en: { ...form.translations?.en, outcome_description: e.target.value } } })} />
         <Input label={t('adminCatalog.category')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
         <Input label={t('adminCatalog.priceCents')} type="number" value={form.price_cents} onChange={(e) => setForm({ ...form, price_cents: Number(e.target.value) })} />
         <label className="admin-field">
@@ -172,6 +178,10 @@ export function AdminCatalogPage() {
               <Input label={t('adminCatalog.name')} value={editForm.name ?? ''} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
               <Input label={t('adminCatalog.summary')} value={editForm.summary ?? ''} onChange={(e) => setEditForm({ ...editForm, summary: e.target.value })} />
               <Input label={t('adminCatalog.outcomeDescription')} value={editForm.outcome_description ?? ''} onChange={(e) => setEditForm({ ...editForm, outcome_description: e.target.value })} />
+              <p className="admin-section-label">{t('adminCatalog.englishHeading')}</p>
+              <Input label={t('adminCatalog.nameEn')} value={editForm.translations?.en?.name ?? ''} onChange={(e) => setEditForm({ ...editForm, translations: { ...editForm.translations, en: { ...editForm.translations?.en, name: e.target.value } } })} />
+              <Input label={t('adminCatalog.summaryEn')} value={editForm.translations?.en?.summary ?? ''} onChange={(e) => setEditForm({ ...editForm, translations: { ...editForm.translations, en: { ...editForm.translations?.en, summary: e.target.value } } })} />
+              <Input label={t('adminCatalog.outcomeDescriptionEn')} value={editForm.translations?.en?.outcome_description ?? ''} onChange={(e) => setEditForm({ ...editForm, translations: { ...editForm.translations, en: { ...editForm.translations?.en, outcome_description: e.target.value } } })} />
               <Input label={t('adminCatalog.category')} value={editForm.category ?? ''} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} />
               <Input label={t('adminCatalog.priceCents')} type="number" value={editForm.price_cents ?? 0} onChange={(e) => setEditForm({ ...editForm, price_cents: Number(e.target.value) })} />
               <label className="admin-field">
