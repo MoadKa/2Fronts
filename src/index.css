@@ -1,5 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
+/* Fonts load via <link rel="preconnect"> + stylesheet in index.html, NOT an
+   @import here. An @import chains the font-CSS fetch behind this stylesheet
+   (download app CSS → discover font CSS → fetch fonts), blocking first paint. */
 :root {
   --color-primary: #f97316;
   --color-primary-dark: #ea580c;
@@ -20,6 +21,10 @@
   --color-destructive: #dc2626;
   --color-destructive-bg: #fee2e2;
   --color-ring: #f97316;
+  /* Muted text. Used by AppHomePage, AuthModal, ProgressBar, ConciergeSetup —
+     previously undefined, so those references fell back to inherited color. */
+  --color-text-muted: #78716c;
+  --color-muted-foreground: #78716c;
 
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
@@ -28,6 +33,13 @@
   --space-xl: 2rem;
   --space-2xl: 3rem;
   --space-3xl: 4rem;
+
+  /* Type scale. --font-size-sm was referenced by AppHomePage with no definition,
+     so the eyebrow/note text rendered at the inherited size. */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
 
   --radius-sm: 10px;
   --radius-md: 16px;
