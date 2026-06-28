@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.10.1.0] - 2026-06-28
+
+### Changed
+- **Glassmorphism UI refresh.** Same warm orange palette and fonts (DM Sans + Space Grotesk), restyled as frosted glass: a reusable token set (`--glass-bg`, `--glass-bg-strong`, `--glass-border`, `--glass-blur`, `--glass-shadow`, `--glass-highlight`) in `index.css`, plus a faint fixed page-background tint so the translucent panels have something to refract. Applied to the shared `Card` and `Modal` (covers catalog, admin, and customer cards) and the landing surfaces (hero, trust cards, steps, category chips, the request box, AppHome feature/sign-in panels). Inputs stay opaque on purpose. Bundle impact is +0.24 KB gzipped, zero new requests.
+- **Removed the "M" logo mark.** The header is now just the "2Fronts" wordmark; dropped the SVG mark from `AppLayout` and its CSS rule.
+
+### Fixed
+- Realigned `package.json` version (was drifted at 1.8.1.0) to match the `VERSION` file.
+
 ## [1.10.0.0] - 2026-06-28
 
 ### Added
