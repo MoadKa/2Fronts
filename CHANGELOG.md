@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.10.0.0] - 2026-06-28
+
+### Added
+- **Localised catalog content (DE/EN).** Card name, summary and outcome description are DB data, so they previously stayed in their authored language when a visitor toggled the language. Added a `translations` jsonb column on `automations` (per-locale, human-authored overrides — no machine translation) with field-by-field fallback to the German base. Catalog and detail pages now render the active language; the admin catalog form gained EN inputs. Migration seeds English for the AI Booking Concierge and normalises its German base name.
+
+### Changed
+- **Favicon.** Replaced the off-brand purple lightning bolt with an orange (brand `#f97316`) rounded square + white check mark.
+
 ## [1.9.0.0] - 2026-06-27
 
 ### Changed
