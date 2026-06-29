@@ -21,7 +21,9 @@
     "datenschutz": "Privacy",
     "agb": "Terms",
     "widerruf": "Withdrawal",
-    "rights": "© {{year}} 2Fronts. All rights reserved."
+    "rights": "© {{year}} 2Fronts. All rights reserved.",
+    "support": "Support",
+    "supportAria": "Contact support by email"
   },
   "errorBoundary": {
     "message": "Something went wrong."
