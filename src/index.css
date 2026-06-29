@@ -52,7 +52,7 @@
      alphas + blur. Apply to panels, NOT to inputs (they need to stay opaque). */
   --glass-bg: rgba(255, 255, 255, 0.45);
   --glass-bg-strong: rgba(255, 255, 255, 0.66);
-  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-border: rgba(249, 115, 22, 0.55); /* thin brand-orange rim highlighting glass surfaces */
   --glass-blur: blur(16px) saturate(160%);
   --glass-shadow: 0 10px 30px rgba(154, 52, 18, 0.1);
   --glass-shadow-hover: 0 16px 40px rgba(154, 52, 18, 0.16);

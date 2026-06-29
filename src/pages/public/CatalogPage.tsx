@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type SVGProps } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { listActiveAutomations } from '../../services/AutomationService'
-import { localizeAutomation } from '../../lib/localizeAutomation'
+import { localizeAutomation, localizeCategory } from '../../lib/localizeAutomation'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Reveal } from '../../components/ui/Reveal'
@@ -222,7 +222,7 @@ export function CatalogPage() {
                 className={activeCategory === category ? 'chip chip-active' : 'chip'}
                 onClick={() => setActiveCategory(category)}
               >
-                {category}
+                {localizeCategory(category, t)}
               </button>
             ))}
           </div>
@@ -254,7 +254,7 @@ export function CatalogPage() {
                   <Reveal key={automation.id} delay={index * 40}>
                     <Link to={`/automations/${automation.id}`} className="catalog-card-link">
                       <Card>
-                        <Badge>{automation.category}</Badge>
+                        <Badge>{localizeCategory(automation.category, t)}</Badge>
                         <h3>{loc.name}</h3>
                         <p>{loc.summary}</p>
                         <strong>

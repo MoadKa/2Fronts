@@ -16,6 +16,16 @@ export interface LocalizedAutomationFields {
   outcome_description: string
 }
 
+// Category is a raw DB slug (e.g. "ki-buchung"), shared across locales, so it is
+// localized via the i18n JSON (catalog.categories.<slug>) rather than the DB.
+// Unknown / admin-created slugs fall back to the raw value so nothing blanks out.
+export function localizeCategory(
+  category: string,
+  t: (key: string, opts?: { defaultValue?: string }) => string,
+): string {
+  return t(`catalog.categories.${category}`, { defaultValue: category })
+}
+
 export function localizeAutomation(
   automation: LocalizableAutomation,
   language: string | undefined,

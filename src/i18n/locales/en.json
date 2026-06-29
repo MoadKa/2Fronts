@@ -50,6 +50,11 @@
     "backToCatalog": "Back to catalog"
   },
   "catalog": {
+    "categories": {
+      "ki-buchung": "AI & Booking",
+      "lead-management": "Lead Management",
+      "communication": "Communication"
+    },
     "heroEyebrow": "Automations for your business",
     "heroTitle": "Done-for-you automations that get to work right away.",
     "heroSub": "Pick one, switch it on in a minute, done. It takes over the work that eats your day. No setup project, no developers.",

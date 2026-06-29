@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.10.2.0] - 2026-06-29
+
+### Fixed
+- **Localized catalog category labels.** Category is a raw DB slug (e.g. `ki-buchung`) shared across locales, so it rendered untranslated — the English site showed the German "ki-buchung". Added a `catalog.categories` i18n map (DE + EN) and a `localizeCategory` helper, applied to the catalog badges, filter chips, and the automation detail page. English now shows "AI & Booking" / "Lead Management" / "Communication"; unknown/admin-created slugs fall back to the raw value.
+
+### Changed
+- **Thin orange rim on glass panels.** `--glass-border` is now brand orange (`#f97316` @ 55%) so the frosted glass surfaces read as on-brand highlighted panels.
+- **Removed the footer "M" logo mark.** Footer now shows the "2Fronts" wordmark only (matches the header), dropping the SVG mark + its CSS.
+
 ## [1.10.1.0] - 2026-06-28
 
 ### Changed

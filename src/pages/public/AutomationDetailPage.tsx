@@ -2,7 +2,7 @@ import { useEffect, useState, type SVGProps } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getAutomationById } from '../../services/AutomationService'
-import { localizeAutomation } from '../../lib/localizeAutomation'
+import { localizeAutomation, localizeCategory } from '../../lib/localizeAutomation'
 import { createRequest, createCheckoutSession, createProvisionDetails } from '../../services/RequestService'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../components/ui/Toast'
@@ -109,7 +109,7 @@ export function AutomationDetailPage() {
 
       <div className="detail-layout">
         <Card className="detail-main rise">
-          <Badge>{automation.category}</Badge>
+          <Badge>{localizeCategory(automation.category, t)}</Badge>
           <h2>{loc.name}</h2>
           <p className="detail-outcome">{loc.outcome_description}</p>
           {loc.summary && loc.summary !== loc.outcome_description && (
