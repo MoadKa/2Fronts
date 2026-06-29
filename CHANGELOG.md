@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.10.3.0] - 2026-06-29
+
+### Added
+- **Support email in the footer.** Added `support@2fronts.de` as a `mailto:` link in the shared footer (reachable from every page), with a "Support" label, a 44px touch target, an aria-label for screen readers, and DE/EN localization.
+
 ## [1.10.2.0] - 2026-06-29
 
 ### Fixed
