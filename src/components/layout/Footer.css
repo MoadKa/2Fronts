@@ -60,6 +60,32 @@
   transform: scaleX(1);
 }
 
+.app-footer-support {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+}
+
+.app-footer-support-label {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.app-footer-support a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transition: text-decoration var(--dur-fast) var(--ease-out);
+}
+
+.app-footer-support a:hover {
+  text-decoration: underline;
+}
+
 .app-footer-meta {
   display: flex;
   align-items: center;

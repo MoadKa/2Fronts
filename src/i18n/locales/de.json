@@ -21,7 +21,9 @@
     "datenschutz": "Datenschutz",
     "agb": "AGB",
     "widerruf": "Widerruf",
-    "rights": "© {{year}} 2Fronts. Alle Rechte vorbehalten."
+    "rights": "© {{year}} 2Fronts. Alle Rechte vorbehalten.",
+    "support": "Support",
+    "supportAria": "Support per E-Mail kontaktieren"
   },
   "errorBoundary": {
     "message": "Etwas ist schiefgelaufen."
