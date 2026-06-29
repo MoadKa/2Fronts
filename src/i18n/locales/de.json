@@ -50,6 +50,11 @@
     "backToCatalog": "Zurück zum Katalog"
   },
   "catalog": {
+    "categories": {
+      "ki-buchung": "KI & Buchung",
+      "lead-management": "Lead-Management",
+      "communication": "Kommunikation"
+    },
     "heroEyebrow": "Automatisierungen für dein Business",
     "heroTitle": "Fertige Automatisierungen, die sofort für dich arbeiten.",
     "heroSub": "Such dir eine aus, schalt sie in einer Minute ein, fertig. Sie übernimmt die Arbeit, die dich sonst jeden Tag Zeit kostet. Kein Einrichtungsprojekt, kein Entwickler.",
