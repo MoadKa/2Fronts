@@ -121,9 +121,9 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
       // request_id rides on both the session and the subscription so the webhook
       // can map either back to this request without a DB lookup.
       metadata: { request_id: requestId },
-      // 14-day free trial: the customer enters a card now, is charged nothing
-      // during the trial, then auto-billed at the plan price when it ends.
-      subscription_data: { metadata: { request_id: requestId }, trial_period_days: 14 },
+      // No trial: the customer is charged the plan price immediately at checkout,
+      // then billed recurrently at the chosen interval until cancelled.
+      subscription_data: { metadata: { request_id: requestId } },
       success_url: `${appBaseUrl}/checkout/result?status=success`,
       cancel_url: `${appBaseUrl}/checkout/result?status=cancelled`,
     })

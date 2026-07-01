@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.10.4.0] - 2026-07-02
+
+### Changed
+- **Removed the 14-day free trial.** New subscriptions are now charged the plan price immediately at checkout instead of starting a 14-day Stripe trial. Dropped `trial_period_days` from the Stripe Checkout `subscription_data` in the `create-checkout-session` edge function, so billing matches the AGB (which already describes immediate recurring billing). Existing trials already running in Stripe are unaffected; the edge function must be redeployed for this to take effect.
+
 ## [1.10.3.0] - 2026-06-29
 
 ### Added
