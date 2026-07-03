@@ -65,7 +65,7 @@ describe('ConnectConfirmRoute', () => {
     renderRoute()
     // The wizard opens on its welcome screen (#26 replaced the basic form).
     await waitFor(() =>
-      expect(screen.getByText('Richten wir deinen KI-Buchungsassistenten ein.')).toBeInTheDocument(),
+      expect(screen.getByText('Richten wir deinen Setter ein.')).toBeInTheDocument(),
     )
     expect(listSlackChannels).not.toHaveBeenCalled()
   })

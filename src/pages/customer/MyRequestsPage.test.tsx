@@ -87,7 +87,7 @@ describe('MyRequestsPage', () => {
     vi.mocked(listMyRequests).mockResolvedValue([withProvision('pending')])
     render(<MyRequestsPage />)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
-    expect(screen.getByText(/richten deinen KI-Telefonassistenten/i)).toBeInTheDocument()
+    expect(screen.getByText(/richten deine Automatisierung/i)).toBeInTheDocument()
     expect(screen.queryByText('+15551234567')).not.toBeInTheDocument()
   })
 
@@ -135,10 +135,10 @@ describe('MyRequestsPage', () => {
     ])
     render(<MemoryRouter><MyRequestsPage /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
-    const link = screen.getByRole('link', { name: /concierge einrichten/i })
+    const link = screen.getByRole('link', { name: /setter einrichten/i })
     expect(link).toHaveAttribute('href', '/connect/prov-1/confirm')
     // It must NOT fall back to the Twilio "setting up" message.
-    expect(screen.queryByText(/KI-Telefonassistenten/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/richten deine Automatisierung/i)).not.toBeInTheDocument()
   })
 
   it('shows a manage/cancel button for an active subscription and opens the portal', async () => {
@@ -175,7 +175,7 @@ describe('MyRequestsPage', () => {
     render(<MemoryRouter><MyRequestsPage /></MemoryRouter>)
     await waitFor(() => expect(screen.getByText('AI Receptionist')).toBeInTheDocument())
     expect(screen.getByText(/eingerichtet und live/i)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /concierge einrichten/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /setter einrichten/i })).not.toBeInTheDocument()
   })
 
   it('keeps forwarding instructions collapsed by default and reveals them on demand', async () => {

@@ -12,12 +12,12 @@ function renderPage() {
 }
 
 describe('AppHomePage', () => {
-  it('describes the product (Google reviewers need clear relevance)', () => {
+  it('describes the product', () => {
     renderPage()
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
-    expect(screen.getByText(/Was 2Fronts macht/i)).toBeInTheDocument()
-    // mentions Google data usage
-    expect(screen.getByText(/Google-Konto/i)).toBeInTheDocument()
+    expect(screen.getByText(/Was dein Setter macht/i)).toBeInTheDocument()
+    // describes what the setter actually does (answers only from the coach's content)
+    expect(screen.getByText(/nur aus deinen Inhalten antwortet/i)).toBeInTheDocument()
   })
 
   it('links the privacy policy at /datenschutz', () => {
