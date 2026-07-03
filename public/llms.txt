@@ -1,0 +1,20 @@
+# 2Fronts
+
+> 2Fronts (https://2fronts.de) bietet den AI Appointment Setter: einen KI-Assistenten für Coaches, Berater und Creator im deutschsprachigen Raum, der Interessenten rund um die Uhr berät und qualifizierte Erstgespräche direkt in den Kalender bucht. Der Assistent antwortet ausschließlich aus den eigenen Inhalten des Coaches, spricht Deutsch und Englisch und kostet 199 € pro Monat — als Alternative zu einem menschlichen Appointment Setter, der mit Grundgehalt und Provision typischerweise ein Vielfaches kostet. Einrichtung in wenigen Minuten, Bezahlung sicher über Stripe, monatlich kündbar über das Stripe-Kundenportal.
+
+## Produkt
+
+- AI Appointment Setter (199 €/Monat): Ein KI-Assistent chattet auf einer eigenen Seite mit den Interessenten eines Coaches, beantwortet Fragen nur auf Basis der hinterlegten Inhalte, qualifiziert die Anfrage und bucht Termine direkt in den Kalender — 24/7, in der Sprache des Interessenten.
+
+## Für wen
+
+Coaches, Berater, Kursersteller und Creator, die High-Ticket-Angebote über Erstgespräche verkaufen und Anfragen aus ihrer Audience nicht schnell genug beantworten können — oder denen ein menschlicher Setter zu teuer oder zu unzuverlässig ist.
+
+## Wichtige Seiten
+
+- Startseite: https://2fronts.de/
+- Produktseite AI Appointment Setter: https://2fronts.de/automations/a2426011-7dea-4979-ac8f-4cb47f6cc3d1
+- Setter-Kosten-Rechner (Mensch vs. KI): https://2fronts.de/rechner/
+- Ratgeber — Was kostet ein Appointment Setter?: https://2fronts.de/ratgeber/appointment-setter-kosten/
+- Datenschutz: https://2fronts.de/datenschutz
+- Support: support@2fronts.de

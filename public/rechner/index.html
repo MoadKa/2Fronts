@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setter-Kosten-Rechner — Was kostet dich dein Appointment Setter wirklich?</title>
+  <meta name="description" content="Kostenloser Rechner: Vergleiche die echten Monatskosten eines menschlichen Appointment Setters (Fix + Provision) mit einem KI-Setter für 199 €/Monat." />
+  <link rel="canonical" href="https://2fronts.de/rechner/" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" />
+  <meta property="og:title" content="Setter-Kosten-Rechner — Mensch vs. KI" />
+  <meta property="og:description" content="In 2 Minuten: Was kostet dich dein Setter-Setup wirklich — und was sparst du mit einem KI-Setter?" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://2fronts.de/rechner/" />
+  <style>
+    :root{--primary:#f97316;--primary-dark:#ea580c;--bg:#fff7ed;--surface:#fff;--fg:#431407;--text:#57534e;--border:#fed7aa;--muted:#f1ede7;--success:#16a34a;--success-bg:#dcfce7}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
+    h1,h2{font-family:'Space Grotesk',sans-serif;color:var(--fg);line-height:1.25}
+    header.site{max-width:680px;margin:0 auto;padding:1.25rem;display:flex;justify-content:space-between;align-items:center}
+    header.site a{font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--fg);text-decoration:none;font-size:1.1rem}
+    header.site nav a{font-family:'DM Sans';font-weight:500;font-size:.95rem;color:var(--primary-dark)}
+    main{max-width:680px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+    h1{font-size:1.75rem;margin:.25rem 0 .75rem}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin:1.5rem 0}
+    label{display:block;font-weight:500;color:var(--fg);margin:1rem 0 .3rem}
+    label small{font-weight:400;color:var(--text)}
+    input[type=number]{width:100%;padding:.65rem .8rem;border:1px solid var(--border);border-radius:10px;font:inherit;background:var(--bg)}
+    input[type=number]:focus{outline:2px solid var(--primary);border-color:var(--primary)}
+    .result{background:var(--success-bg);border:1px solid var(--success);border-radius:14px;padding:1.5rem;margin:1.5rem 0}
+    .result h2{font-size:1.15rem;margin-bottom:.75rem}
+    .row{display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px dashed var(--border)}
+    .row:last-child{border-bottom:none}
+    .row strong{color:var(--fg)}
+    .big{font-family:'Space Grotesk',sans-serif;font-size:1.6rem;color:var(--success);font-weight:700}
+    .btn{display:inline-block;background:var(--primary);color:#fff7ed;font-weight:700;padding:.75rem 1.4rem;border-radius:10px;text-decoration:none;margin-top:1rem}
+    .btn:hover{background:var(--primary-dark)}
+    .note{font-size:.85rem;color:var(--text);margin-top:1rem}
+    a{color:var(--primary-dark)}
+    footer{max-width:680px;margin:0 auto;padding:1.5rem 1.25rem;font-size:.85rem;color:var(--text);border-top:1px solid var(--border)}
+    footer a{margin-right:1rem}
+  </style>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Setter-Kosten-Rechner",
+    "url": "https://2fronts.de/rechner/",
+    "applicationCategory": "BusinessApplication",
+    "inLanguage": "de",
+    "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
+    "publisher": {"@type": "Organization", "name": "2Fronts", "url": "https://2fronts.de"}
+  }
+  </script>
+</head>
+<body>
+  <header class="site">
+    <a href="/">2Fronts</a>
+    <nav><a href="/ratgeber/appointment-setter-kosten/">Was kostet ein Setter?</a></nav>
+  </header>
+  <main>
+    <h1>Setter-Kosten-Rechner</h1>
+    <p>Was kostet dich dein Appointment Setter wirklich — und was würdest du mit einem KI-Setter sparen? Trag dein Setup ein, das Ergebnis rechnet sich live.</p>
+
+    <div class="card">
+      <label for="fix">Monatliches Fixgehalt / Pauschale (€) <small>— 0, wenn rein provisionsbasiert</small></label>
+      <input type="number" id="fix" value="1500" min="0" step="50" />
+      <label for="prov">Provision pro gebuchtem Termin (€)</label>
+      <input type="number" id="prov" value="50" min="0" step="5" />
+      <label for="termine">Gebuchte Termine pro Monat</label>
+      <input type="number" id="termine" value="20" min="0" step="1" />
+    </div>
+
+    <div class="result" id="result" aria-live="polite">
+      <h2>Dein Ergebnis</h2>
+      <div class="row"><span>Dein Setter kostet dich</span><strong id="human">–</strong></div>
+      <div class="row"><span>AI Appointment Setter (2Fronts)</span><strong>199,00 €/Monat</strong></div>
+      <div class="row"><span>Ersparnis pro Monat</span><span class="big" id="saveMonth">–</span></div>
+      <div class="row"><span>Ersparnis pro Jahr</span><strong id="saveYear">–</strong></div>
+      <a class="btn" href="/automations/a2426011-7dea-4979-ac8f-4cb47f6cc3d1">AI Appointment Setter ansehen →</a>
+      <p class="note">Der KI-Setter berät deine Interessenten 24/7 aus deinen eigenen Inhalten und bucht Erstgespräche direkt in deinen Kalender. Monatlich kündbar. Das Erstgespräch führst weiterhin du — der Rechner vergleicht nur die Setter-Kosten.</p>
+    </div>
+
+    <p>Wie sich Setter-Kosten generell zusammensetzen (Fix, Provision, versteckte Kosten), liest du im <a href="/ratgeber/appointment-setter-kosten/">Ratgeber: Was kostet ein Appointment Setter?</a></p>
+  </main>
+  <footer>
+    <a href="/">2Fronts</a>
+    <a href="/ratgeber/appointment-setter-kosten/">Ratgeber</a>
+    <a href="/datenschutz">Datenschutz</a>
+    <a href="/impressum">Impressum</a>
+  </footer>
+  <script>
+    const KI = 199;
+    const fmt = n => n.toLocaleString('de-DE', {style:'currency', currency:'EUR'});
+    function calc(){
+      const fix = Math.max(0, parseFloat(document.getElementById('fix').value) || 0);
+      const prov = Math.max(0, parseFloat(document.getElementById('prov').value) || 0);
+      const t = Math.max(0, parseFloat(document.getElementById('termine').value) || 0);
+      const human = fix + prov * t;
+      const diff = human - KI;
+      document.getElementById('human').textContent = fmt(human) + '/Monat';
+      document.getElementById('saveMonth').textContent = diff >= 0 ? fmt(diff) : fmt(0);
+      document.getElementById('saveYear').textContent = diff >= 0 ? fmt(diff * 12) : fmt(0);
+      if (diff < 0) {
+        document.getElementById('saveMonth').textContent = 'dein Setup ist günstiger';
+        document.getElementById('saveYear').textContent = '—';
+      }
+    }
+    ['fix','prov','termine'].forEach(id => document.getElementById(id).addEventListener('input', calc));
+    calc();
+  </script>
+</body>
+</html>
