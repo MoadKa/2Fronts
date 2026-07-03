@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.11.0.0] - 2026-07-03
+
+### Added
+- **German SEO foundation (marketing).** Nine crawlable static pages under `public/`: Setter-Kosten-Rechner (`/rechner/`), three Ratgeber (`/ratgeber/appointment-setter-kosten/`, `/ratgeber/ki-setter-vs-mensch/`, `/ratgeber/mehr-erstgespraeche-buchen/`), three audience pages (`/fuer/coaches/`, `/fuer/berater/`, `/fuer/creator/`), plus `llms.txt`, `robots.txt`, and `sitemap.xml`. All pages carry Article/FAQPage/WebApplication JSON-LD with visible FAQ sections and brand styling.
+- **Real head metadata.** `index.html` now has a descriptive title, meta description, and Open Graph tags for the AI Appointment Setter, `lang="de"`, and Organization JSON-LD. (Hardcoded canonical/og:url deliberately omitted — the SPA shell serves every route, so a static canonical would deindex deep pages.)
+
 ## [1.10.4.0] - 2026-07-02
 
 ### Changed
