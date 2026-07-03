@@ -12,6 +12,15 @@ export function Footer() {
       <Link to="/" className="app-footer-brand">
         <span>2Fronts</span>
       </Link>
+      {/* Static SEO pages live outside the SPA router (served by Vercel from
+          /public before the catch-all rewrite), so they use plain <a href>,
+          not react-router <Link>, to trigger a real navigation. This also
+          gives Google internal links from every page to the money pages. */}
+      <nav className="app-footer-links" aria-label={t('footer.resourcesAria')}>
+        <a href="/rechner/">{t('footer.calculator')}</a>
+        <a href="/ratgeber/appointment-setter-kosten/">{t('footer.guideCosts')}</a>
+        <a href="/fuer/coaches/">{t('footer.forCoaches')}</a>
+      </nav>
       <nav className="app-footer-links" aria-label={t('footer.impressum')}>
         <Link to="/impressum">{t('footer.impressum')}</Link>
         <Link to="/datenschutz">{t('footer.datenschutz')}</Link>
