@@ -23,7 +23,12 @@
     "widerruf": "Widerruf",
     "rights": "© {{year}} 2Fronts. Alle Rechte vorbehalten.",
     "support": "Support",
-    "supportAria": "Support per E-Mail kontaktieren"
+    "supportAria": "Support per E-Mail kontaktieren",
+    "resources": "Ressourcen",
+    "resourcesAria": "Ratgeber und Rechner",
+    "calculator": "Setter-Kosten-Rechner",
+    "guideCosts": "Was kostet ein Setter?",
+    "forCoaches": "Für Coaches"
   },
   "errorBoundary": {
     "message": "Etwas ist schiefgelaufen."

@@ -23,7 +23,12 @@
     "widerruf": "Withdrawal",
     "rights": "© {{year}} 2Fronts. All rights reserved.",
     "support": "Support",
-    "supportAria": "Contact support by email"
+    "supportAria": "Contact support by email",
+    "resources": "Resources",
+    "resourcesAria": "Guides and calculator",
+    "calculator": "Setter cost calculator",
+    "guideCosts": "What does a setter cost?",
+    "forCoaches": "For coaches"
   },
   "errorBoundary": {
     "message": "Something went wrong."
