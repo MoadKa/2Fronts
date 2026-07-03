@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.12.0.0] - 2026-07-03
+
+### Changed
+- **Copy overhaul (DE + EN).** One product name everywhere: the product was called five different things across the app ("AI Appointment Setter", "KI-Buchungs-Concierge", "Concierge", "KI-Telefonassistent", "Assistent") — now it is "AI Appointment Setter" / "dein Setter" consistently. New voice ("klar & selbstbewusst", du-Form): hero "Dein Setter schläft nie.", benefit-led trust bullets and how-it-works steps. Removed dead-product copy that still sold missed-call recovery / Sheets / Slack on the logged-in home and waitlist. English rewritten natively, not literally. Tests updated to the new strings.
+
 ## [1.11.0.0] - 2026-07-03
 
 ### Added
