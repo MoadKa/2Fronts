@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.13.1.0] - 2026-07-04
+
+### Changed
+- **Morning stage.** Everything below the dawn now lives on one warm paper surface (#F8F4EC): demo, trust tiles, how-it-works, catalog, request form — warm cards (#FFFDF7, #E3DBC9 hairlines), Fraunces section headings, Fragment Mono step numbers and eyebrows. The page is one scene, not a night hero glued onto white SaaS sections.
+- **Night nav.** On the homepage the nav switches to warm charcoal glass (rgba(18,16,14,.72)) with moonlight links; other routes keep the white glass. White padding strips above the hero and below the stage removed.
+- **Scrollbars.** Slim, rounded, translucent scrollbars globally (Firefox + WebKit) instead of the fat OS defaults.
+
 ## [1.13.0.0] - 2026-07-04
 
 ### Changed

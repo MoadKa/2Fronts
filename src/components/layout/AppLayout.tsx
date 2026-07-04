@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Outlet, Link, NavLink } from 'react-router-dom'
+import { Outlet, Link, NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../contexts/AuthContext'
 import { AuthModal } from '../auth/AuthModal'
@@ -12,6 +12,9 @@ export function AppLayout() {
   const { user, profile, signOut } = useAuth()
   const { t } = useTranslation()
   const [authModalOpen, setAuthModalOpen] = useState(false)
+  // The homepage opens on the Nachttisch night hero (DESIGN.md); the white
+  // glass nav would float on it like a lightbox. Home gets the night nav.
+  const isNight = useLocation().pathname === '/'
 
   // Single source of truth for an active-aware nav link, so the underline + amber
   // active state stays consistent across every entry.
@@ -20,7 +23,7 @@ export function AppLayout() {
 
   return (
     <div className="app-shell">
-      <nav className="app-nav">
+      <nav className={isNight ? 'app-nav app-nav-night' : 'app-nav'}>
         <Link to="/" className="app-logo">
           <span className="app-logo-word">2Fronts</span>
         </Link>

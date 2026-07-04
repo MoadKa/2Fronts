@@ -19,6 +19,21 @@
   z-index: 10;
 }
 
+/* -- Night nav (homepage / Nachttisch hero, DESIGN.md) --
+   Warm charcoal glass instead of white; stays dark over the whole scroll,
+   which reads deliberate against both the night hero and the paper sections. */
+.app-nav-night {
+  background: rgba(18, 16, 14, 0.72);
+  border-bottom: 1px solid rgba(231, 225, 214, 0.12);
+}
+.app-nav-night .app-nav-link { color: #e7e1d6; }
+.app-nav-night .app-nav-link:hover { color: #ffb35c; }
+.app-nav-night .app-nav-link.is-active { color: #ffb35c; }
+.app-nav-night .app-nav-company { color: rgba(231, 225, 214, 0.6); }
+.app-nav-night .lang-btn { color: rgba(231, 225, 214, 0.7); }
+.app-nav-night .lang-btn:hover { color: #e7e1d6; }
+.app-nav-night .lang-switcher { border-color: rgba(231, 225, 214, 0.25); background: transparent; }
+
 .app-logo {
   display: inline-flex;
   align-items: center;

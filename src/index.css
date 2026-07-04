@@ -243,3 +243,22 @@ a {
     animation: none;
   }
 }
+
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────
+   Slim, rounded, translucent — the fat OS-default bars fight every surface
+   on the page (and read like Windows XP). Firefox + WebKit variants. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(107, 101, 91, 0.45) transparent;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(107, 101, 91, 0.45);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: rgba(107, 101, 91, 0.7); }
+::-webkit-scrollbar-corner { background: transparent; }

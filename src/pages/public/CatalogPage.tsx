@@ -84,6 +84,14 @@ function ArrowRightIcon(props: IconProps) {
   )
 }
 
+function CheckIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M5 12.5l4.5 4.5L19 7" />
+    </svg>
+  )
+}
+
 export function CatalogPage() {
   const { t, i18n } = useTranslation()
   const [automations, setAutomations] = useState<Automation[]>([])
@@ -136,7 +144,9 @@ export function CatalogPage() {
 
       <div className="dawn bleed" aria-hidden="true" />
 
-      <section className="calendar-pain bleed">
+      <div className="day-stage bleed">
+
+      <section className="calendar-pain">
         <div className="pain-inner">
           <Reveal>
             <div>
@@ -285,7 +295,51 @@ export function CatalogPage() {
           </div>
         )}
 
-        {!loading && !loadError && automations.length > 0 && (
+        {/* With exactly one product, a shop grid reads as an empty shelf.
+            Render it as one wide offer card instead; the grid returns
+            automatically once a second automation goes live. */}
+        {!loading && !loadError && automations.length === 1 && (
+          <Reveal>
+            <Link to={`/automations/${automations[0]!.id}`} className="offer-card-link">
+              {(() => {
+                const a = automations[0]!
+                const loc = localizeAutomation(a, i18n.language)
+                return (
+                  <div className="offer-card">
+                    <div className="offer-main">
+                      <Badge>{localizeCategory(a.category, t)}</Badge>
+                      <h3>{loc.name}</h3>
+                      <p className="offer-summary">{loc.summary}</p>
+                      <ul className="offer-bullets">
+                        {[1, 2, 3].map((n) => (
+                          <li key={n}>
+                            <CheckIcon className="offer-check" aria-hidden="true" />
+                            {t(`offer.bullet${n}`)}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="offer-buy">
+                      <span className="offer-price">
+                        {formatPrice(a.price_cents, a.currency)}
+                        {a.pricing_model === 'subscription' && (
+                          <span className="offer-per"> {t('catalog.perMonth')}</span>
+                        )}
+                      </span>
+                      <span className="offer-note">{t('offer.note')}</span>
+                      <span className="btn btn-primary offer-cta">
+                        {t('offer.cta')}
+                        <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
+            </Link>
+          </Reveal>
+        )}
+
+        {!loading && !loadError && automations.length > 1 && (
           <>
             {filteredAutomations.length === 0 ? (
               <div className="catalog-grid">
@@ -320,6 +374,8 @@ export function CatalogPage() {
       <Reveal>
         <CatalogRequestSection />
       </Reveal>
+
+      </div>
     </div>
   )
 }
