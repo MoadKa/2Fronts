@@ -62,9 +62,10 @@ describe('App routing — public concierge is standalone', () => {
   })
 
   // The catalog is now the home page (replaced the waitlist landing at /).
+  // Its hero is the Nachttisch lost-inquiry story (DESIGN.md).
   it('serves the catalog as the home page at /', async () => {
     const T = i18n.getFixedT('de')
     renderAppAt('/')
-    await waitFor(() => expect(screen.getByText(T('catalog.heroTitle'))).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(T('nightHero.headline'))).toBeInTheDocument())
   })
 })

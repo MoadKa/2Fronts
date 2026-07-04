@@ -1,17 +1,25 @@
+/* Solid white card on neutral surfaces — hairline edge, whisper shadow.
+   Glass stays reserved for the nav and modals, where it earns its blur cost. */
 .card {
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
   padding: var(--space-lg);
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
-  transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
   text-align: left;
 }
 
 .catalog-card-link:hover .card {
-  background: var(--glass-bg-strong);
-  box-shadow: var(--glass-shadow-hover), var(--glass-highlight);
+  box-shadow: var(--shadow-md);
   transform: translateY(-3px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+  .catalog-card-link:hover .card {
+    transform: none;
+  }
 }

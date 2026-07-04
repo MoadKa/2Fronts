@@ -48,12 +48,9 @@
 
 .app-home-feature {
   padding: var(--space-lg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-alt);
 }
 
 .app-home-feature h3 {
@@ -72,12 +69,9 @@
   gap: var(--space-sm);
   padding: var(--space-xl);
   margin-bottom: var(--space-lg);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--glass-border);
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  border-radius: var(--radius-xl);
+  border: none;
+  background: var(--color-surface-alt);
   text-align: center;
 }
 

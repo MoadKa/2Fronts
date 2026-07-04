@@ -6,6 +6,8 @@ import { localizeAutomation, localizeCategory } from '../../lib/localizeAutomati
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Reveal } from '../../components/ui/Reveal'
+import { DemoVideo } from '../../components/ui/DemoVideo'
+import { HeroNightChat } from './HeroNightChat'
 import { CatalogRequestSection } from './CatalogRequestSection'
 import type { Automation } from '../../types/database'
 import './CatalogPage.css'
@@ -110,31 +112,74 @@ export function CatalogPage() {
   }, [automations, activeCategory])
 
   return (
-    <div className="landing">
-      <section className="hero">
-        <div className="hero-blobs" aria-hidden="true">
-          <span className="blob blob-1" />
-          <span className="blob blob-2" />
-          <span className="blob blob-3" />
-        </div>
-        <div className="hero-content rise-stagger">
-          <span className="hero-eyebrow">
-            <SparkleIcon className="hero-eyebrow-icon" aria-hidden="true" />
-            {t('catalog.heroEyebrow')}
-          </span>
-          <h1>{t('catalog.heroTitle')}</h1>
-          <p className="hero-sub">{t('catalog.heroSub')}</p>
-          <div className="hero-actions">
-            <a href="#catalog" className="btn btn-primary hero-cta">
-              {t('catalog.discoverAutomations')}
-              <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
-            </a>
-            <a href="#how-it-works" className="hero-link">
-              {t('catalog.howItWorksLink')}
-            </a>
+    <div className="landing landing-nachttisch">
+      <section className="night-hero bleed">
+        <div className="night-glow" aria-hidden="true" />
+        <div className="night-inner">
+          <div className="night-copy rise-stagger">
+            <span className="night-kicker">{t('nightHero.kicker')}</span>
+            <h1>{t('nightHero.headline')}</h1>
+            <p className="night-sub">{t('nightHero.sub')}</p>
+            <div className="hero-actions night-actions">
+              <a href="#demo" className="btn btn-primary hero-cta">
+                {t('nightHero.cta')}
+                <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
+              </a>
+              <a href="#catalog" className="hero-link night-link">
+                {t('catalog.discoverAutomations')}
+              </a>
+            </div>
           </div>
+          <HeroNightChat />
         </div>
       </section>
+
+      <div className="dawn bleed" aria-hidden="true" />
+
+      <section className="calendar-pain bleed">
+        <div className="pain-inner">
+          <Reveal>
+            <div>
+              <span className="pain-kicker">{t('calendarPain.kicker')}</span>
+              <h2>{t('calendarPain.title')}</h2>
+              <p className="pain-sub">{t('calendarPain.sub')}</p>
+              <p className="pain-resolve">{t('calendarPain.resolve')}</p>
+            </div>
+          </Reveal>
+          <Reveal delay={100}>
+            <div className="pain-cal">
+              <div className="pain-cal-head">
+                <b>{t('calendarPain.calTitle')}</b>
+                <span>{t('calendarPain.calVia')}</span>
+              </div>
+              {[1, 2, 3].map((n) => (
+                <div className="pain-slot" key={n}>
+                  <span className="pain-time">{n === 1 ? '10:00' : n === 2 ? '13:00' : '15:30'}</span>
+                  <div className="pain-what">
+                    <b>{t(`calendarPain.slot${n}Name`)}</b>
+                    <span className="pain-tag">{t(`calendarPain.slot${n}Tag`)}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="pain-cal-foot">
+                <span>{t('calendarPain.stat1')}</span>
+                <span>{t('calendarPain.stat2')}</span>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <Reveal>
+        <section id="demo" className="demo-section">
+          <span className="demo-eyebrow">{t('demo.eyebrow')}</span>
+          <h2>{t('demo.title')}</h2>
+          <p className="demo-section-sub">{t('demo.sub')}</p>
+          <div className="demo-section-frame">
+            <DemoVideo />
+          </div>
+        </section>
+      </Reveal>
 
       <Reveal>
         <section className="trust-strip">

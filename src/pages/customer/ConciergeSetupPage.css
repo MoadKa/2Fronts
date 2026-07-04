@@ -14,19 +14,26 @@
 .concierge-setup-form select {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-muted);
-  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font: inherit;
   color: var(--color-foreground);
-  background: var(--color-background, #fff);
+  background: var(--color-surface);
   resize: vertical;
+}
+
+.concierge-setup-form textarea:focus,
+.concierge-setup-form select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
 }
 
 .input-hint {
   display: block;
   margin-top: 4px;
   font-size: 0.85em;
-  color: var(--color-muted-foreground, #6b7280);
+  color: var(--color-text-muted);
 }
 
 .concierge-live-link {
@@ -58,12 +65,18 @@
 .wizard-card textarea {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-muted);
-  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font: inherit;
   color: var(--color-foreground);
-  background: var(--color-background, #fff);
+  background: var(--color-surface);
   resize: vertical;
+}
+
+.wizard-card textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
 }
 
 .wizard-nav {
@@ -101,9 +114,9 @@
   flex: 1;
   text-align: left;
   padding: var(--space-md);
-  border: 2px solid var(--color-muted, #e5e7eb);
-  border-radius: var(--radius-md, 12px);
-  background: var(--color-background, #fff);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
   color: var(--color-foreground);
   font: inherit;
   cursor: pointer;
@@ -111,12 +124,12 @@
 }
 
 .wizard-choice:hover {
-  border-color: var(--color-primary, #4f46e5);
+  border-color: var(--color-primary);
 }
 
 .wizard-choice.is-selected {
-  border-color: var(--color-primary, #4f46e5);
-  background: color-mix(in srgb, var(--color-primary, #4f46e5) 8%, transparent);
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .wizard-tone {
@@ -131,7 +144,7 @@
 
 .wizard-tone-desc {
   font-size: 0.85em;
-  color: var(--color-muted-foreground, #6b7280);
+  color: var(--color-text-muted);
 }
 
 /* Scrape accelerator */
@@ -140,8 +153,8 @@
   flex-direction: column;
   gap: 6px;
   padding: var(--space-sm) var(--space-md);
-  border: 1px dashed var(--color-muted, #cbd5e1);
-  border-radius: var(--radius-md, 12px);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
 }
 
 .wizard-accelerator-row {
@@ -152,17 +165,24 @@
 .wizard-accelerator-row input {
   flex: 1;
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-muted);
-  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
   font: inherit;
 }
 
+.wizard-accelerator-row input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+}
+
 .wizard-scrape-ok {
-  color: var(--color-primary, #16a34a);
+  color: var(--color-primary);
 }
 
 .wizard-scrape-fail {
-  color: var(--color-muted-foreground, #6b7280);
+  color: var(--color-text-muted);
 }
 
 /* Question example chips */
@@ -175,21 +195,21 @@
 
 .wizard-chips-label {
   font-size: 0.85em;
-  color: var(--color-muted-foreground, #6b7280);
+  color: var(--color-text-muted);
 }
 
 .wizard-chip {
   padding: 4px 10px;
-  border: 1px solid var(--color-muted, #e5e7eb);
-  border-radius: 999px;
-  background: var(--color-background, #fff);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
   color: var(--color-foreground);
   font-size: 0.85em;
   cursor: pointer;
 }
 
 .wizard-chip:hover {
-  border-color: var(--color-primary, #4f46e5);
+  border-color: var(--color-primary);
 }
 
 /* ---- Qualification step: the coach's ideal-customer criteria (#lead-qual) ---- */
@@ -199,19 +219,19 @@
   gap: var(--space-md);
 }
 
-/* Each criterion is a soft claymorphism card. */
+/* Each criterion is a solid white card: hairline edge, whisper shadow. */
 .wizard-qualify-criterion {
-  border: 2px solid var(--color-border, var(--color-muted, #e5e7eb));
-  border-radius: var(--radius-lg, 16px);
-  background: var(--color-surface, var(--color-background, #fff));
-  box-shadow: var(--shadow-clay-sm);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: border-color 160ms ease, box-shadow 200ms ease;
 }
 
 .wizard-qualify-criterion:focus-within {
   border-color: var(--color-primary);
-  box-shadow: var(--shadow-clay-md);
+  box-shadow: var(--shadow-md);
 }
 
 /* The enable checkbox is the card header for a built-in criterion. */
@@ -257,11 +277,18 @@
 .wizard-qualify-option input[type='text'] {
   width: 100%;
   padding: 8px var(--space-sm);
-  border: 1px solid var(--color-muted);
-  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
   font: inherit;
   color: var(--color-foreground);
-  background: var(--color-background, #fff);
+  background: var(--color-surface);
+}
+
+.wizard-qualify-body input[type='text']:focus,
+.wizard-qualify-option input[type='text']:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
 }
 
 /* One answer-option row: label input + "qualifies" toggle + remove. */
@@ -282,7 +309,7 @@
   gap: 5px;
   white-space: nowrap;
   font-size: 0.82rem;
-  color: var(--color-text, var(--color-muted-foreground, #6b7280));
+  color: var(--color-text);
   cursor: pointer;
 }
 
@@ -298,7 +325,7 @@
   gap: var(--space-sm);
 }
 
-/* ---- Brand-fit wizard motion (claymorphism: soft, warm, tactile) ---- */
+/* ---- Wizard motion (calm, tactile) ---- */
 /* Each step rises + fades in as it mounts (steps are separate conditional
    blocks, so switching step remounts and replays this). */
 @keyframes wizard-rise {
@@ -316,15 +343,15 @@
   animation: wizard-rise 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Tactile cards: lift on hover, press down on click — clay you can squish. */
+/* Tactile cards: lift on hover, press down on click. */
 .wizard-choice {
-  box-shadow: var(--shadow-clay-sm);
+  box-shadow: var(--shadow-sm);
   transition: border-color 160ms ease, background 160ms ease,
     transform 140ms ease, box-shadow 160ms ease;
 }
 .wizard-choice:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-clay-md);
+  box-shadow: var(--shadow-md);
 }
 .wizard-choice:active,
 .wizard-choice.is-selected:active {
@@ -388,7 +415,7 @@ ol.wizard-qualify {
   width: 1.6rem;
   height: 1.6rem;
   flex-shrink: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   color: var(--color-primary-dark);
   font-family: var(--heading);
@@ -451,7 +478,7 @@ ol.wizard-qualify {
 /* Drag visual feedback: the dragged card dims + lifts; the drop target glows. */
 .wizard-qualify-criterion.is-dragging {
   opacity: 0.6;
-  box-shadow: var(--shadow-clay-lg);
+  box-shadow: var(--shadow-lg);
   transform: scale(1.01);
 }
 .wizard-qualify-criterion.is-dragover {
@@ -489,7 +516,7 @@ ol.wizard-qualify {
   min-height: 40px;
   padding: 6px 12px;
   border: 1px dashed var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-foreground);
   font-size: 0.85rem;
@@ -520,8 +547,8 @@ ol.wizard-qualify {
   justify-content: center;
   width: 56px;
   height: 56px;
-  border-radius: 999px;
-  box-shadow: var(--shadow-clay-sm);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
 }
 .wizard-welcome-mark {
   color: var(--color-primary);

@@ -9,20 +9,20 @@
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  color: var(--color-muted-foreground, #6b7280);
+  color: var(--color-text-muted);
 }
 
 .progress-track {
   width: 100%;
   height: 6px;
-  border-radius: 999px;
-  background: var(--color-muted, #e5e7eb);
+  border-radius: var(--radius-pill);
+  background: var(--color-muted);
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  border-radius: 999px;
-  background: var(--color-primary, #4f46e5);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
   transition: width 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }

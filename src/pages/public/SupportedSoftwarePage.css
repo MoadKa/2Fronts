@@ -33,16 +33,16 @@
   position: relative;
   height: 100%;
   background: var(--color-surface);
-  border: 2px solid var(--color-border);
+  border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
-  box-shadow: var(--shadow-clay-sm);
+  box-shadow: var(--shadow-sm);
   transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 
 .software-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-clay-md);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Coming-soon connectors are intentionally dimmed: clearly future, never a
@@ -69,7 +69,7 @@
   font-size: 1.2rem;
   color: var(--color-primary-dark);
   margin-bottom: var(--space-md);
-  box-shadow: var(--shadow-clay-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .software-name {
@@ -100,7 +100,7 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
   padding: 0.24rem 0.65rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .pill-live {
