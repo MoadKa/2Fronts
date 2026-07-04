@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.13.2.0] - 2026-07-04
+
+### Added
+- **Night finale (bookend).** The homepage now closes the way it opens: back at 23:12 via a dusk gradient, but this time the moment goes right — green "Erstgespräch gebucht" card (the mirror of the hero's red loss card, "Antwortzeit: 4 Sekunden") and the final CTA. Loss at the top, redemption at the bottom. DE/EN.
+
 ## [1.13.1.0] - 2026-07-04
 
 ### Changed

@@ -634,5 +634,13 @@
     "bullet3": "Bucht Erstgespräche direkt in deinen Kalender",
     "cta": "Setter einrichten",
     "note": "monatlich kündbar · sichere Zahlung über Stripe"
+  },
+  "nightFinale": {
+    "kicker": "HEUTE NACHT · 23:12",
+    "title": "Heute Nacht fragt wieder jemand.",
+    "sub": "Diesmal antwortet dein Setter in Sekunden, stellt deine Fragen und bucht den Termin. Du schläfst. Dein Kalender nicht.",
+    "bookedTitle": "Erstgespräch gebucht",
+    "bookedText": "Donnerstag, 14:00 Uhr · Antwortzeit: 4 Sekunden",
+    "cta": "Setter einrichten"
   }
 }
