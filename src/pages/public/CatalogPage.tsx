@@ -376,6 +376,43 @@ export function CatalogPage() {
       </Reveal>
 
       </div>
+
+      <div className="dusk bleed" aria-hidden="true" />
+
+      {/* Night finale — the bookend. The page opens at 23:12 with the lost
+          inquiry; it closes at 23:12 with the same moment going right. */}
+      <section className="night-finale bleed">
+        <div className="finale-glow" aria-hidden="true" />
+        <div className="finale-inner">
+          <Reveal>
+            <span className="night-kicker">{t('nightFinale.kicker')}</span>
+            <h2>{t('nightFinale.title')}</h2>
+            <p className="finale-sub">{t('nightFinale.sub')}</p>
+          </Reveal>
+          <Reveal delay={120}>
+            <div className="finale-booked">
+              <b>
+                <CheckIcon className="finale-check" aria-hidden="true" />
+                {t('nightFinale.bookedTitle')}
+              </b>
+              <span>{t('nightFinale.bookedText')}</span>
+            </div>
+          </Reveal>
+          <Reveal delay={200}>
+            {automations.length === 1 ? (
+              <Link to={`/automations/${automations[0]!.id}`} className="btn btn-primary hero-cta finale-cta">
+                {t('nightFinale.cta')}
+                <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
+              </Link>
+            ) : (
+              <a href="#catalog" className="btn btn-primary hero-cta finale-cta">
+                {t('nightFinale.cta')}
+                <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
+              </a>
+            )}
+          </Reveal>
+        </div>
+      </section>
     </div>
   )
 }

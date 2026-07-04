@@ -392,6 +392,96 @@
   .pain-inner { grid-template-columns: 1fr; gap: 2rem; }
 }
 
+/* ── Night finale: dusk back into the night, this time it goes right ── */
+.dusk {
+  height: clamp(90px, 16vh, 170px);
+  background: linear-gradient(#f8f4ec, #4a3a2c 55%, #12100e);
+}
+
+.night-finale {
+  position: relative;
+  background: #12100e;
+  color: #e7e1d6;
+  overflow: hidden;
+  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
+  text-align: center;
+}
+
+.finale-glow {
+  position: absolute;
+  inset: -12% -18%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 50% 55% at 50% 42%, rgba(255, 179, 92, 0.12), transparent 68%);
+}
+
+.finale-inner {
+  position: relative;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(3.5rem, 9vh, 6rem) var(--space-xl) clamp(4rem, 10vh, 6.5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.night-finale h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 640;
+  font-size: clamp(2rem, 4.2vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.005em;
+  color: #e7e1d6;
+  margin-top: 0.6rem;
+}
+
+.finale-sub {
+  margin: 1.1rem auto 1.6rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: rgba(231, 225, 214, 0.75);
+  max-width: 42ch;
+}
+
+/* The redemption card — the green mirror of the hero's red loss card. */
+.finale-booked {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  background: #101a12;
+  border: 1px solid rgba(46, 125, 70, 0.5);
+  border-radius: 12px;
+  padding: 0.75rem 1.1rem;
+  font-size: 0.85rem;
+  color: #d9ecd9;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 1.8rem;
+}
+.finale-booked b {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #6fbf85;
+  font-size: 0.9rem;
+}
+.finale-check {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  padding: 2px;
+  border-radius: 50%;
+  background: #2e7d46;
+  color: #fff;
+}
+.finale-booked span {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.72rem;
+  color: rgba(217, 236, 217, 0.7);
+}
+
+.finale-cta { text-decoration: none; }
+
 /* ----------------------------------------------------------------------- */
 /* Hero — open, typography-led. No box, no blobs: the headline is the hero. */
 /* ----------------------------------------------------------------------- */

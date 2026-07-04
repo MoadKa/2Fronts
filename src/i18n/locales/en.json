@@ -634,5 +634,13 @@
     "bullet3": "Books discovery calls straight into your calendar",
     "cta": "Set up your setter",
     "note": "cancel monthly · secure checkout via Stripe"
+  },
+  "nightFinale": {
+    "kicker": "TONIGHT · 11:12 PM",
+    "title": "Tonight, someone will ask again.",
+    "sub": "This time your setter answers in seconds, asks your questions, and books the call. You sleep. Your calendar does not.",
+    "bookedTitle": "Discovery call booked",
+    "bookedText": "Thursday, 2:00 PM · response time: 4 seconds",
+    "cta": "Set up your setter"
   }
 }
