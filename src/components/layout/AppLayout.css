@@ -23,7 +23,7 @@
    Warm charcoal glass instead of white; stays dark over the whole scroll,
    which reads deliberate against both the night hero and the paper sections. */
 .app-nav-night {
-  background: rgba(18, 16, 14, 0.72);
+  background: rgba(28, 9, 7, 0.74);
   border-bottom: 1px solid rgba(231, 225, 214, 0.12);
 }
 .app-nav-night .app-nav-link { color: #e7e1d6; }

@@ -50,9 +50,9 @@ Was ihn nicht stützt, fliegt raus.
 
 | Rolle | Hex | Regel |
 |---|---|---|
-| Nacht-Ambiente | `#12100E` | warmes Anthrazit. NIE Blau-Schwarz, nie Neon. Nur Marketing-Hero. |
+| Nacht-Ambiente | `#1C0907` | Sonnenfinsternis-Rot (Founder-Wahl 2026-07-04). NIE reines Schwarz, nie Blau-Schwarz, nie Neon. Marketing-Nachtflächen (Hero + Finale + Nacht-Nav rgba(28,9,7,.74)). |
 | Text auf Nacht | `#E7E1D6` | Mondlicht-Beige, nie reines Weiß. Sekundär: rgba(231,225,214,.75). |
-| Lampen-Amber | `#FFB35C` | NUR als Lichtschein/Glow und Kicker auf dunkel. Nie Fläche, nie Button. |
+| Lampen-Amber | `#FFB35C` | Kicker/Links auf dunkel. Glows nutzen Ember `rgba(255,107,44,.13-.16)` (Eklipse-Korona). Nie Fläche, nie Button. |
 | Morgen-Fläche | `#F8F4EC` | Seiten ab Sektion 2, Cards `#FFFDF7`, Kante `#E3DBC9`. |
 | Tinte | `#1B1712` | Headings/Text auf hell. Body-Sekundär `#4B453B`, muted `#6B655B`. |
 | CTA/Brand | `#EA580C` | Buttons, Links (hover `#C2410C`). Kontinuität zu Stripe/Bestand. |
@@ -100,3 +100,6 @@ und EN (i18n), inkl. Zeitformat (23:12 ↔ 11:12 PM).
 | 2026-07-04 | Fraunces als Display | Founder-Wahl aus 4 Live-Kandidaten; Anti-Konvergenz (Space Grotesk raus) |
 | 2026-07-04 | Sektion 2 = falscher voller Kalender | Founder-Einwand: Calendly-in-Bio-Coaches kennen den Nacht-Schmerz nicht; ihr Schmerz ist Qualifizierung |
 | 2026-07-04 | App-Flächen bleiben hell/diszipliniert | Nacht ist Marketing-Dramaturgie, kein UI-Theme |
+| 2026-07-04 | Nacht-Finale als Buchstütze | Seite endet wieder um 23:12, diesmal grüne Buchungs-Karte (Spiegel der Verlust-Karte) |
+| 2026-07-04 | Angebot als Stellenanzeige | Zielgruppe denkt in „Setter einstellen"; Gehaltszeile macht den Preisvergleich implizit |
+| 2026-07-04 | Nacht = Sonnenfinsternis-Rot `#1C0907` | Founder: „dunkel dunkel rot wie Sonnenfinsternis", nicht Schwarz; Ember-Korona-Glows |

@@ -220,7 +220,7 @@
 
 .night-hero {
   position: relative;
-  background: #12100e; /* warm charcoal — never blue-black (DESIGN.md) */
+  background: #1c0907; /* eclipse red-black — never plain black (DESIGN.md) */
   color: #e7e1d6;
   overflow: hidden;
   font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
@@ -230,7 +230,7 @@
   position: absolute;
   inset: -12% -18%;
   pointer-events: none;
-  background: radial-gradient(ellipse 46% 52% at 68% 46%, rgba(255, 179, 92, 0.14), transparent 68%);
+  background: radial-gradient(ellipse 46% 52% at 68% 46%, rgba(255, 107, 44, 0.16), transparent 68%);
 }
 
 .night-inner {
@@ -277,7 +277,7 @@
 
 .dawn {
   height: clamp(90px, 16vh, 170px);
-  background: linear-gradient(#12100e, #4a3a2c 55%, var(--color-background));
+  background: linear-gradient(#1c0907, #5c2b1c 55%, #f8f4ec);
 }
 
 /* ── Act 2: the wrong-full calendar ── */
@@ -412,12 +412,12 @@
 /* ── Night finale: dusk back into the night, this time it goes right ── */
 .dusk {
   height: clamp(90px, 16vh, 170px);
-  background: linear-gradient(#f8f4ec, #4a3a2c 55%, #12100e);
+  background: linear-gradient(#f8f4ec, #5c2b1c 55%, #1c0907);
 }
 
 .night-finale {
   position: relative;
-  background: #12100e;
+  background: #1c0907;
   color: #e7e1d6;
   overflow: hidden;
   font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
@@ -428,7 +428,7 @@
   position: absolute;
   inset: -12% -18%;
   pointer-events: none;
-  background: radial-gradient(ellipse 50% 55% at 50% 42%, rgba(255, 179, 92, 0.12), transparent 68%);
+  background: radial-gradient(ellipse 50% 55% at 50% 42%, rgba(255, 107, 44, 0.14), transparent 68%);
 }
 
 .finale-inner {
