@@ -542,12 +542,25 @@
       "remove": "Remove",
       "presets": {
         "budgetQuestion": "What's your monthly budget?",
-        "budgetOptions": ["under €500", "€500–2,000", "over €2,000"],
+        "budgetOptions": [
+          "under €500",
+          "€500–2,000",
+          "over €2,000"
+        ],
         "industryQuestion": "What industry are you in?",
         "ageQuestion": "Which age group are you in?",
-        "ageOptions": ["18–25", "26–40", "41–60", "over 60"],
+        "ageOptions": [
+          "18–25",
+          "26–40",
+          "41–60",
+          "over 60"
+        ],
         "timeline_roleQuestion": "How soon do you want to start?",
-        "timeline_roleOptions": ["right away", "in the next few weeks", "just browsing"]
+        "timeline_roleOptions": [
+          "right away",
+          "in the next few weeks",
+          "just browsing"
+        ]
       }
     },
     "tone": {
@@ -576,5 +589,18 @@
       "saveFailed": "We couldn't finish setup — please try again.",
       "mustSignIn": "Please sign in to set up your setter."
     }
+  },
+  "demo": {
+    "eyebrow": "Live demo",
+    "title": "See what you get",
+    "sub": "Five minutes of the real product: how the setter is set up, how it qualifies, and how a call lands in your calendar.",
+    "videoTitle": "2Fronts demo",
+    "playLabel": "Play demo",
+    "durationChip": "5 min demo",
+    "posterProspect": "Hi! Is there still a spot in your program?",
+    "posterSetter": "Happy to help! Two quick questions, then you can pick a time.",
+    "posterBooked": "Call booked",
+    "detailTitle": "Demo: your setter at work",
+    "heroCta": "Watch the demo (5 min)"
   }
 }

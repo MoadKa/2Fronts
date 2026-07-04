@@ -1,5 +1,5 @@
-/* Sign-in / sign-up modal (v1.3). The clay card + overlay come from Modal.css;
-   this lays out a warm header, the fields, and the actions, and adds a smooth
+/* Sign-in / sign-up modal (v1.3). The glass card + overlay come from Modal.css;
+   this lays out the header, the fields, and the actions, and adds a smooth
    entrance for the dialog content. */
 .auth-modal {
   display: flex;
@@ -33,7 +33,7 @@
   border-radius: var(--radius-md);
   color: var(--color-on-primary);
   background: var(--color-primary);
-  box-shadow: var(--shadow-clay-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .auth-modal-fields {

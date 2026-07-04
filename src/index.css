@@ -1,30 +1,36 @@
 /* Fonts load via <link rel="preconnect"> + stylesheet in index.html, NOT an
    @import here. An @import chains the font-CSS fetch behind this stylesheet
    (download app CSS → discover font CSS → fetch fonts), blocking first paint. */
+/* Design language: "Apple in Orange" — neutral white/#f5f5f7 surfaces, near-black
+   ink, one restrained orange accent doing the job Apple gives their blue.
+   Orange is spent, not sprayed: CTAs, links, the single highlight per screen. */
 :root {
-  --color-primary: #f97316;
-  --color-primary-dark: #ea580c;
-  --color-on-primary: #fff7ed;
-  --color-secondary: #fb923c;
-  --color-accent: #2563eb;
-  --color-accent-dark: #1d4ed8;
-  --color-background: #fff7ed;
+  --color-primary: #ea580c;
+  --color-primary-dark: #c2410c;
+  --color-on-primary: #ffffff;
+  --color-secondary: #f97316;
+  --color-accent: #c2410c;
+  --color-accent-dark: #9a3412;
+  --color-background: #ffffff;
   --color-surface: #ffffff;
-  --color-foreground: #431407;
-  --color-text: #57534e;
-  --color-muted: #f1ede7;
-  --color-border: #fed7aa;
+  /* Alternate section surface (Apple's #f5f5f7 rhythm). */
+  --color-surface-alt: #f5f5f7;
+  --color-foreground: #1d1d1f;
+  --color-text: #3a3a3c;
+  --color-muted: #f5f5f7;
+  --color-border: #d2d2d7;
+  /* Hairline for card edges — softer than --color-border dividers. */
+  --color-hairline: rgba(0, 0, 0, 0.08);
   --color-success: #16a34a;
   --color-success-bg: #dcfce7;
   --color-warning: #b45309;
   --color-warning-bg: #fef3c7;
   --color-destructive: #dc2626;
   --color-destructive-bg: #fee2e2;
-  --color-ring: #f97316;
+  --color-ring: #ea580c;
   /* Muted text. Used by AppHomePage, AuthModal, ProgressBar, ConciergeSetup —
-     previously undefined, so those references fell back to inherited color.
-     #6b6157 (not lighter) keeps >=4.5:1 even over the translucent glass panels. */
-  --color-text-muted: #6b6157;
+     previously undefined, so those references fell back to inherited color. */
+  --color-text-muted: #6e6e73;
   --color-muted-foreground: var(--color-text-muted);
 
   --space-xs: 0.25rem;
@@ -39,24 +45,30 @@
      eyebrow/note text rendered at the inherited size. */
   --font-size-sm: 0.875rem;
 
-  --radius-sm: 10px;
+  --radius-sm: 12px;
   --radius-md: 16px;
   --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 980px;
 
-  --shadow-clay-sm: 0 2px 0 var(--color-border), 0 4px 10px rgba(154, 52, 18, 0.08);
-  --shadow-clay-md: 0 4px 0 var(--color-border), 0 10px 20px rgba(154, 52, 18, 0.12);
-  --shadow-clay-lg: 0 6px 0 var(--color-border), 0 18px 32px rgba(154, 52, 18, 0.16);
+  /* Whisper shadows: neutral, layered, no visible offset ledge. The old clay
+     names are kept as aliases so existing consumers keep working. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.04), 0 12px 24px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.04), 0 24px 48px rgba(0, 0, 0, 0.1);
+  --shadow-clay-sm: var(--shadow-sm);
+  --shadow-clay-md: var(--shadow-md);
+  --shadow-clay-lg: var(--shadow-lg);
 
-  /* Glassmorphism layer. Frosted translucent panels that refract the warm page
-     tint behind them. Keeps the existing palette — these are just white/light
-     alphas + blur. Apply to panels, NOT to inputs (they need to stay opaque). */
-  --glass-bg: rgba(255, 255, 255, 0.45);
-  --glass-bg-strong: rgba(255, 255, 255, 0.66);
-  --glass-border: rgba(249, 115, 22, 0.55); /* thin brand-orange rim highlighting glass surfaces */
-  --glass-blur: blur(16px) saturate(160%);
-  --glass-shadow: 0 10px 30px rgba(154, 52, 18, 0.1);
-  --glass-shadow-hover: 0 16px 40px rgba(154, 52, 18, 0.16);
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  /* Glass layer, Apple-nav calibration: high blur + saturation, near-opaque
+     white, neutral hairline instead of a colored rim. Panels only, never inputs. */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-strong: rgba(251, 251, 253, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-blur: blur(20px) saturate(180%);
+  --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --glass-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.1);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
 
   /* Motion system (v1.3 UI overhaul). Shared easing + durations so every surface
      animates with one rhythm. Enter from below = ease-out; springy for delight. */
@@ -100,10 +112,10 @@ body {
   background: var(--color-background);
 }
 
-/* Soft warm/cool tints behind everything so the frosted glass panels have
-   something to refract. Painted on a fixed pseudo-element (a static GPU layer)
-   instead of `background-attachment: fixed`, which janks during scroll when
-   combined with backdrop-filter panels. */
+/* One whisper of warmth at the very top of the page — enough for the glass nav
+   to have something to refract, faint enough that the page still reads white.
+   Fixed pseudo-element (static GPU layer) instead of background-attachment:
+   fixed, which janks during scroll combined with backdrop-filter panels. */
 body::before {
   content: '';
   position: fixed;
@@ -111,9 +123,7 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 12% 6%, rgba(249, 115, 22, 0.12), transparent 42%),
-    radial-gradient(circle at 88% 2%, rgba(37, 99, 235, 0.09), transparent 40%),
-    radial-gradient(circle at 70% 95%, rgba(251, 146, 60, 0.1), transparent 45%);
+    radial-gradient(ellipse 80% 40% at 50% -8%, rgba(249, 115, 22, 0.07), transparent 70%);
 }
 
 /* If backdrop-filter is unsupported, the translucent glass fills would let
@@ -131,31 +141,31 @@ body::before {
   flex-direction: column;
 }
 
+/* Display type: big, tight, confident. Fluid sizes so headlines stay imposing
+   on desktop without breaking 375px. */
 h1, h2, h3, h4 {
   font-family: var(--heading);
   font-weight: 600;
   color: var(--color-foreground);
-  line-height: 1.2;
+  line-height: 1.15;
   margin: 0 0 var(--space-sm);
 }
 
 h1 {
-  font-size: 2.5rem;
-  letter-spacing: -0.02em;
+  font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
 }
 
 h2 {
-  font-size: 1.75rem;
-  letter-spacing: -0.01em;
+  font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.25rem);
+  letter-spacing: -0.02em;
 }
 
 h3 {
   font-size: 1.25rem;
-}
-
-@media (max-width: 768px) {
-  h1 { font-size: 2rem; }
-  h2 { font-size: 1.4rem; }
+  letter-spacing: -0.01em;
 }
 
 p {
@@ -168,7 +178,7 @@ a {
 
 ::selection {
   background: var(--color-secondary);
-  color: var(--color-on-primary);
+  color: #ffffff;
 }
 
 :focus-visible {

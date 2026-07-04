@@ -1,6 +1,6 @@
 /* T6 — First-connect column mapping confirmation.
    Markup/classes mirror the design wireframe; all colors come from the
-   claymorphism tokens defined in src/index.css. */
+   shared tokens defined in src/index.css. */
 
 .mapping-wrap {
   max-width: 880px;
@@ -10,10 +10,10 @@
 
 .mapping-card {
   background: var(--color-surface);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
   padding: var(--space-xl);
-  box-shadow: var(--shadow-clay-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .mapping-card .muted {
@@ -31,7 +31,7 @@
   font-size: 0.78rem;
   font-weight: 700;
   padding: 0.18rem 0.6rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: var(--sans);
 }
 
@@ -52,7 +52,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) 0;
-  border-bottom: 1px solid var(--color-muted);
+  border-bottom: 1px solid var(--color-hairline);
 }
 
 .map-row:last-child {
@@ -82,7 +82,7 @@
 }
 
 .col-needs {
-  border: 2px dashed var(--color-warning);
+  border: 1px dashed var(--color-warning);
   background: var(--color-warning-bg);
   color: var(--color-warning);
   font-weight: 700;
@@ -129,17 +129,26 @@
 .sheet-url-input {
   width: 100%;
   margin-top: var(--space-lg);
-  background: var(--color-muted);
-  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0.7rem 0.9rem;
   font-family: var(--sans);
   font-size: 1rem;
   color: var(--color-foreground);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 
 .sheet-url-input:focus-visible {
-  outline: 3px solid var(--color-primary);
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-url-input {
+    transition: none;
+  }
 }
 
 .mapping-actions {
@@ -153,16 +162,16 @@
   font-family: var(--heading);
   font-weight: 600;
   font-size: 1rem;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   padding: 0.7rem 1.3rem;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   cursor: pointer;
 }
 
 .btn-primary {
   background: var(--color-primary);
   color: var(--color-on-primary);
-  box-shadow: 0 3px 0 var(--color-primary-dark);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:disabled {

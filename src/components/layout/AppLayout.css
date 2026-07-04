@@ -9,7 +9,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  padding: 0.85rem 2rem;
+  padding: 0.7rem 2rem;
   background: var(--glass-bg-strong);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
@@ -17,12 +17,6 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  transition: box-shadow var(--dur-base) var(--ease-out);
-}
-
-/* A soft clay lift so the sticky bar reads as floating above content. */
-.app-nav {
-  box-shadow: 0 1px 0 var(--color-border), 0 6px 16px rgba(154, 52, 18, 0.05);
 }
 
 .app-logo {
@@ -59,7 +53,7 @@
   min-height: 44px;
   color: var(--color-foreground);
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.9rem;
   transition: color var(--dur-fast) var(--ease-out);
 }

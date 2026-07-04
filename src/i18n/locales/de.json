@@ -542,12 +542,25 @@
       "remove": "Entfernen",
       "presets": {
         "budgetQuestion": "Wie hoch ist dein monatliches Budget?",
-        "budgetOptions": ["unter 500 €", "500–2.000 €", "über 2.000 €"],
+        "budgetOptions": [
+          "unter 500 €",
+          "500–2.000 €",
+          "über 2.000 €"
+        ],
         "industryQuestion": "In welcher Branche bist du tätig?",
         "ageQuestion": "In welche Altersgruppe fällst du?",
-        "ageOptions": ["18–25", "26–40", "41–60", "über 60"],
+        "ageOptions": [
+          "18–25",
+          "26–40",
+          "41–60",
+          "über 60"
+        ],
         "timeline_roleQuestion": "Wie schnell möchtest du starten?",
-        "timeline_roleOptions": ["sofort", "in den nächsten Wochen", "ich stöbere nur"]
+        "timeline_roleOptions": [
+          "sofort",
+          "in den nächsten Wochen",
+          "ich stöbere nur"
+        ]
       }
     },
     "tone": {
@@ -576,5 +589,18 @@
       "saveFailed": "Wir konnten die Einrichtung nicht abschließen — bitte erneut versuchen.",
       "mustSignIn": "Bitte melde dich an, um deinen Setter einzurichten."
     }
+  },
+  "demo": {
+    "eyebrow": "Live-Demo",
+    "title": "Sieh dir an, was du bekommst",
+    "sub": "Fünf Minuten echtes Produkt: wie sich der Setter einrichtet, wie er qualifiziert und wie ein Erstgespräch im Kalender landet.",
+    "videoTitle": "2Fronts Demo",
+    "playLabel": "Demo abspielen",
+    "durationChip": "5 Min Demo",
+    "posterProspect": "Hallo! Ist in eurem Programm noch ein Platz frei?",
+    "posterSetter": "Gern! Zwei kurze Fragen, dann kannst du dir direkt einen Termin aussuchen.",
+    "posterBooked": "Erstgespräch gebucht",
+    "detailTitle": "Demo: So arbeitet dein Setter",
+    "heroCta": "Demo ansehen (5 Min)"
   }
 }

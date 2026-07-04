@@ -6,6 +6,7 @@ import { localizeAutomation, localizeCategory } from '../../lib/localizeAutomati
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Reveal } from '../../components/ui/Reveal'
+import { DemoVideo } from '../../components/ui/DemoVideo'
 import { CatalogRequestSection } from './CatalogRequestSection'
 import type { Automation } from '../../types/database'
 import './CatalogPage.css'
@@ -112,11 +113,6 @@ export function CatalogPage() {
   return (
     <div className="landing">
       <section className="hero">
-        <div className="hero-blobs" aria-hidden="true">
-          <span className="blob blob-1" />
-          <span className="blob blob-2" />
-          <span className="blob blob-3" />
-        </div>
         <div className="hero-content rise-stagger">
           <span className="hero-eyebrow">
             <SparkleIcon className="hero-eyebrow-icon" aria-hidden="true" />
@@ -129,12 +125,23 @@ export function CatalogPage() {
               {t('catalog.discoverAutomations')}
               <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
             </a>
-            <a href="#how-it-works" className="hero-link">
-              {t('catalog.howItWorksLink')}
+            <a href="#demo" className="hero-link">
+              {t('demo.heroCta')}
             </a>
           </div>
         </div>
       </section>
+
+      <Reveal>
+        <section id="demo" className="demo-section">
+          <span className="demo-eyebrow">{t('demo.eyebrow')}</span>
+          <h2>{t('demo.title')}</h2>
+          <p className="demo-section-sub">{t('demo.sub')}</p>
+          <div className="demo-section-frame">
+            <DemoVideo />
+          </div>
+        </section>
+      </Reveal>
 
       <Reveal>
         <section className="trust-strip">
