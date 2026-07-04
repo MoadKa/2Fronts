@@ -642,5 +642,24 @@
     "bookedTitle": "Erstgespräch gebucht",
     "bookedText": "Donnerstag, 14:00 Uhr · Antwortzeit: 4 Sekunden",
     "cta": "Setter einrichten"
+  },
+  "jobAd": {
+    "kicker": "STELLENANZEIGE",
+    "titleSuffix": " (m/w/d/KI)",
+    "rowHours": "Arbeitszeit",
+    "valHours": "Rund um die Uhr. Auch um 23:12.",
+    "rowDuties": "Aufgaben",
+    "valDuties": "Anfragen beantworten (nur aus deinen Inhalten), qualifizieren, Erstgespräche buchen.",
+    "rowSalary": "Gehalt",
+    "valSalaryNote": "im Monat. Fix. Keine Provision, kein Bonus.",
+    "rowVacation": "Urlaub",
+    "valVacation": "Keiner. Wird nicht krank, kündigt nicht.",
+    "rowOnboarding": "Einarbeitung",
+    "valOnboarding": "Kennt dein Angebot ab Tag 1.",
+    "rowNotice": "Kündigungsfrist",
+    "valNotice": "Monatlich.",
+    "rowStart": "Antritt",
+    "valStart": "Heute Nacht.",
+    "cta": "Einstellen"
   }
 }

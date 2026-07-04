@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.13.3.0] - 2026-07-04
+
+### Changed
+- **Offer as a job posting.** The single-product offer card becomes a Stellenanzeige: "AI Appointment Setter (m/w/d/KI)", mono spec rows (Arbeitszeit: rund um die Uhr, auch 23:12 / Gehalt: 199 € fix, keine Provision / Urlaub: keiner / Antritt: heute Nacht), CTA "Einstellen". The audience already thinks in hire-a-setter terms; next to a human salary the flat price sells itself. DE/EN.
+
 ## [1.13.2.0] - 2026-07-04
 
 ### Added

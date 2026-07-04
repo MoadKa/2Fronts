@@ -296,7 +296,9 @@ export function CatalogPage() {
         )}
 
         {/* With exactly one product, a shop grid reads as an empty shelf.
-            Render it as one wide offer card instead; the grid returns
+            The single product renders as a job posting instead — the audience
+            already thinks in "hire a setter" terms, and next to a human
+            setter's salary the flat price does the selling. The grid returns
             automatically once a second automation goes live. */}
         {!loading && !loadError && automations.length === 1 && (
           <Reveal>
@@ -304,33 +306,43 @@ export function CatalogPage() {
               {(() => {
                 const a = automations[0]!
                 const loc = localizeAutomation(a, i18n.language)
+                const rows = [
+                  { label: t('jobAd.rowHours'), value: t('jobAd.valHours') },
+                  { label: t('jobAd.rowDuties'), value: t('jobAd.valDuties') },
+                  {
+                    label: t('jobAd.rowSalary'),
+                    value: `${formatPrice(a.price_cents, a.currency)} ${t('jobAd.valSalaryNote')}`,
+                    highlight: true,
+                  },
+                  { label: t('jobAd.rowVacation'), value: t('jobAd.valVacation') },
+                  { label: t('jobAd.rowOnboarding'), value: t('jobAd.valOnboarding') },
+                  { label: t('jobAd.rowNotice'), value: t('jobAd.valNotice') },
+                  { label: t('jobAd.rowStart'), value: t('jobAd.valStart'), highlight: true },
+                ]
                 return (
-                  <div className="offer-card">
-                    <div className="offer-main">
+                  <div className="job-ad">
+                    <div className="job-ad-head">
+                      <span className="job-ad-kicker">{t('jobAd.kicker')}</span>
                       <Badge>{localizeCategory(a.category, t)}</Badge>
-                      <h3>{loc.name}</h3>
-                      <p className="offer-summary">{loc.summary}</p>
-                      <ul className="offer-bullets">
-                        {[1, 2, 3].map((n) => (
-                          <li key={n}>
-                            <CheckIcon className="offer-check" aria-hidden="true" />
-                            {t(`offer.bullet${n}`)}
-                          </li>
-                        ))}
-                      </ul>
                     </div>
-                    <div className="offer-buy">
-                      <span className="offer-price">
-                        {formatPrice(a.price_cents, a.currency)}
-                        {a.pricing_model === 'subscription' && (
-                          <span className="offer-per"> {t('catalog.perMonth')}</span>
-                        )}
-                      </span>
-                      <span className="offer-note">{t('offer.note')}</span>
-                      <span className="btn btn-primary offer-cta">
-                        {t('offer.cta')}
+                    <h3 className="job-ad-title">
+                      {loc.name}
+                      <span className="job-ad-mwd">{t('jobAd.titleSuffix')}</span>
+                    </h3>
+                    <dl className="job-ad-rows">
+                      {rows.map((row) => (
+                        <div className={row.highlight ? 'job-ad-row is-highlight' : 'job-ad-row'} key={row.label}>
+                          <dt>{row.label}</dt>
+                          <dd>{row.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <div className="job-ad-foot">
+                      <span className="btn btn-primary job-ad-cta">
+                        {t('jobAd.cta')}
                         <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
                       </span>
+                      <span className="job-ad-note">{t('offer.note')}</span>
                     </div>
                   </div>
                 )

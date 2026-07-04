@@ -102,86 +102,103 @@
   color: #b45309;
 }
 
-/* ── The offer card: one product, one strong pitch (no empty shop shelf) ── */
+/* ── The job ad: the single product sold the way the audience thinks — as a
+   hire. Documentary paper card, mono labels, one absurdly small salary. ── */
 .offer-card-link { text-decoration: none; color: inherit; display: block; }
 
-.offer-card {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 2rem;
+.job-ad {
+  max-width: 760px;
+  margin: 0 auto;
   background: #fffdf7;
   border: 1px solid #e3dbc9;
   border-radius: var(--radius-lg);
   box-shadow: 0 2px 4px rgba(27, 23, 18, 0.05), 0 18px 40px rgba(27, 23, 18, 0.09);
-  padding: clamp(1.5rem, 3vw, 2.5rem);
+  padding: clamp(1.6rem, 3vw, 2.4rem);
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
-.offer-card-link:hover .offer-card {
+.offer-card-link:hover .job-ad {
   transform: translateY(-3px);
   box-shadow: 0 4px 8px rgba(27, 23, 18, 0.06), 0 26px 56px rgba(27, 23, 18, 0.13);
 }
 
-.offer-main h3 {
+.job-ad-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.job-ad-kicker {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  color: #b45309;
+}
+
+.job-ad-title {
   font-family: 'Fraunces', serif;
   font-weight: 640;
-  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
   letter-spacing: -0.005em;
-  margin: 0.7rem 0 0.4rem;
   color: #1b1712;
+  margin: 0.7rem 0 1.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #1b1712;
 }
-.offer-summary { color: #4b453b; line-height: 1.6; max-width: 44ch; }
-
-.offer-bullets {
-  list-style: none;
-  margin: 1.1rem 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-.offer-bullets li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  color: #1b1712;
-  font-size: 0.97rem;
-  line-height: 1.5;
-}
-.offer-check {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  margin-top: 2px;
-  color: #2e7d46;
+.job-ad-mwd {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.45em;
+  font-weight: 400;
+  color: #6b655b;
+  letter-spacing: 0;
+  margin-left: 0.4rem;
+  vertical-align: 0.35em;
 }
 
-.offer-buy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 0.4rem;
-  border-left: 1px dashed #e3dbc9;
-  padding-left: 2rem;
+.job-ad-rows { margin: 0; }
+.job-ad-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 1rem;
+  padding: 0.6rem 0.4rem;
+  align-items: baseline;
 }
-.offer-price {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+.job-ad-row + .job-ad-row { border-top: 1px dashed #e3dbc9; }
+.job-ad-row dt {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b655b;
+}
+.job-ad-row dd {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.55;
   color: #1b1712;
-  font-variant-numeric: tabular-nums;
 }
-.offer-per { font-size: 0.45em; font-family: 'Schibsted Grotesk', sans-serif; font-weight: 500; color: #6b655b; }
-.offer-note {
+.job-ad-row.is-highlight dd {
+  font-weight: 700;
+}
+.job-ad-row.is-highlight dt { color: #b45309; }
+
+.job-ad-foot {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+  margin-top: 1.4rem;
+  padding-top: 1.3rem;
+  border-top: 1px solid #e3dbc9;
+}
+.job-ad-cta { text-decoration: none; }
+.job-ad-note {
   font-family: 'Fragment Mono', monospace;
   font-size: 0.72rem;
   color: #6b655b;
 }
-.offer-cta { margin-top: 1rem; }
 
-@media (max-width: 800px) {
-  .offer-card { grid-template-columns: 1fr; }
-  .offer-buy { border-left: none; border-top: 1px dashed #e3dbc9; padding-left: 0; padding-top: 1.2rem; }
+@media (max-width: 640px) {
+  .job-ad-row { grid-template-columns: 1fr; gap: 0.15rem; }
 }
 .day-stage .catalog-card-link .card:hover { border-color: #c9bda3; }
 

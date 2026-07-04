@@ -642,5 +642,24 @@
     "bookedTitle": "Discovery call booked",
     "bookedText": "Thursday, 2:00 PM · response time: 4 seconds",
     "cta": "Set up your setter"
+  },
+  "jobAd": {
+    "kicker": "JOB POSTING",
+    "titleSuffix": " (human/AI)",
+    "rowHours": "Hours",
+    "valHours": "Around the clock. Including 11:12pm.",
+    "rowDuties": "Duties",
+    "valDuties": "Answer inquiries (only from your content), qualify, book discovery calls.",
+    "rowSalary": "Salary",
+    "valSalaryNote": "a month. Flat. No commission, no bonus.",
+    "rowVacation": "Vacation",
+    "valVacation": "None. Never sick, never quits.",
+    "rowOnboarding": "Onboarding",
+    "valOnboarding": "Knows your offer from day one.",
+    "rowNotice": "Notice period",
+    "valNotice": "Monthly.",
+    "rowStart": "Starts",
+    "valStart": "Tonight.",
+    "cta": "Hire"
   }
 }
