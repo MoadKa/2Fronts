@@ -602,5 +602,30 @@
     "posterBooked": "Erstgespräch gebucht",
     "detailTitle": "Demo: So arbeitet dein Setter",
     "heroCta": "Demo ansehen (5 Min)"
+  },
+  "nightHero": {
+    "kicker": "23:12 · EINE ANFRAGE. KEINE ANTWORT.",
+    "headline": "Sie hat um 23:12 geschrieben. Um 08:34 war sie weg.",
+    "sub": "So verlieren Coaches jede Woche Kunden: Die Anfrage kommt nachts, die Antwort kommt morgens, gebucht wird woanders. Der Setter von 2Fronts antwortet in Sekunden, qualifiziert und bucht das Erstgespräch. Auch um 23:12.",
+    "cta": "So verhindern Sie das",
+    "replay": "23:12 · noch mal abspielen",
+    "lastSeen": "zuletzt online: 23:14",
+    "inputHint": "Nachricht"
+  },
+  "calendarPain": {
+    "kicker": "DONNERSTAG · DER KALENDER IST VOLL",
+    "title": "Und der offene Kalender-Link? Der füllt den Kalender. Nur falsch.",
+    "sub": "Wer seinen Buchungslink einfach in die Bio hängt, hat das umgekehrte Problem: Jeder kann buchen. Also bucht jeder. Wer nur kostenlose Tipps will, wer kein Budget hat, wer gar nicht auftaucht.",
+    "resolve": "Der Setter von 2Fronts fragt vorher: Worum geht es, wie ernst ist es, passt das Budget. Den Kalender-Link bekommt nur, wer passt. Nachts beantwortet er Fragen, morgens stehen die richtigen Termine drin.",
+    "calTitle": "Donnerstag",
+    "calVia": "gebucht über offenen Link",
+    "slot1Name": "Erstgespräch · Marco",
+    "slot1Tag": "wollte nur kostenlose Tipps",
+    "slot2Name": "Erstgespräch · Julia",
+    "slot2Tag": "nicht erschienen",
+    "slot3Name": "Erstgespräch · Deniz",
+    "slot3Tag": "kein Budget",
+    "stat1": "4,5 Std geblockt",
+    "stat2": "0 Kunden"
   }
 }

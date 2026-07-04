@@ -602,5 +602,30 @@
     "posterBooked": "Call booked",
     "detailTitle": "Demo: your setter at work",
     "heroCta": "Watch the demo (5 min)"
+  },
+  "nightHero": {
+    "kicker": "11:12 PM · ONE INQUIRY. NO REPLY.",
+    "headline": "She wrote at 11:12pm. By 8:34am she was gone.",
+    "sub": "This is how coaches lose clients every week: the inquiry comes at night, the reply comes in the morning, the booking goes elsewhere. The 2Fronts setter answers in seconds, qualifies, and books the call. Even at 11:12pm.",
+    "cta": "Stop losing these",
+    "replay": "11:12pm · play again",
+    "lastSeen": "last seen 11:14 PM",
+    "inputHint": "Message"
+  },
+  "calendarPain": {
+    "kicker": "THURSDAY · THE CALENDAR IS FULL",
+    "title": "And the open booking link? It fills your calendar. With the wrong people.",
+    "sub": "Put your booking link in your bio and you get the opposite problem: anyone can book. So everyone does. People who want free tips, people with no budget, people who never show up.",
+    "resolve": "The 2Fronts setter asks first: what is it about, how serious is it, does the budget fit. Only people who qualify get your booking link. At night it answers questions, in the morning the right calls are on your calendar.",
+    "calTitle": "Thursday",
+    "calVia": "booked via open link",
+    "slot1Name": "Discovery call · Marco",
+    "slot1Tag": "wanted free tips only",
+    "slot2Name": "Discovery call · Julia",
+    "slot2Tag": "no-show",
+    "slot3Name": "Discovery call · Deniz",
+    "slot3Tag": "no budget",
+    "stat1": "4.5 hrs blocked",
+    "stat2": "0 clients"
   }
 }

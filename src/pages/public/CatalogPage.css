@@ -4,6 +4,215 @@
   gap: var(--space-2xl);
 }
 
+/* ======================================================================= */
+/* "Der Nachttisch" (DESIGN.md) — the homepage tells one night:            */
+/* act 1 the lost inquiry (dark), dawn, act 2 the wrong-full calendar.     */
+/* ======================================================================= */
+
+.landing-nachttisch { gap: 0; }
+.landing-nachttisch > * + * { margin-top: 0; }
+.landing-nachttisch .demo-section,
+.landing-nachttisch .trust-strip,
+.landing-nachttisch .steps-section,
+.landing-nachttisch .catalog-section { margin-top: var(--space-2xl); }
+
+/* Escape the 1100px .app-main container for full-width stage sections. */
+.bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+.night-hero {
+  position: relative;
+  background: #12100e; /* warm charcoal — never blue-black (DESIGN.md) */
+  color: #e7e1d6;
+  overflow: hidden;
+  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
+}
+
+.night-glow {
+  position: absolute;
+  inset: -12% -18%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 46% 52% at 68% 46%, rgba(255, 179, 92, 0.14), transparent 68%);
+}
+
+.night-inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 3rem;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: clamp(3rem, 7vh, 5rem) var(--space-xl) clamp(3rem, 7vh, 5rem);
+  align-items: center;
+}
+
+.night-kicker {
+  display: block;
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  color: #ffb35c;
+  margin-bottom: 1.1rem;
+}
+
+.night-copy h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 640;
+  font-size: clamp(2.2rem, 4.6vw, 3.9rem);
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  color: #e7e1d6;
+  max-width: 16ch;
+}
+
+.night-sub {
+  margin: 1.3rem 0 1.7rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: rgba(231, 225, 214, 0.75);
+  max-width: 46ch;
+}
+
+.night-actions { justify-content: flex-start; }
+.night-link { color: #ffb35c; }
+.night-link:hover { color: #ffc880; }
+
+.dawn {
+  height: clamp(90px, 16vh, 170px);
+  background: linear-gradient(#12100e, #4a3a2c 55%, var(--color-background));
+}
+
+/* ── Act 2: the wrong-full calendar ── */
+.calendar-pain {
+  background: #f8f4ec;
+  color: #1b1712;
+  padding: clamp(3rem, 8vh, 5rem) var(--space-xl);
+  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
+}
+
+.pain-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 3.5rem;
+  align-items: center;
+}
+
+.pain-kicker {
+  display: block;
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  color: #b45309;
+  margin-bottom: 1rem;
+}
+
+.calendar-pain h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 640;
+  font-size: clamp(1.9rem, 3.8vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.005em;
+  color: #1b1712;
+}
+
+.pain-sub {
+  margin: 1.2rem 0 1.5rem;
+  font-size: 1.04rem;
+  line-height: 1.65;
+  color: #4b453b;
+  max-width: 46ch;
+}
+
+.pain-resolve {
+  font-size: 1.04rem;
+  line-height: 1.65;
+  color: #1b1712;
+  max-width: 46ch;
+  font-weight: 500;
+}
+
+.pain-cal {
+  background: #fffdf7;
+  border: 1px solid #e3dbc9;
+  border-radius: 16px;
+  box-shadow: 0 2px 4px rgba(27, 23, 18, 0.05), 0 18px 40px rgba(27, 23, 18, 0.09);
+  padding: 1.2rem 1.2rem 1rem;
+  max-width: 480px;
+  width: 100%;
+  justify-self: center;
+}
+
+.pain-cal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid #e3dbc9;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+.pain-cal-head b { font-family: 'Fraunces', serif; font-size: 1.05rem; }
+.pain-cal-head span { font-family: 'Fragment Mono', monospace; font-size: 0.7rem; color: #6b655b; }
+
+.pain-slot {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  padding: 0.55rem 0.4rem;
+}
+.pain-slot + .pain-slot { border-top: 1px dashed #e3dbc9; }
+
+.pain-time {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.78rem;
+  color: #6b655b;
+  min-width: 3.4rem;
+  padding-top: 0.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pain-what { flex: 1; }
+.pain-what b {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: line-through;
+  text-decoration-color: rgba(194, 64, 42, 0.7);
+  text-decoration-thickness: 2px;
+}
+.pain-tag {
+  display: inline-block;
+  margin-top: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(194, 64, 42, 0.1);
+  color: #c2402a;
+}
+
+.pain-cal-foot {
+  margin-top: 0.5rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #e3dbc9;
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.74rem;
+  color: #c2402a;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .night-inner { grid-template-columns: 1fr; }
+  .night-inner .night-scene { order: -1; }
+  .pain-inner { grid-template-columns: 1fr; gap: 2rem; }
+}
+
 /* ----------------------------------------------------------------------- */
 /* Hero — open, typography-led. No box, no blobs: the headline is the hero. */
 /* ----------------------------------------------------------------------- */

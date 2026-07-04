@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.13.0.0] - 2026-07-04
+
+### Changed
+- **Homepage redesign: "Der Nachttisch" (DESIGN.md).** The homepage now tells one night instead of pitching features. Act 1 (dark hero, Fraunces serif): the lost-inquiry chat — a prospect writes Tuesday 23:12, the coach replies Wednesday 08:34, the Thursday follow-up lands after she booked elsewhere; ends on the red loss card ("Anfrage verloren · von der Konkurrenz gestohlen"). Plays like a real messenger (typing dots, read ticks, auto-scroll, replay), full DE/EN, `prefers-reduced-motion` renders the finished story instantly. Act 2 after a dawn gradient: the wrong-full-calendar section for open-booking-link coaches (struck-through no-show/no-budget slots, "4,5 Std geblockt · 0 Kunden"). Demo video section moved into the morning surface. New fonts loaded: Fraunces, Schibsted Grotesk, Fragment Mono.
+
+### Added
+- `HeroNightChat` component + tests; `nightHero`/`calendarPain` locale keys (de/en); DESIGN.md as the binding design source of truth (supersedes design-system/MASTER.md).
+
 ## [1.12.0.0] - 2026-07-03
 
 ### Changed
