@@ -11,10 +11,107 @@
 
 .landing-nachttisch { gap: 0; }
 .landing-nachttisch > * + * { margin-top: 0; }
-.landing-nachttisch .demo-section,
-.landing-nachttisch .trust-strip,
-.landing-nachttisch .steps-section,
-.landing-nachttisch .catalog-section { margin-top: var(--space-2xl); }
+
+/* .app-main pads the content area on every route; on the Nachttisch homepage
+   that padding shows as white strips above the night hero and below the
+   morning stage. Cancel it so the scene runs edge to edge. */
+.landing-nachttisch {
+  margin-top: calc(-1 * var(--space-2xl));
+  margin-bottom: calc(-1 * var(--space-2xl));
+}
+@media (max-width: 768px) {
+  .landing-nachttisch {
+    margin-top: calc(-1 * var(--space-xl));
+    margin-bottom: calc(-1 * var(--space-xl));
+  }
+}
+
+/* ── The morning stage ──────────────────────────────────────────────────
+   Everything after dawn lives on one warm paper surface so the page stays
+   a single scene instead of falling back into white SaaS sections. */
+.day-stage {
+  background: #f8f4ec;
+  color: #1b1712;
+  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
+  padding-bottom: var(--space-3xl);
+}
+.day-stage .demo-section,
+.day-stage .trust-strip,
+.day-stage .steps-section,
+.day-stage .catalog-section,
+.day-stage .catalog-request {
+  max-width: 1100px;
+  margin: var(--space-3xl) auto 0;
+  padding-left: var(--space-xl);
+  padding-right: var(--space-xl);
+}
+.day-stage .calendar-pain { padding-top: clamp(2.5rem, 6vh, 4rem); }
+
+/* Morning headings speak Fraunces (DESIGN.md). */
+.day-stage h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 640;
+  letter-spacing: -0.005em;
+  color: #1b1712;
+}
+
+/* Demo section on paper */
+.day-stage .demo-eyebrow {
+  font-family: 'Fragment Mono', monospace;
+  letter-spacing: 0.16em;
+  color: #b45309;
+  text-transform: uppercase;
+}
+.day-stage .demo-section-sub { color: #4b453b; }
+
+/* Quiet tiles become warm cards */
+.day-stage .trust-item,
+.day-stage .step-card {
+  background: #fffdf7;
+  border: 1px solid #e3dbc9;
+  box-shadow: 0 1px 2px rgba(27, 23, 18, 0.04), 0 10px 24px rgba(27, 23, 18, 0.05);
+}
+.day-stage .trust-item p,
+.day-stage .step-card p { color: #4b453b; }
+.day-stage .trust-icon { color: #b45309; }
+.day-stage .step-number {
+  font-family: 'Fragment Mono', monospace;
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.08);
+}
+
+/* Catalog on paper */
+.day-stage .catalog-header p { color: #6b655b; }
+.day-stage .chip {
+  border-color: #d8cfbd;
+  color: #1b1712;
+  background: transparent;
+}
+.day-stage .chip:hover { border-color: #1b1712; }
+.day-stage .chip-active {
+  background: #1b1712;
+  color: #f8f4ec;
+  border-color: #1b1712;
+}
+.day-stage .card {
+  background: #fffdf7;
+  border-color: #e3dbc9;
+}
+.day-stage .badge {
+  background: rgba(180, 83, 9, 0.08);
+  color: #b45309;
+}
+.day-stage .catalog-card-link .card:hover { border-color: #c9bda3; }
+
+/* Request section card */
+.day-stage .catalog-request {
+  background: #fffdf7;
+  border: 1px solid #e3dbc9;
+  border-radius: var(--radius-lg);
+  padding-top: var(--space-xl);
+  padding-bottom: var(--space-xl);
+}
+.day-stage .catalog-request-sub { color: #4b453b; }
 
 /* Escape the 1100px .app-main container for full-width stage sections. */
 .bleed {

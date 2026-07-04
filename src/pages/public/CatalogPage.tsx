@@ -136,7 +136,9 @@ export function CatalogPage() {
 
       <div className="dawn bleed" aria-hidden="true" />
 
-      <section className="calendar-pain bleed">
+      <div className="day-stage bleed">
+
+      <section className="calendar-pain">
         <div className="pain-inner">
           <Reveal>
             <div>
@@ -320,6 +322,8 @@ export function CatalogPage() {
       <Reveal>
         <CatalogRequestSection />
       </Reveal>
+
+      </div>
     </div>
   )
 }
