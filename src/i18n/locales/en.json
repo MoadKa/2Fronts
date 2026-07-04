@@ -627,5 +627,12 @@
     "slot3Tag": "no budget",
     "stat1": "4.5 hrs blocked",
     "stat2": "0 clients"
+  },
+  "offer": {
+    "bullet1": "Answers at 11:12pm, only from your content",
+    "bullet2": "Asks your qualifying questions and filters out tire-kickers",
+    "bullet3": "Books discovery calls straight into your calendar",
+    "cta": "Set up your setter",
+    "note": "cancel monthly · secure checkout via Stripe"
   }
 }

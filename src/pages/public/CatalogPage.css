@@ -101,6 +101,88 @@
   background: rgba(180, 83, 9, 0.08);
   color: #b45309;
 }
+
+/* ── The offer card: one product, one strong pitch (no empty shop shelf) ── */
+.offer-card-link { text-decoration: none; color: inherit; display: block; }
+
+.offer-card {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 2rem;
+  background: #fffdf7;
+  border: 1px solid #e3dbc9;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 4px rgba(27, 23, 18, 0.05), 0 18px 40px rgba(27, 23, 18, 0.09);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.offer-card-link:hover .offer-card {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(27, 23, 18, 0.06), 0 26px 56px rgba(27, 23, 18, 0.13);
+}
+
+.offer-main h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 640;
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  letter-spacing: -0.005em;
+  margin: 0.7rem 0 0.4rem;
+  color: #1b1712;
+}
+.offer-summary { color: #4b453b; line-height: 1.6; max-width: 44ch; }
+
+.offer-bullets {
+  list-style: none;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.offer-bullets li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: #1b1712;
+  font-size: 0.97rem;
+  line-height: 1.5;
+}
+.offer-check {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  color: #2e7d46;
+}
+
+.offer-buy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 0.4rem;
+  border-left: 1px dashed #e3dbc9;
+  padding-left: 2rem;
+}
+.offer-price {
+  font-family: 'Fraunces', serif;
+  font-weight: 640;
+  font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+  color: #1b1712;
+  font-variant-numeric: tabular-nums;
+}
+.offer-per { font-size: 0.45em; font-family: 'Schibsted Grotesk', sans-serif; font-weight: 500; color: #6b655b; }
+.offer-note {
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.72rem;
+  color: #6b655b;
+}
+.offer-cta { margin-top: 1rem; }
+
+@media (max-width: 800px) {
+  .offer-card { grid-template-columns: 1fr; }
+  .offer-buy { border-left: none; border-top: 1px dashed #e3dbc9; padding-left: 0; padding-top: 1.2rem; }
+}
 .day-stage .catalog-card-link .card:hover { border-color: #c9bda3; }
 
 /* Request section card */

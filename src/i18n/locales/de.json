@@ -627,5 +627,12 @@
     "slot3Tag": "kein Budget",
     "stat1": "4,5 Std geblockt",
     "stat2": "0 Kunden"
+  },
+  "offer": {
+    "bullet1": "Antwortet nachts um 23:12, nur aus deinen Inhalten",
+    "bullet2": "Stellt deine Qualifizierungsfragen und sortiert Neugierige aus",
+    "bullet3": "Bucht Erstgespräche direkt in deinen Kalender",
+    "cta": "Setter einrichten",
+    "note": "monatlich kündbar · sichere Zahlung über Stripe"
   }
 }
