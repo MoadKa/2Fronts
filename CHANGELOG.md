@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.13.3.0] - 2026-07-05
+
+### Changed
+- **Pricing spotlight.** The offer section becomes a stage: mid-page the night returns as a full-bleed dark band with a warm light cone from above, and the unchanged paper pricing card floats in it with an amber-rimmed glow. The founder's brief: the visitor should feel compelled to stop at the pricing and admire it. Card content untouched; price/unit no longer wrap apart.
+
 ## [1.13.2.0] - 2026-07-04
 
 ### Added
