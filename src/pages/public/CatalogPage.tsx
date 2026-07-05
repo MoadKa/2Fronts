@@ -255,7 +255,10 @@ export function CatalogPage() {
         </div>
       </section>
 
-      <section id="catalog" className="catalog-section">
+      {/* The pricing spotlight: for one beat the night returns mid-page and a
+          warm cone of light falls on the offer card. The card itself is
+          unchanged — the stage around it makes the visitor stop. */}
+      <section id="catalog" className="catalog-section catalog-spotlight">
         <div className="page-header catalog-header">
           <h2>{t('catalog.catalogSectionTitle')}</h2>
           <p>{t('catalog.catalogSectionSub')}</p>
