@@ -27,6 +27,10 @@ export function DatenschutzPage() {
         body={t('legal.datenschutz.supabaseBody')}
       />
       <LegalSection
+        heading={t('legal.datenschutz.analyticsHeading')}
+        body={t('legal.datenschutz.analyticsBody')}
+      />
+      <LegalSection
         heading={t('legal.datenschutz.stripeHeading')}
         body={t('legal.datenschutz.stripeBody')}
       />

@@ -3,5 +3,5 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/((?!assets/|_vercel/).*)", "destination": "/index.html" }]
 }

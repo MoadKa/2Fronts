@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.13.4.0] - 2026-07-06
+
+### Added
+- **Visitor analytics (Vercel Web Analytics).** The site now measures page views cookie-free. Production-only (no third-party script in dev), and customer identifiers in tracked URLs (`/connect/:provisionId`, `/c/:slug`) are anonymized in the browser before anything is sent.
+- **Privacy policy section 4.1 (DE/EN).** The Datenschutzerklärung now discloses the audience measurement: no cookies, daily-rotating hash instead of stored IPs, US transfer under EU Standard Contractual Clauses, legal basis Art. 6(1)(f) GDPR.
+
+### Fixed
+- **SPA rewrite no longer swallows analytics endpoints.** `/_vercel/*` is excluded from the catch-all rewrite to `index.html`, so the analytics script and beacon reach Vercel instead of silently receiving the app shell.
+
 ## [1.13.3.0] - 2026-07-05
 
 ### Changed
