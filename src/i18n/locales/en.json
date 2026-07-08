@@ -633,10 +633,10 @@
     "stat2": "0 clients"
   },
   "silentPain": {
-    "kicker": "EVERY WEEK · THE INBOX STAYS QUIET",
-    "title": "Most people who look at your page don't write to you. They just look.",
-    "sub": "Someone reads your offer, maybe your last few posts. Then nothing happens. The next step just wasn't clear enough to take. \"Feel free to reach out\" sounds friendly, but almost nobody takes you up on it first.",
-    "resolve": "The setter takes that step for them. It asks first, before anyone has to work up the nerve to write. That works whether your page gets a dozen visits a week or two hundred.",
+    "kicker": "EVERY WEEK · THE ONES YOU NEVER SAW",
+    "title": "You'll never know how many you lost.",
+    "sub": "Someone reads your offer, maybe your last few posts. Then they close the tab. No message, no sign they were ever there. \"Feel free to reach out\" sounds friendly, but almost nobody takes you up on it first.",
+    "resolve": "The setter asks first, before anyone has to work up the nerve to write. So the ones who would have quietly left already have a reason to answer instead.",
     "cta": "Set up your setter"
   },
   "offer": {
@@ -647,9 +647,9 @@
     "note": "cancel monthly · secure checkout via Stripe"
   },
   "nightFinale": {
-    "kicker": "EVERY WEEK · FROM NOW ON",
-    "title": "Next week, someone looks again.",
-    "sub": "This time your setter starts the conversation before the tab closes. You don't have to be watching. Your calendar fills anyway.",
+    "kicker": "EVERY WEEK · NOW YOU SEE THEM",
+    "title": "Next week, you'll know.",
+    "sub": "Your setter starts the conversation before the tab closes, logs every visitor who answers, and books the call. Nothing happens quietly anymore.",
     "bookedTitle": "Discovery call booked",
     "bookedText": "Thursday, 2:00 PM · response time: 4 seconds",
     "cta": "Set up your setter"

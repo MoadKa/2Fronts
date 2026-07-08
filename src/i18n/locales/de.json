@@ -633,10 +633,10 @@
     "stat2": "0 Kunden"
   },
   "silentPain": {
-    "kicker": "JEDE WOCHE · DAS POSTFACH BLEIBT LEER",
-    "title": "Die meisten, die deine Seite anschauen, schreiben dir nicht, sie schauen nur.",
-    "sub": "Jemand liest dein Angebot, vielleicht die letzten Beiträge. Und dann passiert: nichts. Der nächste Schritt war einfach unklar. „Bei Fragen einfach melden\" klingt freundlich, aber gemeldet hat sich fast nie jemand von selbst.",
-    "resolve": "Der Setter übernimmt genau diesen Schritt. Er fragt zuerst, bevor sich jemand traut zu schreiben. Das klappt, ob deine Seite zwölf Besuche die Woche hat oder zweihundert.",
+    "kicker": "JEDE WOCHE · DIE DU NIE GESEHEN HAST",
+    "title": "Du wirst nie erfahren, wie viele du verloren hast.",
+    "sub": "Jemand liest dein Angebot, vielleicht die letzten Beiträge. Dann schließt er den Tab. Keine Nachricht, kein Zeichen, dass er überhaupt da war. „Bei Fragen einfach melden\" klingt freundlich, aber gemeldet hat sich fast nie jemand von selbst.",
+    "resolve": "Der Setter fragt zuerst, bevor sich jemand traut zu schreiben. Wer sonst wortlos gegangen wäre, hat jetzt einen Grund zu antworten.",
     "cta": "Setter einrichten"
   },
   "offer": {
@@ -647,9 +647,9 @@
     "note": "monatlich kündbar · sichere Zahlung über Stripe"
   },
   "nightFinale": {
-    "kicker": "JEDE WOCHE · AB JETZT",
-    "title": "Nächste Woche schaut wieder jemand vorbei.",
-    "sub": "Diesmal fängt dein Setter das Gespräch an, bevor der Tab wieder zugeht. Du musst nicht zuschauen. Dein Kalender füllt sich trotzdem.",
+    "kicker": "JEDE WOCHE · JETZT SIEHST DU SIE",
+    "title": "Nächste Woche weißt du es.",
+    "sub": "Dein Setter fängt das Gespräch an, bevor der Tab zugeht, hält jeden Besucher fest, der antwortet, und bucht den Termin. Nichts passiert mehr wortlos.",
     "bookedTitle": "Erstgespräch gebucht",
     "bookedText": "Donnerstag, 14:00 Uhr · Antwortzeit: 4 Sekunden",
     "cta": "Setter einrichten"
