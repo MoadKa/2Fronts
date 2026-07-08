@@ -156,14 +156,15 @@ export function CatalogPage() {
     <div className="landing landing-nachttisch">
       <section className="night-hero bleed">
         <div className="night-glow" aria-hidden="true" />
-        <div className="night-inner">
+        <div className="night-inner night-inner-solo">
           <div className="night-copy rise-stagger">
-            <span className="night-kicker">{t('nightHero.kicker')}</span>
-            <h1>{t('nightHero.headline')}</h1>
-            <p className="night-sub">{t('nightHero.sub')}</p>
+            <span className="night-kicker">{t('silentPain.kicker')}</span>
+            <h1>{t('silentPain.title')}</h1>
+            <p className="night-sub">{t('silentPain.sub')}</p>
+            <p className="night-resolve">{t('silentPain.resolve')}</p>
             <div className="hero-actions night-actions">
               <a href="#demo" className="btn btn-primary hero-cta">
-                {t('nightHero.cta')}
+                {t('silentPain.cta')}
                 <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
               </a>
               <a href="#catalog" className="hero-link night-link">
@@ -171,7 +172,6 @@ export function CatalogPage() {
               </a>
             </div>
           </div>
-          <HeroNightChat />
         </div>
       </section>
 
@@ -209,6 +209,22 @@ export function CatalogPage() {
                 <span>{t('calendarPain.stat2')}</span>
               </div>
             </div>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="silent-pain">
+        <div className="silent-inner">
+          <Reveal>
+            <div>
+              <span className="silent-kicker">{t('nightStory.kicker')}</span>
+              <h2>{t('nightStory.title')}</h2>
+              <p className="silent-sub">{t('nightStory.sub')}</p>
+              <p className="silent-resolve">{t('nightStory.resolve')}</p>
+            </div>
+          </Reveal>
+          <Reveal delay={100}>
+            <HeroNightChat />
           </Reveal>
         </div>
       </section>

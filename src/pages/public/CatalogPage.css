@@ -247,12 +247,24 @@
 }
 
 .night-sub {
-  margin: 1.3rem 0 1.7rem;
+  margin: 1.3rem 0 0.9rem;
   font-size: 1.05rem;
   line-height: 1.65;
   color: rgba(231, 225, 214, 0.75);
   max-width: 46ch;
 }
+
+.night-resolve {
+  margin: 0 0 1.7rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  font-weight: 600;
+  color: #e7e1d6;
+  max-width: 44ch;
+}
+
+/* the hero with no side visual: one column, text keeps its own max-width */
+.night-inner-solo { grid-template-columns: 1fr; }
 
 .night-actions { justify-content: flex-start; }
 .night-link { color: #ffb35c; }
@@ -390,6 +402,65 @@
   .night-inner { grid-template-columns: 1fr; }
   .night-inner .night-scene { order: -1; }
   .pain-inner { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+/* ── Act 2b: the quiet inbox (visitors who never wrote at all) ── */
+.silent-pain {
+  background: var(--color-background);
+  color: #1b1712;
+  padding: clamp(2.5rem, 7vh, 4.5rem) var(--space-xl);
+  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
+}
+
+.silent-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 3.5rem;
+  align-items: center;
+}
+
+.silent-kicker {
+  display: block;
+  font-family: 'Fragment Mono', monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.16em;
+  color: #6b655b;
+  margin-bottom: 1rem;
+}
+
+.silent-pain h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 640;
+  font-size: clamp(1.9rem, 3.8vw, 3rem);
+  line-height: 1.08;
+  letter-spacing: -0.005em;
+  color: #1b1712;
+}
+
+.silent-sub {
+  margin: 1.2rem 0 1.5rem;
+  font-size: 1.04rem;
+  line-height: 1.65;
+  color: #4b453b;
+  max-width: 46ch;
+}
+
+.silent-resolve {
+  font-size: 1.04rem;
+  line-height: 1.65;
+  color: #1b1712;
+  max-width: 46ch;
+  font-weight: 500;
+}
+
+/* the demoted section now hosts HeroNightChat's own phone mockup, which is
+   fully self-styled (dark card, own shadow/glow) — no extra card CSS needed
+   here, .silent-inner's grid centers it the same way .night-inner used to. */
+
+@media (max-width: 900px) {
+  .silent-inner { grid-template-columns: 1fr; gap: 2rem; }
 }
 
 /* ── Night finale: dusk back into the night, this time it goes right ── */

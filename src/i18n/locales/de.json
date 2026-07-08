@@ -606,19 +606,21 @@
     "heroCta": "Demo ansehen (5 Min)"
   },
   "nightHero": {
-    "kicker": "23:12 · EINE ANFRAGE. KEINE ANTWORT.",
-    "headline": "Sie hat um 23:12 geschrieben. Um 08:34 war sie weg.",
-    "sub": "So verlieren Coaches jede Woche Kunden: Die Anfrage kommt nachts, die Antwort kommt morgens, gebucht wird woanders. Der Setter von 2Fronts antwortet in Sekunden, qualifiziert und bucht das Erstgespräch. Auch um 23:12.",
-    "cta": "So verhindern Sie das",
     "replay": "23:12 · noch mal abspielen",
     "lastSeen": "zuletzt online: 23:14",
     "inputHint": "Nachricht"
+  },
+  "nightStory": {
+    "kicker": "23:12 · EINE ANFRAGE. KEINE ANTWORT.",
+    "title": "Sie hat um 23:12 geschrieben. Um 08:34 war sie weg.",
+    "sub": "So verlieren Coaches jede Woche Kunden: Die Anfrage kommt nachts, die Antwort kommt morgens, gebucht wird woanders.",
+    "resolve": "Der Setter von 2Fronts antwortet in Sekunden, qualifiziert und bucht das Erstgespräch. Auch um 23:12."
   },
   "calendarPain": {
     "kicker": "DONNERSTAG · DER KALENDER IST VOLL",
     "title": "Und der offene Kalender-Link? Der füllt den Kalender. Nur falsch.",
     "sub": "Wer seinen Buchungslink einfach in die Bio hängt, hat das umgekehrte Problem: Jeder kann buchen. Also bucht jeder. Wer nur kostenlose Tipps will, wer kein Budget hat, wer gar nicht auftaucht.",
-    "resolve": "Der Setter von 2Fronts fragt vorher: Worum geht es, wie ernst ist es, passt das Budget. Den Kalender-Link bekommt nur, wer passt. Nachts beantwortet er Fragen, morgens stehen die richtigen Termine drin.",
+    "resolve": "Der Setter von 2Fronts fragt vorher: Worum geht es, wie ernst ist es, passt das Budget. Den Kalender-Link sieht niemand, bevor er geantwortet hat, und jede Antwort landet sichtbar in deinem Dashboard. Nachts stellt er die Fragen, morgens siehst du genau, wer im Kalender steht und wie ernst es ihm ist.",
     "calTitle": "Donnerstag",
     "calVia": "gebucht über offenen Link",
     "slot1Name": "Erstgespräch · Marco",
@@ -630,6 +632,13 @@
     "stat1": "4,5 Std geblockt",
     "stat2": "0 Kunden"
   },
+  "silentPain": {
+    "kicker": "JEDE WOCHE · DIE DU NIE GESEHEN HAST",
+    "title": "Du wirst nie erfahren, wie viele du verloren hast.",
+    "sub": "Jemand liest dein Angebot, vielleicht die letzten Beiträge. Dann schließt er den Tab. Keine Nachricht, kein Zeichen, dass er überhaupt da war. „Bei Fragen einfach melden\" klingt freundlich, aber gemeldet hat sich fast nie jemand von selbst.",
+    "resolve": "Der Setter fragt zuerst, bevor sich jemand traut zu schreiben. Wer sonst wortlos gegangen wäre, hat jetzt einen Grund zu antworten.",
+    "cta": "Setter einrichten"
+  },
   "offer": {
     "bullet1": "Antwortet nachts um 23:12, nur aus deinen Inhalten",
     "bullet2": "Stellt deine Qualifizierungsfragen und sortiert Neugierige aus",
@@ -638,9 +647,9 @@
     "note": "monatlich kündbar · sichere Zahlung über Stripe"
   },
   "nightFinale": {
-    "kicker": "HEUTE NACHT · 23:12",
-    "title": "Heute Nacht fragt wieder jemand.",
-    "sub": "Diesmal antwortet dein Setter in Sekunden, stellt deine Fragen und bucht den Termin. Du schläfst. Dein Kalender nicht.",
+    "kicker": "JEDE WOCHE · JETZT SIEHST DU SIE",
+    "title": "Nächste Woche weißt du es.",
+    "sub": "Dein Setter fängt das Gespräch an, bevor der Tab zugeht, hält jeden Besucher fest, der antwortet, und bucht den Termin. Nichts passiert mehr wortlos.",
     "bookedTitle": "Erstgespräch gebucht",
     "bookedText": "Donnerstag, 14:00 Uhr · Antwortzeit: 4 Sekunden",
     "cta": "Setter einrichten"

@@ -606,19 +606,21 @@
     "heroCta": "Watch the demo (5 min)"
   },
   "nightHero": {
-    "kicker": "11:12 PM · ONE INQUIRY. NO REPLY.",
-    "headline": "She wrote at 11:12pm. By 8:34am she was gone.",
-    "sub": "This is how coaches lose clients every week: the inquiry comes at night, the reply comes in the morning, the booking goes elsewhere. The 2Fronts setter answers in seconds, qualifies, and books the call. Even at 11:12pm.",
-    "cta": "Stop losing these",
     "replay": "11:12pm · play again",
     "lastSeen": "last seen 11:14 PM",
     "inputHint": "Message"
+  },
+  "nightStory": {
+    "kicker": "11:12 PM · ONE INQUIRY. NO REPLY.",
+    "title": "She wrote at 11:12pm. By 8:34am she was gone.",
+    "sub": "This is how coaches lose clients every week: the inquiry comes at night, the reply comes in the morning, the booking goes elsewhere.",
+    "resolve": "The 2Fronts setter answers in seconds, qualifies, and books the call. Even at 11:12pm."
   },
   "calendarPain": {
     "kicker": "THURSDAY · THE CALENDAR IS FULL",
     "title": "And the open booking link? It fills your calendar. With the wrong people.",
     "sub": "Put your booking link in your bio and you get the opposite problem: anyone can book. So everyone does. People who want free tips, people with no budget, people who never show up.",
-    "resolve": "The 2Fronts setter asks first: what is it about, how serious is it, does the budget fit. Only people who qualify get your booking link. At night it answers questions, in the morning the right calls are on your calendar.",
+    "resolve": "The 2Fronts setter asks first: what is it about, how serious is it, does the budget fit. Nobody sees your booking link before answering those questions, and every answer shows up tagged in your dashboard. At night it does the asking, in the morning you know exactly who's on your calendar and how serious they are.",
     "calTitle": "Thursday",
     "calVia": "booked via open link",
     "slot1Name": "Discovery call · Marco",
@@ -630,6 +632,13 @@
     "stat1": "4.5 hrs blocked",
     "stat2": "0 clients"
   },
+  "silentPain": {
+    "kicker": "EVERY WEEK · THE ONES YOU NEVER SAW",
+    "title": "You'll never know how many you lost.",
+    "sub": "Someone reads your offer, maybe your last few posts. Then they close the tab. No message, no sign they were ever there. \"Feel free to reach out\" sounds friendly, but almost nobody takes you up on it first.",
+    "resolve": "The setter asks first, before anyone has to work up the nerve to write. So the ones who would have quietly left already have a reason to answer instead.",
+    "cta": "Set up your setter"
+  },
   "offer": {
     "bullet1": "Answers at 11:12pm, only from your content",
     "bullet2": "Asks your qualifying questions and filters out tire-kickers",
@@ -638,9 +647,9 @@
     "note": "cancel monthly · secure checkout via Stripe"
   },
   "nightFinale": {
-    "kicker": "TONIGHT · 11:12 PM",
-    "title": "Tonight, someone will ask again.",
-    "sub": "This time your setter answers in seconds, asks your questions, and books the call. You sleep. Your calendar does not.",
+    "kicker": "EVERY WEEK · NOW YOU SEE THEM",
+    "title": "Next week, you'll know.",
+    "sub": "Your setter starts the conversation before the tab closes, logs every visitor who answers, and books the call. Nothing happens quietly anymore.",
     "bookedTitle": "Discovery call booked",
     "bookedText": "Thursday, 2:00 PM · response time: 4 seconds",
     "cta": "Set up your setter"
