@@ -11,6 +11,7 @@ import {
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import './ConciergeChatsPage.css'
 
 type Tone = 'neutral' | 'success' | 'warning' | 'danger'
@@ -46,6 +47,7 @@ function buildCsv(chats: ConciergeChatSummary[]): string {
 // owner-scoped by RLS.
 export function ConciergeChatsPage() {
   const { t, i18n } = useTranslation()
+  useDocumentMeta({ title: '2Fronts', noindex: true })
   const [concierges, setConcierges] = useState<MyConcierge[]>([])
   const [chats, setChats] = useState<ConciergeChatSummary[]>([])
   const [loading, setLoading] = useState(true)

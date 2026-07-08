@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useDocumentMeta } from '../../../hooks/useDocumentMeta'
 import './LegalLayout.css'
 
 // Shared scaffold for the three legal pages (Impressum, Datenschutz, AGB).
 // Renders the title, an optional DRAFT banner, the "last updated" line and the
 // page body. All visible strings come from the `legal.*` i18n namespace.
+//
+// noindex: these pages exist for legal compliance, not to rank — without this
+// they'd otherwise dilute the site's title/meta signal since the app has no
+// per-route <title> by default (see seo-audit-2026-07-08.md finding #3).
 export function LegalLayout({
   title,
   draft = false,
@@ -15,6 +20,7 @@ export function LegalLayout({
   children: ReactNode
 }) {
   const { t } = useTranslation()
+  useDocumentMeta({ title: `${title} — 2Fronts`, noindex: true })
   return (
     <article className="legal-page page-stack">
       <header className="legal-header">

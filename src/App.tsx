@@ -35,8 +35,13 @@ export default function App() {
               <Route path="/c/:slug" element={<ConciergePublicPage />} />
               <Route element={<AppLayout />}>
                 {/* The catalog IS the home page. /automations stays as an alias so
-                    existing links and deep links keep working. */}
+                    existing links and deep links keep working. /en is the
+                    dedicated, indexable English entry point (same component,
+                    forces English + its own canonical/hreflang — see
+                    CatalogPage's useDocumentMeta call and
+                    seo-audit-2026-07-08.md finding #3). */}
                 <Route path="/" element={<CatalogPage />} />
+                <Route path="/en" element={<CatalogPage />} />
                 <Route path="/app" element={<AppHomePage />} />
                 <Route path="/automations" element={<CatalogPage />} />
                 <Route path="/automations/:id" element={<AutomationDetailPage />} />

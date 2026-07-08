@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/Toast'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import type { Automation } from '../../types/database'
 
 // The connectors an automation can be fulfilled by. Keep in sync with the
@@ -43,6 +44,7 @@ function billingPatch(value: string): { pricing_model: 'one_time' | 'subscriptio
 export function AdminCatalogPage() {
   const { showToast } = useToast()
   const { t } = useTranslation()
+  useDocumentMeta({ title: '2Fronts', noindex: true })
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<NewAutomationInput>(EMPTY_FORM)

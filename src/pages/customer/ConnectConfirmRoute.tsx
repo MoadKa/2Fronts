@@ -5,6 +5,7 @@ import { getProvisionConnectorType } from '../../services/SlackService'
 import { MappingConfirmationPage } from './MappingConfirmationPage'
 import { SlackChannelPage } from './SlackChannelPage'
 import { ConciergeSetupPage } from './ConciergeSetupPage'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 
 // Single entry point for /connect/:provisionId/confirm. Both the Google and Slack
 // OAuth callbacks redirect here; we read the provision's connector_type once and
@@ -17,6 +18,7 @@ import { ConciergeSetupPage } from './ConciergeSetupPage'
 export function ConnectConfirmRoute() {
   const { provisionId } = useParams<{ provisionId: string }>()
   const { t } = useTranslation()
+  useDocumentMeta({ title: '2Fronts', noindex: true })
   const [connectorType, setConnectorType] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 

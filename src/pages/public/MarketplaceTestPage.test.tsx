@@ -30,7 +30,7 @@ describe('MarketplaceTestPage', () => {
     renderPage()
     const meta = document.querySelector('meta[name="robots"]')
     expect(meta).not.toBeNull()
-    expect(meta?.getAttribute('content')).toBe('noindex')
+    expect(meta?.getAttribute('content')).toBe('noindex, follow')
   })
 
   // Regression: live QA found visitors who land on the form without clicking

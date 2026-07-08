@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge'
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { useToast } from '../../components/ui/Toast'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import type { AutomationProvisionStatus, AutomationRequestWithAutomation, RequestStatus } from '../../types/database'
 
 const STATUS_TONE: Record<RequestStatus, 'neutral' | 'success' | 'warning' | 'danger'> = {
@@ -27,6 +28,7 @@ const ALL_STATUSES: RequestStatus[] = [
 export function AdminRequestsPage() {
   const { showToast } = useToast()
   const { t } = useTranslation()
+  useDocumentMeta({ title: '2Fronts', noindex: true })
   const [requests, setRequests] = useState<AutomationRequestWithAutomation[]>([])
   const [loading, setLoading] = useState(true)
   const [notesByRequest, setNotesByRequest] = useState<Record<string, string>>({})
