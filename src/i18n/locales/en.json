@@ -618,7 +618,7 @@
     "kicker": "THURSDAY · THE CALENDAR IS FULL",
     "title": "And the open booking link? It fills your calendar. With the wrong people.",
     "sub": "Put your booking link in your bio and you get the opposite problem: anyone can book. So everyone does. People who want free tips, people with no budget, people who never show up.",
-    "resolve": "The 2Fronts setter asks first: what is it about, how serious is it, does the budget fit. Only people who qualify get your booking link. At night it answers questions, in the morning the right calls are on your calendar.",
+    "resolve": "The 2Fronts setter asks first: what is it about, how serious is it, does the budget fit. Nobody sees your booking link before answering those questions, and every answer shows up tagged in your dashboard. At night it does the asking, in the morning you know exactly who's on your calendar and how serious they are.",
     "calTitle": "Thursday",
     "calVia": "booked via open link",
     "slot1Name": "Discovery call · Marco",
@@ -629,6 +629,22 @@
     "slot3Tag": "no budget",
     "stat1": "4.5 hrs blocked",
     "stat2": "0 clients"
+  },
+  "silentPain": {
+    "kicker": "EVERY WEEK · THE INBOX STAYS QUIET",
+    "title": "Most people who look at your page don't write to you. They just look.",
+    "sub": "Someone reads your offer, maybe your last few posts. Then nothing happens. The next step just wasn't clear enough to take. \"Feel free to reach out\" sounds friendly, but almost nobody takes you up on it first.",
+    "resolve": "The setter takes that step for them. It asks first, before anyone has to work up the nerve to write. That works whether your page gets a dozen visits a week or two hundred.",
+    "calTitle": "This week",
+    "calVia": "page visits",
+    "slot1Name": "17 opened your page",
+    "slot1Tag": "read your offer",
+    "slot2Name": "1 wrote to you",
+    "slot2Tag": "the only one who asked",
+    "slot3Name": "16 left again",
+    "slot3Tag": "without a word",
+    "stat1": "16 you'll never hear from",
+    "stat2": "some wanted to book"
   },
   "offer": {
     "bullet1": "Answers at 11:12pm, only from your content",

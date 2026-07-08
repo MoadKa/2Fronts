@@ -213,6 +213,39 @@ export function CatalogPage() {
         </div>
       </section>
 
+      <section className="silent-pain">
+        <div className="silent-inner">
+          <Reveal>
+            <div>
+              <span className="silent-kicker">{t('silentPain.kicker')}</span>
+              <h2>{t('silentPain.title')}</h2>
+              <p className="silent-sub">{t('silentPain.sub')}</p>
+              <p className="silent-resolve">{t('silentPain.resolve')}</p>
+            </div>
+          </Reveal>
+          <Reveal delay={100}>
+            <div className="silent-card">
+              <div className="silent-card-head">
+                <b>{t('silentPain.calTitle')}</b>
+                <span>{t('silentPain.calVia')}</span>
+              </div>
+              {[1, 2, 3].map((n) => (
+                <div className={n === 2 ? 'silent-row silent-row-hit' : 'silent-row'} key={n}>
+                  <div className="silent-what">
+                    <b>{t(`silentPain.slot${n}Name`)}</b>
+                    <span className="silent-tag">{t(`silentPain.slot${n}Tag`)}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="silent-card-foot">
+                <span>{t('silentPain.stat1')}</span>
+                <span>{t('silentPain.stat2')}</span>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       <Reveal>
         <section id="demo" className="demo-section">
           <span className="demo-eyebrow">{t('demo.eyebrow')}</span>
