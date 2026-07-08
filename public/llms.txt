@@ -13,7 +13,9 @@ Coaches, Berater, Kursersteller und Creator, die High-Ticket-Angebote über Erst
 ## Wichtige Seiten
 
 - Startseite: https://2fronts.de/
+- English homepage: https://2fronts.de/en
 - Produktseite AI Appointment Setter: https://2fronts.de/automations/a2426011-7dea-4979-ac8f-4cb47f6cc3d1
+- Pricing (machine-readable): https://2fronts.de/pricing.md
 - Setter-Kosten-Rechner (Mensch vs. KI): https://2fronts.de/rechner/
 - Für Coaches: https://2fronts.de/fuer/coaches/
 - Für Berater & Consultants: https://2fronts.de/fuer/berater/
