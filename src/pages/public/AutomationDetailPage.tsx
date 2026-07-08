@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getAutomationById } from '../../services/AutomationService'
 import { localizeAutomation, localizeCategory } from '../../lib/localizeAutomation'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import { createRequest, createCheckoutSession, createProvisionDetails } from '../../services/RequestService'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../components/ui/Toast'
@@ -65,6 +66,16 @@ export function AutomationDetailPage() {
       setLoading(false)
     })
   }, [id])
+
+  // Hooks must run unconditionally, so this sits before the loading/not-found
+  // early returns below. Falls back to the generic site title while the
+  // automation is still loading or missing (see seo-audit-2026-07-08.md #2 —
+  // this route previously always rendered the homepage's title).
+  const metaLoc = automation ? localizeAutomation(automation, i18n.language) : null
+  useDocumentMeta({
+    title: metaLoc ? `${metaLoc.name} — 2Fronts` : '2Fronts',
+    description: metaLoc?.outcome_description,
+  })
 
   async function handleRequest() {
     if (!automation) return

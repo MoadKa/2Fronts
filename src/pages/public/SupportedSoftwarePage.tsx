@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { listPublicConnectors } from '../../services/ConnectorService'
 import { Reveal } from '../../components/ui/Reveal'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import type { Connector } from '../../types/database'
 import './SupportedSoftwarePage.css'
 
@@ -16,6 +17,10 @@ function monogram(displayName: string): string {
 
 export function SupportedSoftwarePage() {
   const { t } = useTranslation()
+  useDocumentMeta({
+    title: `${t('supportedSoftware.title')} — 2Fronts`,
+    description: t('supportedSoftware.intro'),
+  })
   const [connectors, setConnectors] = useState<Connector[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)

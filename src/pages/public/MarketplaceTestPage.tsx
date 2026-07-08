@@ -1,10 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { useToast } from '../../components/ui/Toast'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import { submitMarketplaceCapture } from '../../services/MarketplaceCaptureService'
 
 interface Listing {
@@ -35,20 +36,8 @@ const LISTINGS: Listing[] = [
   },
 ]
 
-function useNoindexMeta() {
-  useEffect(() => {
-    const meta = document.createElement('meta')
-    meta.name = 'robots'
-    meta.content = 'noindex'
-    document.head.appendChild(meta)
-    return () => {
-      document.head.removeChild(meta)
-    }
-  }, [])
-}
-
 export function MarketplaceTestPage() {
-  useNoindexMeta()
+  useDocumentMeta({ title: 'Marketplace Test — 2Fronts', noindex: true })
   const { showToast } = useToast()
   const { t } = useTranslation()
 

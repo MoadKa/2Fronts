@@ -5,6 +5,7 @@ import { listMyRequests, createPortalSession } from '../../services/RequestServi
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import type { AutomationProvision, AutomationRequestWithAutomation, RequestStatus } from '../../types/database'
 import './MyRequestsPage.css'
 
@@ -134,6 +135,7 @@ function ProvisionPanel({ provision }: { provision: AutomationProvision }) {
 
 export function MyRequestsPage() {
   const { t } = useTranslation()
+  useDocumentMeta({ title: `${t('nav.myRequests')} — 2Fronts`, noindex: true })
   const [requests, setRequests] = useState<AutomationRequestWithAutomation[]>([])
   const [loading, setLoading] = useState(true)
 

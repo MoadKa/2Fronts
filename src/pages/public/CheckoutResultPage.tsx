@@ -2,11 +2,13 @@ import { useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 
 export function CheckoutResultPage() {
   const [searchParams] = useSearchParams()
   const { t } = useTranslation()
   const status = searchParams.get('status')
+  useDocumentMeta({ title: '2Fronts', noindex: true })
 
   if (status === 'success') {
     return (

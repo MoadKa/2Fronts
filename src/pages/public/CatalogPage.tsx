@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type SVGProps } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { listActiveAutomations } from '../../services/AutomationService'
 import { localizeAutomation, localizeCategory } from '../../lib/localizeAutomation'
@@ -9,8 +9,20 @@ import { Reveal } from '../../components/ui/Reveal'
 import { DemoVideo } from '../../components/ui/DemoVideo'
 import { HeroNightChat } from './HeroNightChat'
 import { CatalogRequestSection } from './CatalogRequestSection'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import type { Automation } from '../../types/database'
 import './CatalogPage.css'
+
+const SITE = 'https://2fronts.de'
+// The three URLs that render this component. /automations is a legacy alias
+// kept for existing links (see route comment in App.tsx) and canonicals to
+// the homepage rather than self-referencing, so it doesn't compete with it as
+// duplicate content. /en is the dedicated, indexable English entry point
+// (seo-audit-2026-07-08.md finding #3 — previously there was no crawlable
+// English content at all, since language was a client-side-only toggle).
+const DE_TITLE = '2Fronts — AI Appointment Setter für Coaches & Berater'
+const DE_DESCRIPTION =
+  'Dein KI-Appointment-Setter für 199 €/Monat: berät deine Interessenten 24/7 aus deinen eigenen Inhalten und bucht qualifizierte Erstgespräche direkt in deinen Kalender.'
 
 function formatPrice(cents: number, currency: string): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
@@ -94,10 +106,31 @@ function CheckIcon(props: IconProps) {
 
 export function CatalogPage() {
   const { t, i18n } = useTranslation()
+  const location = useLocation()
+  const isEnglishRoute = location.pathname === '/en'
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [activeCategory, setActiveCategory] = useState('')
+
+  // /en is a dedicated English entry point regardless of the visitor's stored
+  // language preference — that's the whole point of it being a stable,
+  // indexable URL. i18n's own localStorage cache then carries English into
+  // the rest of the session as they browse from here.
+  useEffect(() => {
+    if (isEnglishRoute && i18n.language !== 'en') i18n.changeLanguage('en')
+  }, [isEnglishRoute, i18n])
+
+  useDocumentMeta({
+    title: isEnglishRoute ? `${t('catalog.heroTitle')} — 2Fronts` : DE_TITLE,
+    description: isEnglishRoute ? t('catalog.heroSub') : DE_DESCRIPTION,
+    canonical: isEnglishRoute ? `${SITE}/en` : `${SITE}/`,
+    hreflang: [
+      { lang: 'de', href: `${SITE}/` },
+      { lang: 'en', href: `${SITE}/en` },
+      { lang: 'x-default', href: `${SITE}/` },
+    ],
+  })
 
   useEffect(() => {
     // A rejected fetch (network blip, a deploy in flight) must degrade to an

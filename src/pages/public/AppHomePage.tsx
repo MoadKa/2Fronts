@@ -1,13 +1,23 @@
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import './AppHomePage.css'
 
 // Public product page submitted to Google as the OAuth consent screen's
 // "Application home page". It must be reachable without auth and clearly
 // describe what the app does and how it uses Google data, and link the privacy
 // policy. Keep it descriptive and honest — Google reviewers read this.
+//
+// Explicitly NOT noindex: unlike the other utility pages fixed alongside this
+// one (seo-audit-2026-07-08.md #2), this route is required by Google's OAuth
+// verification to be a real, reachable, descriptive page — it gets its own
+// title/description instead.
 export function AppHomePage() {
   const { t } = useTranslation()
+  useDocumentMeta({
+    title: `${t('appHome.heroTitle')} — 2Fronts`,
+    description: t('appHome.heroSub'),
+  })
 
   return (
     <div className="app-home">
