@@ -247,12 +247,24 @@
 }
 
 .night-sub {
-  margin: 1.3rem 0 1.7rem;
+  margin: 1.3rem 0 0.9rem;
   font-size: 1.05rem;
   line-height: 1.65;
   color: rgba(231, 225, 214, 0.75);
   max-width: 46ch;
 }
+
+.night-resolve {
+  margin: 0 0 1.7rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  font-weight: 600;
+  color: #e7e1d6;
+  max-width: 44ch;
+}
+
+/* the hero with no side visual: one column, text keeps its own max-width */
+.night-inner-solo { grid-template-columns: 1fr; }
 
 .night-actions { justify-content: flex-start; }
 .night-link { color: #ffb35c; }
@@ -443,68 +455,9 @@
   font-weight: 500;
 }
 
-.silent-card {
-  background: #fffdf7;
-  border: 1px solid #e3dbc9;
-  border-radius: 16px;
-  box-shadow: 0 2px 4px rgba(27, 23, 18, 0.05), 0 18px 40px rgba(27, 23, 18, 0.09);
-  padding: 1.2rem 1.2rem 1rem;
-  max-width: 480px;
-  width: 100%;
-  justify-self: center;
-}
-
-.silent-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  border-bottom: 1px solid #e3dbc9;
-  padding-bottom: 0.6rem;
-  margin-bottom: 0.4rem;
-}
-.silent-card-head b { font-family: 'Fraunces', serif; font-size: 1.05rem; }
-.silent-card-head span { font-family: 'Fragment Mono', monospace; font-size: 0.7rem; color: #6b655b; }
-
-.silent-row {
-  display: flex;
-  gap: 0.8rem;
-  align-items: flex-start;
-  padding: 0.55rem 0.4rem;
-}
-.silent-row + .silent-row { border-top: 1px dashed #e3dbc9; }
-
-.silent-what { flex: 1; }
-.silent-what b {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-.silent-tag {
-  display: inline-block;
-  margin-top: 0.25rem;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0.16rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(107, 101, 91, 0.1);
-  color: #6b655b;
-}
-/* the one row that actually converted reads distinct from the two that went quiet */
-.silent-row-hit .silent-what b { color: #1b7a4a; }
-.silent-row-hit .silent-tag { background: rgba(27, 122, 74, 0.12); color: #1b7a4a; }
-
-.silent-card-foot {
-  margin-top: 0.5rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid #e3dbc9;
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.74rem;
-  color: #6b655b;
-  font-weight: 700;
-  display: flex;
-  justify-content: space-between;
-  font-variant-numeric: tabular-nums;
-}
+/* the demoted section now hosts HeroNightChat's own phone mockup, which is
+   fully self-styled (dark card, own shadow/glow) — no extra card CSS needed
+   here, .silent-inner's grid centers it the same way .night-inner used to. */
 
 @media (max-width: 900px) {
   .silent-inner { grid-template-columns: 1fr; gap: 2rem; }

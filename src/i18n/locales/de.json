@@ -606,13 +606,15 @@
     "heroCta": "Demo ansehen (5 Min)"
   },
   "nightHero": {
-    "kicker": "23:12 · EINE ANFRAGE. KEINE ANTWORT.",
-    "headline": "Sie hat um 23:12 geschrieben. Um 08:34 war sie weg.",
-    "sub": "So verlieren Coaches jede Woche Kunden: Die Anfrage kommt nachts, die Antwort kommt morgens, gebucht wird woanders. Der Setter von 2Fronts antwortet in Sekunden, qualifiziert und bucht das Erstgespräch. Auch um 23:12.",
-    "cta": "So verhindern Sie das",
     "replay": "23:12 · noch mal abspielen",
     "lastSeen": "zuletzt online: 23:14",
     "inputHint": "Nachricht"
+  },
+  "nightStory": {
+    "kicker": "23:12 · EINE ANFRAGE. KEINE ANTWORT.",
+    "title": "Sie hat um 23:12 geschrieben. Um 08:34 war sie weg.",
+    "sub": "So verlieren Coaches jede Woche Kunden: Die Anfrage kommt nachts, die Antwort kommt morgens, gebucht wird woanders.",
+    "resolve": "Der Setter von 2Fronts antwortet in Sekunden, qualifiziert und bucht das Erstgespräch. Auch um 23:12."
   },
   "calendarPain": {
     "kicker": "DONNERSTAG · DER KALENDER IST VOLL",
@@ -635,16 +637,7 @@
     "title": "Die meisten, die deine Seite anschauen, schreiben dir nicht, sie schauen nur.",
     "sub": "Jemand liest dein Angebot, vielleicht die letzten Beiträge. Und dann passiert: nichts. Der nächste Schritt war einfach unklar. „Bei Fragen einfach melden\" klingt freundlich, aber gemeldet hat sich fast nie jemand von selbst.",
     "resolve": "Der Setter übernimmt genau diesen Schritt. Er fragt zuerst, bevor sich jemand traut zu schreiben. Das klappt, ob deine Seite zwölf Besuche die Woche hat oder zweihundert.",
-    "calTitle": "Diese Woche",
-    "calVia": "Profilaufrufe",
-    "slot1Name": "17 haben deine Seite geöffnet",
-    "slot1Tag": "haben gelesen",
-    "slot2Name": "1 hat geschrieben",
-    "slot2Tag": "die einzige Anfrage",
-    "slot3Name": "16 sind wieder gegangen",
-    "slot3Tag": "ohne ein Wort",
-    "stat1": "16, von denen du nichts weißt",
-    "stat2": "manche wollten buchen"
+    "cta": "Setter einrichten"
   },
   "offer": {
     "bullet1": "Antwortet nachts um 23:12, nur aus deinen Inhalten",
@@ -654,9 +647,9 @@
     "note": "monatlich kündbar · sichere Zahlung über Stripe"
   },
   "nightFinale": {
-    "kicker": "HEUTE NACHT · 23:12",
-    "title": "Heute Nacht fragt wieder jemand.",
-    "sub": "Diesmal antwortet dein Setter in Sekunden, stellt deine Fragen und bucht den Termin. Du schläfst. Dein Kalender nicht.",
+    "kicker": "JEDE WOCHE · AB JETZT",
+    "title": "Nächste Woche schaut wieder jemand vorbei.",
+    "sub": "Diesmal fängt dein Setter das Gespräch an, bevor der Tab wieder zugeht. Du musst nicht zuschauen. Dein Kalender füllt sich trotzdem.",
     "bookedTitle": "Erstgespräch gebucht",
     "bookedText": "Donnerstag, 14:00 Uhr · Antwortzeit: 4 Sekunden",
     "cta": "Setter einrichten"

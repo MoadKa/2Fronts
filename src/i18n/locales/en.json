@@ -606,13 +606,15 @@
     "heroCta": "Watch the demo (5 min)"
   },
   "nightHero": {
-    "kicker": "11:12 PM · ONE INQUIRY. NO REPLY.",
-    "headline": "She wrote at 11:12pm. By 8:34am she was gone.",
-    "sub": "This is how coaches lose clients every week: the inquiry comes at night, the reply comes in the morning, the booking goes elsewhere. The 2Fronts setter answers in seconds, qualifies, and books the call. Even at 11:12pm.",
-    "cta": "Stop losing these",
     "replay": "11:12pm · play again",
     "lastSeen": "last seen 11:14 PM",
     "inputHint": "Message"
+  },
+  "nightStory": {
+    "kicker": "11:12 PM · ONE INQUIRY. NO REPLY.",
+    "title": "She wrote at 11:12pm. By 8:34am she was gone.",
+    "sub": "This is how coaches lose clients every week: the inquiry comes at night, the reply comes in the morning, the booking goes elsewhere.",
+    "resolve": "The 2Fronts setter answers in seconds, qualifies, and books the call. Even at 11:12pm."
   },
   "calendarPain": {
     "kicker": "THURSDAY · THE CALENDAR IS FULL",
@@ -635,16 +637,7 @@
     "title": "Most people who look at your page don't write to you. They just look.",
     "sub": "Someone reads your offer, maybe your last few posts. Then nothing happens. The next step just wasn't clear enough to take. \"Feel free to reach out\" sounds friendly, but almost nobody takes you up on it first.",
     "resolve": "The setter takes that step for them. It asks first, before anyone has to work up the nerve to write. That works whether your page gets a dozen visits a week or two hundred.",
-    "calTitle": "This week",
-    "calVia": "page visits",
-    "slot1Name": "17 opened your page",
-    "slot1Tag": "read your offer",
-    "slot2Name": "1 wrote to you",
-    "slot2Tag": "the only one who asked",
-    "slot3Name": "16 left again",
-    "slot3Tag": "without a word",
-    "stat1": "16 you'll never hear from",
-    "stat2": "some wanted to book"
+    "cta": "Set up your setter"
   },
   "offer": {
     "bullet1": "Answers at 11:12pm, only from your content",
@@ -654,9 +647,9 @@
     "note": "cancel monthly · secure checkout via Stripe"
   },
   "nightFinale": {
-    "kicker": "TONIGHT · 11:12 PM",
-    "title": "Tonight, someone will ask again.",
-    "sub": "This time your setter answers in seconds, asks your questions, and books the call. You sleep. Your calendar does not.",
+    "kicker": "EVERY WEEK · FROM NOW ON",
+    "title": "Next week, someone looks again.",
+    "sub": "This time your setter starts the conversation before the tab closes. You don't have to be watching. Your calendar fills anyway.",
     "bookedTitle": "Discovery call booked",
     "bookedText": "Thursday, 2:00 PM · response time: 4 seconds",
     "cta": "Set up your setter"
