@@ -6,7 +6,7 @@ Freigegeben vom Founder am 2026-07-04 nach Live-Preview
 (`~/.gstack/projects/MoadKa-2Fronts/designs/design-system-20260704/nachttisch-v3.html`).
 
 ## Produkt-Kontext
-- **Was:** AI Appointment Setter für Coaches (199 €/Monat, Abo). Chattet mit
+- **Was:** AI Appointment Setter für Coaches (200 €/Monat, Abo). Chattet mit
   Interessenten auf der Seite des Coaches, antwortet nur aus dessen Inhalten,
   qualifiziert, bucht Erstgespräche.
 - **Für wen:** deutsch- und englischsprachige Coaches/Berater, die über
