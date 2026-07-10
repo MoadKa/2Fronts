@@ -56,11 +56,12 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
 
   // RLS on automation_requests ("customers read own requests") guarantees this
   // only returns a row if the authenticated caller owns it. We also pull the
-  // pricing model (one_time vs subscription) and the owning customer's email so
-  // a subscription checkout can attach a named Stripe Customer.
+  // pricing model (one_time vs subscription) plus the owning customer's email
+  // and stored Stripe customer id so a subscription checkout can attach a
+  // named, reused Stripe Customer.
   const { data: requestRow, error: requestError } = await userClient
     .from('automation_requests')
-    .select('id, automations(name, price_cents, currency, pricing_model, recurring_interval), profiles(email)')
+    .select('id, customer_id, automations(name, price_cents, currency, pricing_model, recurring_interval), profiles(email, stripe_customer_id)')
     .eq('id', requestId)
     .single()
 
@@ -76,7 +77,11 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
     recurring_interval?: string | null
   }
   const profile = (requestRow as { profiles?: unknown }).profiles
-  const customerEmail = ((Array.isArray(profile) ? profile[0] : profile) as { email?: string } | null)?.email
+  const profileRow = (Array.isArray(profile) ? profile[0] : profile) as
+    | { email?: string; stripe_customer_id?: string | null }
+    | null
+  const customerEmail = profileRow?.email
+  const customerId = (requestRow as { customer_id?: string }).customer_id
   const adminClient = deps.createAdminClient()
 
   // Free automations (price 0) skip Stripe entirely: Stripe rejects zero-amount
@@ -98,17 +103,49 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
   // billing-portal link has a customer to point at). One-time SKUs fall through
   // to the unchanged mode:'payment' path below.
   if (automation.pricing_model === 'subscription') {
-    // Create the Customer up front so we can store the id even before the
-    // subscription exists; Stripe will reuse it for the subscription's invoices.
-    const customer = await deps.stripe.customers.create({
-      email: customerEmail,
-      metadata: { request_id: requestId },
-    })
+    // One Stripe Customer per coach: reuse the id stored on the profile so a
+    // repeat checkout doesn't mint a duplicate Customer. Create + persist it
+    // only when none is stored yet; Stripe reuses it for the subscription's
+    // invoices either way.
+    let stripeCustomerId = profileRow?.stripe_customer_id ?? null
+    if (!stripeCustomerId) {
+      const customer = await deps.stripe.customers.create({
+        email: customerEmail,
+        metadata: { request_id: requestId },
+      })
+      stripeCustomerId = customer.id
+      await adminClient
+        .from('profiles')
+        .update({ stripe_customer_id: stripeCustomerId })
+        .eq('id', customerId)
+    }
+
+    // 14-day trial only for first-time subscribers: anyone whose provisions
+    // already carry a Stripe subscription id has subscribed before, so a
+    // cancel-and-resubscribe never earns a second free trial. Fail closed: if
+    // the eligibility lookup errors we grant NO trial rather than block the
+    // checkout.
+    let trialEligible = false
+    try {
+      const { data: priorSubs, error: priorError } = await adminClient
+        .from('automation_provisions')
+        .select('id, automation_requests!inner(customer_id)')
+        .not('stripe_subscription_id', 'is', null)
+        .eq('automation_requests.customer_id', customerId)
+        .limit(1)
+      if (priorError) throw priorError
+      trialEligible = (priorSubs ?? []).length === 0
+    } catch (err) {
+      console.error(
+        'create-checkout-session: trial eligibility lookup failed, granting no trial:',
+        err instanceof Error ? err.message : err,
+      )
+    }
 
     const session = await deps.stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      customer: customer.id,
+      customer: stripeCustomerId,
       line_items: [{
         price_data: {
           currency: automation.currency,
@@ -121,9 +158,14 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
       // request_id rides on both the session and the subscription so the webhook
       // can map either back to this request without a DB lookup.
       metadata: { request_id: requestId },
-      // No trial: the customer is charged the plan price immediately at checkout,
-      // then billed recurrently at the chosen interval until cancelled.
-      subscription_data: { metadata: { request_id: requestId } },
+      // 14-day free trial for first-time subscribers: the customer enters a
+      // card now, is charged nothing during the trial, then auto-billed at the
+      // plan price when it ends. Returning subscribers (trialEligible=false)
+      // are charged the plan price immediately at checkout; both are billed
+      // recurrently at the chosen interval until cancelled.
+      subscription_data: trialEligible
+        ? { metadata: { request_id: requestId }, trial_period_days: 14 }
+        : { metadata: { request_id: requestId } },
       success_url: `${appBaseUrl}/checkout/result?status=success`,
       cancel_url: `${appBaseUrl}/checkout/result?status=cancelled`,
     })
@@ -137,7 +179,7 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
       .eq('id', requestId)
     await adminClient
       .from('automation_provisions')
-      .update({ stripe_customer_id: customer.id })
+      .update({ stripe_customer_id: stripeCustomerId })
       .eq('request_id', requestId)
 
     return json({ url: session.url })
