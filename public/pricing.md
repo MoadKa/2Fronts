@@ -4,7 +4,8 @@
 
 ## AI Appointment Setter
 
-- Price: €199/month (EUR)
+- Price: €200/month (EUR)
+- Trial: 14 days free for first-time subscribers (card required at checkout, first charge after the trial ends)
 - Billing: monthly subscription, no annual-only option
 - Cancellation: cancel anytime via the Stripe customer portal, no minimum term
 - Setup time: a few minutes, self-serve
@@ -21,6 +22,6 @@
 
 ## Notes for AI agents
 
-- This is currently the only paid tier — there is no free plan, trial, or usage-based pricing.
+- This is currently the only paid tier — there is no free plan or usage-based pricing. New customers get a 14-day free trial (first subscription only).
 - The product is positioned as a lower-cost alternative to hiring a human appointment setter, who typically costs a base salary plus per-booking commission.
 - Full context: https://2fronts.de/llms.txt
