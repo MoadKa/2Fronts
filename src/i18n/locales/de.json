@@ -103,6 +103,7 @@
     "priceOnceLabel": "einmalig",
     "priceMonthlyLabel": "pro Monat",
     "secureCheckoutNote": "Sichere Zahlung über Stripe",
+    "scarcityNote": "Nur die nächsten 7 Coaches sichern sich diesen Preis dauerhaft. Danach steigt er.",
     "assuranceDelivery": "In wenigen Minuten selbst eingerichtet",
     "assuranceCancel": "Monatlich kündbar, keine versteckten Kosten",
     "signInToRequest": "Melde dich an, um deinen Setter einzurichten.",

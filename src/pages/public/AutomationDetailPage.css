@@ -90,6 +90,14 @@
   color: var(--color-text);
 }
 
+.detail-scarcity {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  /* Warnton aus DESIGN.md („Kicker auf hell") — bewusst nicht das CTA-Orange. */
+  color: #b45309;
+}
+
 .detail-fields {
   display: flex;
   flex-direction: column;
