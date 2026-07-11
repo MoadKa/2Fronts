@@ -57,13 +57,44 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
       const subscriptionId = idOf(session.subscription)
       if (subscriptionId) {
         const customerId = idOf(session.customer)
-        await adminClient
+        // Never clobber a DIFFERENT already-stored subscription id: overwriting
+        // it would orphan the earlier subscription (its cancellation event
+        // could no longer find this provision). Alert ops instead — two
+        // subscriptions on one request is a state a human must untangle.
+        const { data: provision } = await adminClient
           .from('automation_provisions')
-          .update({
-            stripe_subscription_id: subscriptionId,
-            ...(customerId ? { stripe_customer_id: customerId } : {}),
-          })
+          .select('id, stripe_subscription_id')
           .eq('request_id', requestId)
+          .maybeSingle()
+        const storedSubscriptionId =
+          (provision as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id ?? null
+
+        if (storedSubscriptionId && storedSubscriptionId !== subscriptionId) {
+          await deps.alert({
+            type: 'subscription_conflict',
+            message: `Request ${requestId} provision already carries subscription ${storedSubscriptionId}, refusing to overwrite with ${subscriptionId}`,
+            fields: { requestId, storedSubscriptionId, incomingSubscriptionId: subscriptionId },
+          })
+        } else {
+          const { data: updated } = await adminClient
+            .from('automation_provisions')
+            .update({
+              stripe_subscription_id: subscriptionId,
+              ...(customerId ? { stripe_customer_id: customerId } : {}),
+            })
+            .eq('request_id', requestId)
+            .select()
+          // Zero affected rows means there is no provision row at all: the
+          // subscription is live on Stripe but untracked here (cancellation
+          // would silently no-op). Alert ops so it never goes unnoticed.
+          if (((updated as unknown[] | null) ?? []).length === 0) {
+            await deps.alert({
+              type: 'provision_missing',
+              message: `No provision row for request ${requestId}; subscription ${subscriptionId} is live but untracked`,
+              fields: { requestId, subscriptionId },
+            })
+          }
+        }
       }
 
       // Idempotent: provisionIfNeeded claims its transition with a status guard,

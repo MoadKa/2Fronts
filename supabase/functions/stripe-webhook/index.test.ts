@@ -88,7 +88,12 @@ function fakeProvisioningAdminClient(opts: FakeProvisioningAdminClientOpts) {
           select() {
             return {
               eq() {
-                return { single: () => Promise.resolve({ data: opts.provisionRow, error: opts.provisionRow ? null : new Error('not found') }) }
+                return {
+                  single: () => Promise.resolve({ data: opts.provisionRow, error: opts.provisionRow ? null : new Error('not found') }),
+                  // The subscription-id guard pre-reads the provision by
+                  // request_id before updating it.
+                  maybeSingle: () => Promise.resolve({ data: opts.provisionRow ?? null, error: null }),
+                }
               },
             }
           },
@@ -101,7 +106,15 @@ function fakeProvisioningAdminClient(opts: FakeProvisioningAdminClientOpts) {
                 return builder
               },
               select() {
+                // Awaited directly by the subscription-id store (affected-rows
+                // check) AND chained with .maybeSingle() by the provisioning
+                // claim — mirror supabase-js, where the builder is a thenable.
+                const affectedRows = Promise.resolve({
+                  data: opts.provisionRow ? [{ ...opts.provisionRow, ...(patch as object) }] : [],
+                  error: null,
+                })
                 return {
+                  then: affectedRows.then.bind(affectedRows),
                   maybeSingle: () =>
                     Promise.resolve({
                       data: opts.claimSucceeds ? { ...opts.provisionRow, ...(patch as object) } : null,
@@ -326,17 +339,27 @@ interface LifecycleUpdate {
 interface LifecycleOpts {
   // The provision returned when looking it up by stripe_subscription_id.
   provisionBySub: { id: string; config: Record<string, unknown> } | null
+  // The provision returned when the completed handler pre-reads it by
+  // request_id (subscription-id store guard). Default: a plain pending row.
+  provisionByRequest?: { id: string; stripe_subscription_id: string | null } | null
   updates: LifecycleUpdate[]
 }
 function fakeLifecycleAdminClient(opts: LifecycleOpts) {
+  const provisionByRequest = opts.provisionByRequest === undefined
+    ? { id: 'prov-1', stripe_subscription_id: null }
+    : opts.provisionByRequest
   return () => ({
     from(table: string) {
       return {
         select() {
           return {
-            eq() {
+            eq(col: string) {
               return {
-                maybeSingle: () => Promise.resolve({ data: opts.provisionBySub, error: null }),
+                maybeSingle: () =>
+                  Promise.resolve({
+                    data: col === 'request_id' ? provisionByRequest : opts.provisionBySub,
+                    error: null,
+                  }),
                 // checkout.session.completed path: requires_provisioning lookup.
                 single: () => Promise.resolve({ data: { automations: { requires_provisioning: false } }, error: null }),
               }
@@ -351,6 +374,13 @@ function fakeLifecycleAdminClient(opts: LifecycleOpts) {
               record.eqs.push([col, val])
               return chain
             },
+            // Affected-rows check on the subscription-id store: matches the
+            // pre-read row when it exists, zero rows when it doesn't.
+            select: () =>
+              Promise.resolve({
+                data: provisionByRequest ? [{ ...provisionByRequest, ...patch }] : [],
+                error: null,
+              }),
           }
           return chain
         },
@@ -379,6 +409,140 @@ Deno.test('checkout.session.completed (subscription) stores stripe_subscription_
   assertEquals(provUpdate?.patch.stripe_subscription_id, 'sub_123')
   assertEquals(provUpdate?.patch.stripe_customer_id, 'cus_123')
   assertEquals(provUpdate?.eqs[0], ['request_id', 'req_abc'])
+})
+
+Deno.test('a provision already carrying a DIFFERENT subscription id is not overwritten: subscription_conflict alert instead', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: null,
+    // A subscription is already tracked for this request.
+    provisionByRequest: { id: 'prov-1', stripe_subscription_id: 'sub_old' },
+    updates: [],
+  }
+  const event = {
+    type: 'checkout.session.completed',
+    data: { object: { id: 'cs_sub2', subscription: 'sub_new', customer: 'cus_123', metadata: { request_id: 'req_abc' } } },
+  }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+  const alerts: { type: string; fields?: Record<string, unknown> }[] = []
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  // sub_old stays: overwriting would orphan it (its cancellation event could
+  // no longer find this provision).
+  const provUpdate = opts.updates.find((u) => u.table === 'automation_provisions' && 'stripe_subscription_id' in u.patch)
+  assertEquals(provUpdate, undefined)
+  assertEquals(alerts.length, 1)
+  assertEquals(alerts[0].type, 'subscription_conflict')
+  assertEquals(alerts[0].fields?.storedSubscriptionId, 'sub_old')
+  assertEquals(alerts[0].fields?.incomingSubscriptionId, 'sub_new')
+})
+
+Deno.test('re-delivery with the SAME subscription id stores it again without a conflict alert', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: null,
+    provisionByRequest: { id: 'prov-1', stripe_subscription_id: 'sub_123' },
+    updates: [],
+  }
+  const event = {
+    type: 'checkout.session.completed',
+    data: { object: { id: 'cs_sub', subscription: 'sub_123', customer: 'cus_123', metadata: { request_id: 'req_abc' } } },
+  }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+  const alerts: { type: string }[] = []
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  const provUpdate = opts.updates.find((u) => u.table === 'automation_provisions' && 'stripe_subscription_id' in u.patch)
+  assertEquals(provUpdate?.patch.stripe_subscription_id, 'sub_123') // idempotent re-store
+  assertEquals(alerts.length, 0)
+})
+
+Deno.test('missing provision row triggers a provision_missing alert so the live subscription is never silently untracked', async () => {
+  const opts: LifecycleOpts = { provisionBySub: null, provisionByRequest: null, updates: [] }
+  const event = {
+    type: 'checkout.session.completed',
+    data: { object: { id: 'cs_sub', subscription: 'sub_123', customer: 'cus_123', metadata: { request_id: 'req_abc' } } },
+  }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+  const alerts: { type: string; fields?: Record<string, unknown> }[] = []
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(alerts.length, 1)
+  assertEquals(alerts[0].type, 'provision_missing')
+  assertEquals(alerts[0].fields?.requestId, 'req_abc')
+  assertEquals(alerts[0].fields?.subscriptionId, 'sub_123')
+})
+
+Deno.test('trial-shaped checkout.session.completed (no payment yet) still marks paid, stores the subscription id, and provisions', async () => {
+  // A 14-day-trial checkout completes with nothing charged: Stripe sends
+  // payment_status 'no_payment_required' and amount_total 0, but the
+  // subscription exists and the concierge must go live NOW — the coach paid
+  // with their card details, not money. This pins that intended behavior.
+  const opts: FakeProvisioningAdminClientOpts = {
+    requestRow: { automations: { requires_provisioning: true } },
+    provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Coaching', booking_link: 'https://cal.com/acme', status: 'pending' },
+    claimSucceeds: true,
+    updates: [],
+  }
+  const event = {
+    type: 'checkout.session.completed',
+    data: {
+      object: {
+        id: 'cs_trial',
+        payment_status: 'no_payment_required',
+        amount_total: 0,
+        subscription: 'sub_trial',
+        customer: 'cus_123',
+        metadata: { request_id: 'req_abc' },
+      },
+    },
+  }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+  let purchaseCalledWith = ''
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeProvisioningAdminClient(opts) as never,
+    alert: noopAlert,
+    provisionAutomation: {
+      purchaseNumber: (businessName: string) => {
+        purchaseCalledWith = businessName
+        return Promise.resolve({ phoneNumber: '+4915712345678', sid: 'PN123' })
+      },
+    } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  // Request marked paid even though 0 € moved.
+  const requestUpdate = opts.updates.find((u) => u.table === 'automation_requests')
+  assertEquals((requestUpdate?.patch as { status: string }).status, 'paid')
+  // Subscription id stored so cancellation can find the provision later.
+  const subStore = opts.updates.find(
+    (u) => u.table === 'automation_provisions' && 'stripe_subscription_id' in (u.patch as Record<string, unknown>),
+  )
+  assertEquals((subStore?.patch as { stripe_subscription_id: string }).stripe_subscription_id, 'sub_trial')
+  assertEquals((subStore?.patch as { stripe_customer_id: string }).stripe_customer_id, 'cus_123')
+  // Provisioning ran: the concierge goes live at trial start, not at first charge.
+  assertEquals(purchaseCalledWith, 'Acme Coaching')
 })
 
 Deno.test('customer.subscription.deleted deactivates the linked concierge and cancels the provision', async () => {
