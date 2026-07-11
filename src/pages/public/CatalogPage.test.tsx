@@ -18,6 +18,27 @@ describe('CatalogPage', () => {
     expect(screen.getByText('finance')).toBeInTheDocument()
   })
 
+  // The single-offer card (exactly one active automation) carries the price
+  // scarcity note — but only for subscription pricing.
+  it('shows the scarcity note on the single-offer card for a subscription automation', async () => {
+    vi.mocked(listActiveAutomations).mockResolvedValue([
+      { id: 'auto-2', name: 'Concierge', summary: 'Books calls', outcome_description: 'x', category: 'sales', price_cents: 20000, currency: 'eur', pricing_model: 'subscription', recurring_interval: 'month', is_active: true, requires_provisioning: true, connector_type: 'booking_concierge', created_at: '2026-06-24T00:00:00Z' },
+    ])
+    render(<MemoryRouter><CatalogPage /></MemoryRouter>)
+    await waitFor(() =>
+      expect(screen.getByText('Nur die nächsten 7 Coaches sichern sich diesen Preis dauerhaft. Danach steigt er.')).toBeInTheDocument()
+    )
+  })
+
+  it('does not show the scarcity note on the single-offer card for a one-time automation', async () => {
+    vi.mocked(listActiveAutomations).mockResolvedValue([
+      { id: 'auto-1', name: 'Invoice Sync', summary: 'Syncs invoices', outcome_description: 'x', category: 'finance', price_cents: 49900, currency: 'eur', pricing_model: 'one_time', is_active: true, requires_provisioning: false, connector_type: 'google_sheets', created_at: '2026-06-01T00:00:00Z' },
+    ])
+    render(<MemoryRouter><CatalogPage /></MemoryRouter>)
+    await waitFor(() => expect(screen.getByText('Invoice Sync')).toBeInTheDocument())
+    expect(screen.queryByText(/sichern sich diesen Preis dauerhaft/)).not.toBeInTheDocument()
+  })
+
   it('shows an empty state when there are no automations', async () => {
     vi.mocked(listActiveAutomations).mockResolvedValue([])
     render(<MemoryRouter><CatalogPage /></MemoryRouter>)
