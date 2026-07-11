@@ -51,6 +51,9 @@ interface CapturedAdmin {
   priorProvisions?: unknown[]
   // When set, the trial-eligibility select rejects with this error.
   priorProvisionsError?: Error
+  // When set, the trial-eligibility select RESOLVES with this error in the
+  // supabase result envelope (the { data, error } shape) instead of rejecting.
+  priorProvisionsResolvedError?: Error
 }
 
 function fakeAdminClient(captured: CapturedAdmin) {
@@ -77,7 +80,9 @@ function fakeAdminClient(captured: CapturedAdmin) {
             limit: () =>
               captured.priorProvisionsError
                 ? Promise.reject(captured.priorProvisionsError)
-                : Promise.resolve({ data: captured.priorProvisions ?? [], error: null }),
+                : captured.priorProvisionsResolvedError
+                  ? Promise.resolve({ data: null, error: captured.priorProvisionsResolvedError })
+                  : Promise.resolve({ data: captured.priorProvisions ?? [], error: null }),
           }
           return chain
         },
@@ -267,6 +272,51 @@ Deno.test('no stored customer id: Stripe Customer is created and persisted to pr
   assertEquals(stripe.params!.customer, 'cus_new')
   assertEquals(admin.patches['profiles'].stripe_customer_id, 'cus_new') // stored for reuse
   assertEquals(admin.eqCalls.some(([col, val]) => col === 'id' && val === 'user-1'), true) // on the caller's profile row
+})
+
+Deno.test('trial subscription_data still carries request_id metadata for the webhook', async () => {
+  const admin: CapturedAdmin = { eqCalls: [], patches: {} } // first-time subscriber
+  const stripe: { params?: Record<string, unknown> } = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe),
+    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  assertEquals(res.status, 200)
+  const subData = stripe.params!.subscription_data as { metadata?: Record<string, string>; trial_period_days?: number }
+  // The trial branch must not drop the request_id the webhook maps back from.
+  assertEquals(subData.metadata, { request_id: 'req-1' })
+  assertEquals(subData.trial_period_days, 14)
+  assertEquals((stripe.params!.metadata as Record<string, string>).request_id, 'req-1')
+})
+
+Deno.test('trial-eligibility select resolving with a supabase error envelope also fails closed', async () => {
+  const admin: CapturedAdmin = {
+    eqCalls: [],
+    patches: {},
+    // Not a rejected promise: supabase-js normally RESOLVES with { data, error }.
+    // This exercises the `if (priorError) throw priorError` branch.
+    priorProvisionsResolvedError: new Error('permission denied'),
+  }
+  const stripe: { params?: Record<string, unknown> } = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe),
+    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 200) // checkout survives the lookup error
+  assertEquals(body.url, 'https://stripe/subscribe')
+  const subData = stripe.params!.subscription_data as Record<string, unknown>
+  assertEquals('trial_period_days' in subData, false) // fail closed: no trial
 })
 
 Deno.test('trial-eligibility lookup failure fails closed: no trial, checkout still succeeds', async () => {

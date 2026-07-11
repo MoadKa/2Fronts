@@ -42,6 +42,17 @@ describe('Legal pages render publicly (DE)', () => {
       screen.getByRole('heading', { level: 1, name: 'Allgemeine Geschäftsbedingungen (AGB)' })
     ).toBeInTheDocument()
   })
+
+  // Trial reinstatement 2026-07-10: the AGB must disclose the 14-day trial,
+  // the first-charge timing, the no-second-trial rule, and free cancellation
+  // during the trial. Legally load-bearing copy — assert it renders.
+  it('AGB (DE) discloses the 14-day trial terms', () => {
+    i18n.changeLanguage('de')
+    render(<AGBPage />)
+    expect(screen.getByText(/kostenlosen Testphase von 14 Tagen/)).toBeInTheDocument()
+    expect(screen.getByText(/wird keine erneute Testphase gewährt/)).toBeInTheDocument()
+    expect(screen.getByText(/Wird während der Testphase gekündigt, entstehen keine Kosten/)).toBeInTheDocument()
+  })
 })
 
 describe('Legal pages render publicly (EN)', () => {
@@ -69,5 +80,13 @@ describe('Legal pages render publicly (EN)', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'General Terms and Conditions (GTC)' })
     ).toBeInTheDocument()
+  })
+
+  it('AGB (EN) discloses the 14-day trial terms', () => {
+    i18n.changeLanguage('en')
+    render(<AGBPage />)
+    expect(screen.getByText(/free 14-day trial period/)).toBeInTheDocument()
+    expect(screen.getByText(/no further trial period is granted/)).toBeInTheDocument()
+    expect(screen.getByText(/cancelled during the trial period, no charges are incurred/)).toBeInTheDocument()
   })
 })
