@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { sendConciergeMessage, newSessionId } from '../../services/ConciergeService'
@@ -26,6 +26,21 @@ export function ConciergePublicPage() {
   const [searchParams] = useSearchParams()
   const isEmbed = searchParams.get('embed') === '1'
   const wrapClass = `concierge-wrap${isEmbed ? ' concierge-wrap--embed' : ''}`
+
+  // In embed mode, Escape must close the widget's parent panel — but a
+  // cross-origin iframe never receives the host page's keydown events, so
+  // embed.js can't listen for it directly. Forward it via postMessage instead;
+  // embed.js listens for this exact message shape.
+  useEffect(() => {
+    if (!isEmbed) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        window.parent.postMessage({ source: 'tf-embed', type: 'escape' }, '*')
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isEmbed])
 
   // One stable per-visitor session id for the whole page lifetime, so the AI
   // follows the thread across messages.

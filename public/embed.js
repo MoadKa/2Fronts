@@ -155,6 +155,13 @@
     document.addEventListener('keydown', function (e) {
       if (isOpen && (e.key === 'Escape' || e.key === 'Esc')) shut()
     })
+    // The chat itself runs in a cross-origin iframe, so its own keydown
+    // events never reach this document — the page forwards Escape via
+    // postMessage instead (see ConciergePublicPage's embed-mode effect).
+    window.addEventListener('message', function (e) {
+      var data = e.data
+      if (data && data.source === 'tf-embed' && data.type === 'escape') shut()
+    })
 
     document.head.appendChild(style)
     document.body.appendChild(bubble)
