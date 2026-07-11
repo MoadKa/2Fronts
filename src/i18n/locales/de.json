@@ -104,6 +104,7 @@
     "priceMonthlyLabel": "pro Monat",
     "secureCheckoutNote": "Sichere Zahlung über Stripe",
     "scarcityNote": "Nur die nächsten 7 Coaches sichern sich diesen Preis dauerhaft. Danach steigt er.",
+    "trialNote": "14 Tage kostenlos testen, die erste Abbuchung kommt erst danach.",
     "assuranceDelivery": "In wenigen Minuten selbst eingerichtet",
     "assuranceCancel": "Monatlich kündbar, keine versteckten Kosten",
     "signInToRequest": "Melde dich an, um deinen Setter einzurichten.",
@@ -112,6 +113,8 @@
   "checkoutResult": {
     "successTitle": "Zahlung erhalten",
     "successBody": "Zahlung ist da. Jetzt bekommt dein Setter seine Inhalte — dauert etwa eine Minute.",
+    "trialTitle": "Testphase gestartet",
+    "trialBody": "14 Tage kostenlos. Die erste Abbuchung kommt erst nach der Testphase. Jetzt bekommt dein Setter seine Inhalte.",
     "cancelledTitle": "Checkout abgebrochen",
     "cancelledBody": "Es wurde keine Zahlung vorgenommen. Du kannst es jederzeit erneut versuchen.",
     "setUpNow": "Setter einrichten",

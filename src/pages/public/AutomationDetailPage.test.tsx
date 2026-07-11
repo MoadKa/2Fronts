@@ -82,6 +82,23 @@ describe('AutomationDetailPage', () => {
     expect(screen.queryByText(/sichern sich diesen Preis dauerhaft/)).not.toBeInTheDocument()
   })
 
+  it('shows the trial note under the scarcity note for subscription automations', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue({ ...conciergeAutomation, pricing_model: 'subscription' } as never)
+    vi.mocked(useAuth).mockReturnValue({ user: null, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    renderAt('auto-3')
+    await waitFor(() =>
+      expect(screen.getByText('14 Tage kostenlos testen, die erste Abbuchung kommt erst danach.')).toBeInTheDocument()
+    )
+  })
+
+  it('does not show the trial note for one-time automations', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue(sampleAutomation)
+    vi.mocked(useAuth).mockReturnValue({ user: null, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
+    renderAt('auto-1')
+    await waitFor(() => expect(screen.getByText('Saves 5 hours/week')).toBeInTheDocument())
+    expect(screen.queryByText(/14 Tage kostenlos testen/)).not.toBeInTheDocument()
+  })
+
   it('prompts signed-out visitors to log in instead of showing the request button', async () => {
     vi.mocked(getAutomationById).mockResolvedValue(sampleAutomation)
     vi.mocked(useAuth).mockReturnValue({ user: null, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })

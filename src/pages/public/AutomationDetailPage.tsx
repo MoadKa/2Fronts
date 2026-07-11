@@ -141,9 +141,16 @@ export function AutomationDetailPage() {
           </div>
 
           {automation.pricing_model === 'subscription' && (
-            <p className="detail-scarcity">
-              {t('automationDetail.scarcityNote', 'Nur die nächsten 7 Coaches sichern sich diesen Preis dauerhaft. Danach steigt er.')}
-            </p>
+            <>
+              <p className="detail-scarcity">
+                {t('automationDetail.scarcityNote')}
+              </p>
+              {/* Reassurance, not urgency: the trial note stays muted while the
+                  scarcity note above keeps the warning tone. */}
+              <p className="detail-trial">
+                {t('automationDetail.trialNote')}
+              </p>
+            </>
           )}
 
           {user ? (

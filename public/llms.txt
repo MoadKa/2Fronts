@@ -5,6 +5,7 @@
 ## Produkt
 
 - AI Appointment Setter (200 €/Monat): Ein KI-Assistent chattet auf einer eigenen Seite mit den Interessenten eines Coaches, beantwortet Fragen nur auf Basis der hinterlegten Inhalte, qualifiziert die Anfrage und bucht Termine direkt in den Kalender — 24/7, in der Sprache des Interessenten.
+- Testphase & Gründerpreis: 14 Tage kostenlos testen (Karte beim Checkout erforderlich, die erste Abbuchung kommt erst nach der Testphase). Die ersten 7 zahlenden Coaches sichern sich 200 €/Monat dauerhaft, danach kostet der Setter 300 €/Monat.
 
 ## Für wen
 
