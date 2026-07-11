@@ -1,4 +1,4 @@
--- Price rule 2026-07-10: EUR 200/month for the next 10 clients (design doc
+-- Price rule 2026-07-10: EUR 200/month for the next 7 clients (design doc
 -- akaou-main-design-20260710-170429.md; ships atomically with the reinstated
 -- 14-day trial and the sitewide 199 -> 200 copy sweep).
 --
