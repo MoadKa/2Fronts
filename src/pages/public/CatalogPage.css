@@ -180,6 +180,13 @@
   /* Warnton aus DESIGN.md („Kicker auf hell") — wie .detail-scarcity. */
   color: #b45309;
 }
+/* Beruhigung statt Dringlichkeit — gedämpft wie .offer-per, kein Warnton. */
+.offer-trial {
+  display: block;
+  margin: 0 0 0.15rem;
+  font-size: 0.78rem;
+  color: #6b655b;
+}
 .offer-note {
   font-family: 'Fragment Mono', monospace;
   font-size: 0.72rem;

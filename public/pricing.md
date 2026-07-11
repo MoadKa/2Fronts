@@ -5,6 +5,7 @@
 ## AI Appointment Setter
 
 - Price: €200/month (EUR)
+- Founding price rule: €200/month is locked in permanently for the first 7 paying coaches; after that the price is €300/month
 - Trial: 14 days free for first-time subscribers (card required at checkout, first charge after the trial ends)
 - Billing: monthly subscription, no annual-only option
 - Cancellation: cancel anytime via the Stripe customer portal, no minimum term

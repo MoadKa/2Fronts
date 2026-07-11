@@ -104,6 +104,7 @@
     "priceMonthlyLabel": "per month",
     "secureCheckoutNote": "Secure payment via Stripe",
     "scarcityNote": "Only the next 7 coaches lock in this price for good. After that, it goes up.",
+    "trialNote": "Try it free for 14 days, the first charge only comes after.",
     "assuranceDelivery": "Self-serve setup in minutes",
     "assuranceCancel": "Cancel monthly, no hidden fees",
     "signInToRequest": "Sign in to set up your setter.",
@@ -112,6 +113,8 @@
   "checkoutResult": {
     "successTitle": "Payment received",
     "successBody": "Payment received. Now give your setter its content — takes about a minute.",
+    "trialTitle": "Trial started",
+    "trialBody": "14 days free. The first charge only comes after the trial. Now give your setter its content.",
     "cancelledTitle": "Checkout cancelled",
     "cancelledBody": "No payment was made. You can try again at any time.",
     "setUpNow": "Set up your setter",
