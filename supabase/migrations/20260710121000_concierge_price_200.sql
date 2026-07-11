@@ -8,7 +8,7 @@
 -- re-targets the concierge row by its connector_type and is a no-op once the
 -- value is set.
 --
--- RUNBOOK: Wenn der 10. zahlende Kunde konvertiert: price_cents manuell auf
+-- RUNBOOK: Wenn der 7. zahlende Kunde konvertiert: price_cents manuell auf
 -- 30000 setzen (Founder-Entscheidung, siehe Design-Doc 2026-07-10).
 update automations
   set price_cents = 20000
