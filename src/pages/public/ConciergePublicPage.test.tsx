@@ -219,6 +219,24 @@ describe('ConciergePublicPage', () => {
     expect(screen.getByPlaceholderText('Nachricht eingeben…')).toBeInTheDocument()
   })
 
+  it('switches to embed mode when opened with ?embed=1 (widget iframe)', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/c/acme?embed=1']}>
+        <Routes>
+          <Route path="/c/:slug" element={<ConciergePublicPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(container.querySelector('.concierge-wrap')).toHaveClass('concierge-wrap--embed')
+  })
+
+  it('stays in normal page mode without ?embed=1', () => {
+    const { container } = renderAt('acme')
+    const wrap = container.querySelector('.concierge-wrap')
+    expect(wrap).toBeInTheDocument()
+    expect(wrap).not.toHaveClass('concierge-wrap--embed')
+  })
+
   it('shows a friendly unavailable screen when the slug is not found', async () => {
     // The contact form is the first step, and it is where the unavailable slug surfaces.
     sendConciergeMessage.mockRejectedValue(new Error('conciergeChat.unavailable'))

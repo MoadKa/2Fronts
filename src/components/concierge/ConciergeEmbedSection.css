@@ -1,0 +1,105 @@
+/* "Auf deiner Website einbauen" — the widget install tutorial. Same white-card
+   language as the dashboard's "Deine Links" card (hairline edge, whisper
+   shadow); the snippet itself sits in a muted monospace box. */
+
+.concierge-embed {
+  background: var(--color-surface);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  text-align: left;
+}
+
+.concierge-embed h2 {
+  margin-top: 0;
+}
+
+.concierge-embed-intro {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  margin-bottom: var(--space-md);
+}
+
+/* The one-line snippet: muted code box + copy button. The box scrolls
+   horizontally instead of wrapping so it reads as ONE line to paste. */
+.concierge-embed-snippet {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.concierge-embed-code {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-muted);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.concierge-embed-copy {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-foreground);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.concierge-embed-copy:hover {
+  border-color: var(--color-primary);
+  background: var(--color-muted);
+}
+
+.concierge-embed-steps {
+  margin: var(--space-md) 0;
+  padding-left: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* Per-builder hints: native details/summary, kept quiet until opened. */
+.concierge-embed-platforms {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.concierge-embed-platforms-label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.concierge-embed-platform {
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface);
+}
+
+.concierge-embed-platform summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.concierge-embed-platform p {
+  margin: var(--space-sm) 0 0;
+  color: var(--color-text);
+  font-size: 0.9rem;
+}

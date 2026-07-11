@@ -11,6 +11,7 @@ import {
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Modal } from '../../components/ui/Modal'
+import { ConciergeEmbedSection } from '../../components/concierge/ConciergeEmbedSection'
 import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import './ConciergeChatsPage.css'
 
@@ -136,6 +137,12 @@ export function ConciergeChatsPage() {
             )
           })}
         </div>
+      )}
+
+      {/* Self-serve install: the widget snippet(s) + tutorial for putting the
+          setter on the coach's own website as a chat bubble. */}
+      {!loading && concierges.length > 0 && (
+        <ConciergeEmbedSection slugs={concierges.map((c) => c.slug)} />
       )}
 
       {!loading && (

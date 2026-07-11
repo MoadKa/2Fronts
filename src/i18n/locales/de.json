@@ -592,6 +592,39 @@
       "mustSignIn": "Bitte melde dich an, um deinen Setter einzurichten."
     }
   },
+  "conciergeEmbed": {
+    "title": "Auf deiner Website einbauen",
+    "intro": "Eine Zeile Code genügt — danach erscheint dein Setter als Chat-Blase unten rechts auf deiner Website.",
+    "snippetLabel": "Code zum Einbauen",
+    "copy": "Kopieren",
+    "copied": "Kopiert!",
+    "step1": "Kopiere die Zeile oben.",
+    "step2": "Füge sie in deine Website ein — wie das bei deinem Baukasten geht, steht unten.",
+    "step3": "Speichern und die Seite neu laden. Die Chat-Blase erscheint unten rechts.",
+    "platformsLabel": "So geht es bei deinem Website-Baukasten:",
+    "platforms": {
+      "wordpress": {
+        "name": "WordPress",
+        "hint": "Öffne den Customizer und füge die Zeile unter „Zusätzliches JavaScript\" ein. Alternativ nimmst du ein Plugin wie „Header/Footer Code\"."
+      },
+      "wix": {
+        "name": "Wix",
+        "hint": "Gehe zu Einstellungen → Benutzerdefinierter Code und füge die Zeile für alle Seiten hinzu."
+      },
+      "squarespace": {
+        "name": "Squarespace",
+        "hint": "Gehe zu Einstellungen → Erweitert → Code Injection und füge die Zeile dort ein."
+      },
+      "webflow": {
+        "name": "Webflow",
+        "hint": "Öffne die Projekteinstellungen → Custom Code und füge die Zeile in das Footer-Feld ein."
+      },
+      "jimdo": {
+        "name": "Jimdo",
+        "hint": "Bearbeite den Kopfbereich deiner Website und füge die Zeile dort ein."
+      }
+    }
+  },
   "demo": {
     "eyebrow": "Live-Demo",
     "title": "Sieh dir an, was du bekommst",

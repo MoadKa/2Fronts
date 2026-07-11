@@ -12,6 +12,15 @@
   flex-direction: column;
 }
 
+/* Embed mode (?embed=1): the page fills the ~400x600 widget iframe rendered by
+   public/embed.js on the coach's own website, so the standalone-page centering
+   and generous padding go away — the chat uses the whole frame. */
+.concierge-wrap--embed {
+  max-width: none;
+  min-height: 100dvh;
+  padding: var(--space-md) var(--space-md) calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
+}
+
 .concierge-chat {
   display: flex;
   flex-direction: column;

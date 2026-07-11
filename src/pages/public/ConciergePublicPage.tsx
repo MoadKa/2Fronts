@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { sendConciergeMessage, newSessionId } from '../../services/ConciergeService'
 import type { QualOption, QualPrompt } from '../../lib/qualification'
@@ -21,6 +21,11 @@ interface ChatMessage {
 export function ConciergePublicPage() {
   const { slug } = useParams<{ slug: string }>()
   const { t } = useTranslation()
+  // ?embed=1: the page runs inside the small widget iframe from public/embed.js,
+  // so the standalone-page breathing room goes away and the chat fills the frame.
+  const [searchParams] = useSearchParams()
+  const isEmbed = searchParams.get('embed') === '1'
+  const wrapClass = `concierge-wrap${isEmbed ? ' concierge-wrap--embed' : ''}`
 
   // One stable per-visitor session id for the whole page lifetime, so the AI
   // follows the thread across messages.
@@ -140,7 +145,7 @@ export function ConciergePublicPage() {
 
   if (unavailable) {
     return (
-      <div className="concierge-wrap">
+      <div className={wrapClass}>
         <div className="concierge-unavailable">
           <h1>{t('conciergePublic.unavailableTitle')}</h1>
           <p>{t('conciergePublic.unavailableBody')}</p>
@@ -150,7 +155,7 @@ export function ConciergePublicPage() {
   }
 
   return (
-    <div className="concierge-wrap">
+    <div className={wrapClass}>
       <div className="concierge-chat">
         <div className="concierge-messages" aria-live="polite">
           {messages.map((m, i) => (
