@@ -140,6 +140,12 @@ export function AutomationDetailPage() {
             </span>
           </div>
 
+          {automation.pricing_model === 'subscription' && (
+            <p className="detail-scarcity">
+              {t('automationDetail.scarcityNote', 'Nur die nächsten 7 Coaches sichern sich diesen Preis dauerhaft. Danach steigt er.')}
+            </p>
+          )}
+
           {user ? (
             <>
               {automation.connector_type === 'twilio_missed_call' && (
