@@ -378,6 +378,9 @@ export function CatalogPage() {
                           <span className="offer-per"> {t('catalog.perMonth')}</span>
                         )}
                       </span>
+                      {a.pricing_model === 'subscription' && (
+                        <span className="offer-scarcity">{t('automationDetail.scarcityNote')}</span>
+                      )}
                       <span className="offer-note">{t('offer.note')}</span>
                       <span className="btn btn-primary offer-cta">
                         {t('offer.cta')}

@@ -172,6 +172,14 @@
   font-variant-numeric: tabular-nums;
 }
 .offer-per { font-size: 0.45em; font-family: 'Schibsted Grotesk', sans-serif; font-weight: 500; color: #6b655b; }
+.offer-scarcity {
+  display: block;
+  margin: 0.4rem 0 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  /* Warnton aus DESIGN.md („Kicker auf hell") — wie .detail-scarcity. */
+  color: #b45309;
+}
 .offer-note {
   font-family: 'Fragment Mono', monospace;
   font-size: 0.72rem;
