@@ -230,6 +230,35 @@ describe('ConciergePublicPage', () => {
     expect(container.querySelector('.concierge-wrap')).toHaveClass('concierge-wrap--embed')
   })
 
+  it('forwards Escape to the parent window in embed mode (cross-origin iframe bridge)', () => {
+    // A cross-origin iframe never receives the host page's own keydown listener,
+    // so embed.js can't catch Escape directly — this page posts it to the parent
+    // instead; embed.js listens for this exact message shape and closes the panel.
+    const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {})
+    render(
+      <MemoryRouter initialEntries={['/c/acme?embed=1']}>
+        <Routes>
+          <Route path="/c/:slug" element={<ConciergePublicPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(postMessage).toHaveBeenCalledWith({ source: 'tf-embed', type: 'escape' }, '*')
+    postMessage.mockRestore()
+  })
+
+  it('does not forward Escape when not in embed mode', () => {
+    const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {})
+    renderAt('acme')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(postMessage).not.toHaveBeenCalled()
+    postMessage.mockRestore()
+  })
+
   it('stays in normal page mode without ?embed=1', () => {
     const { container } = renderAt('acme')
     const wrap = container.querySelector('.concierge-wrap')

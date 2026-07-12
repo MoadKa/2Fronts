@@ -73,6 +73,35 @@ describe('public/embed.js widget', () => {
     expect(panel.classList.contains('tf-embed-open')).toBe(false)
   })
 
+  it('closes when it receives a tf-embed escape postMessage (cross-origin iframe bridge)', async () => {
+    // The chat itself runs in a cross-origin iframe, so Escape pressed inside
+    // it never reaches this document's keydown listener — ConciergePublicPage
+    // forwards it via postMessage instead. This is the embed.js side of that bridge.
+    loadWidget()
+    const bubble = document.getElementById('tf-embed-bubble')!
+    const panel = document.getElementById('tf-embed-panel')!
+    bubble.click()
+    expect(panel.classList.contains('tf-embed-open')).toBe(true)
+
+    window.postMessage({ source: 'tf-embed', type: 'escape' }, '*')
+    await vi.waitFor(() => expect(panel.classList.contains('tf-embed-open')).toBe(false))
+  })
+
+  it('ignores postMessage events that are not the tf-embed escape shape', async () => {
+    loadWidget()
+    const bubble = document.getElementById('tf-embed-bubble')!
+    const panel = document.getElementById('tf-embed-panel')!
+    bubble.click()
+
+    // Malformed / foreign messages (other widgets, browser extensions, etc.)
+    // must never close the panel.
+    window.postMessage({ source: 'tf-embed', type: 'not-escape' }, '*')
+    window.postMessage({ type: 'escape' }, '*')
+    window.postMessage('a plain string message', '*')
+    await new Promise((r) => setTimeout(r, 0))
+    expect(panel.classList.contains('tf-embed-open')).toBe(true)
+  })
+
   it('applies data-color to the bubble styles', () => {
     loadWidget({ 'data-color': '#123456' })
     const style = document.getElementById('tf-embed-style')!
