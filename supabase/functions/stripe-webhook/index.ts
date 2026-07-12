@@ -86,12 +86,51 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
             .select()
           // Zero affected rows means there is no provision row at all: the
           // subscription is live on Stripe but untracked here (cancellation
-          // would silently no-op). Alert ops so it never goes unnoticed.
+          // would silently no-op). Self-heal: insert a minimal pending row
+          // carrying the subscription id so the lifecycle events can find it
+          // again — and STILL alert ops either way, because a request without
+          // a provision at webhook time means an upstream insert was skipped
+          // and a human should know. Insert failure (e.g. a unique race with
+          // a concurrent delivery) keeps the alert and never throws: Stripe
+          // must get its 200.
           if (((updated as unknown[] | null) ?? []).length === 0) {
+            let selfHealed = false
+            try {
+              // Derive connector_type from the purchased automation, as
+              // create-checkout-session's self-heal does; when absent the
+              // column's DB default applies.
+              const { data: requestRow } = await adminClient
+                .from('automation_requests')
+                .select('automations(connector_type)')
+                .eq('id', requestId)
+                .single()
+              const automations = (requestRow as { automations?: unknown } | null)?.automations
+              const automation = (Array.isArray(automations) ? automations[0] : automations) as
+                | { connector_type?: string | null }
+                | null
+              const { error: insertError } = await adminClient
+                .from('automation_provisions')
+                .insert({
+                  request_id: requestId,
+                  ...(automation?.connector_type ? { connector_type: automation.connector_type } : {}),
+                  status: 'pending',
+                  stripe_subscription_id: subscriptionId,
+                  ...(customerId ? { stripe_customer_id: customerId } : {}),
+                })
+              if (insertError) throw insertError
+              selfHealed = true
+            } catch (err) {
+              console.error(
+                'stripe-webhook: provision self-heal insert failed:',
+                err instanceof Error ? err.message : err,
+              )
+            }
             await deps.alert({
               type: 'provision_missing',
-              message: `No provision row for request ${requestId}; subscription ${subscriptionId} is live but untracked`,
-              fields: { requestId, subscriptionId },
+              message: selfHealed
+                ? `No provision row for request ${requestId}; inserted a minimal pending row carrying subscription ${subscriptionId}`
+                : `No provision row for request ${requestId}; subscription ${subscriptionId} is live but untracked (self-heal insert failed)`,
+              fields: { requestId, subscriptionId, selfHealed },
             })
           }
         }

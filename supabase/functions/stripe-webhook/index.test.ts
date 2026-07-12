@@ -343,6 +343,13 @@ interface LifecycleOpts {
   // request_id (subscription-id store guard). Default: a plain pending row.
   provisionByRequest?: { id: string; stripe_subscription_id: string | null } | null
   updates: LifecycleUpdate[]
+  // Every insert in order (the provision_missing self-heal path).
+  inserts?: { table: string; row: Record<string, unknown> }[]
+  // When set, inserts resolve with this error in the { error } envelope.
+  insertError?: Error
+  // What the automation_requests join select returns (self-heal connector_type
+  // derivation + the requires_provisioning lookup share it).
+  requestAutomation?: Record<string, unknown>
 }
 function fakeLifecycleAdminClient(opts: LifecycleOpts) {
   const provisionByRequest = opts.provisionByRequest === undefined
@@ -360,11 +367,20 @@ function fakeLifecycleAdminClient(opts: LifecycleOpts) {
                     data: col === 'request_id' ? provisionByRequest : opts.provisionBySub,
                     error: null,
                   }),
-                // checkout.session.completed path: requires_provisioning lookup.
-                single: () => Promise.resolve({ data: { automations: { requires_provisioning: false } }, error: null }),
+                // checkout.session.completed path: requires_provisioning lookup
+                // and the self-heal's connector_type derivation.
+                single: () =>
+                  Promise.resolve({
+                    data: { automations: opts.requestAutomation ?? { requires_provisioning: false } },
+                    error: null,
+                  }),
               }
             },
           }
+        },
+        insert(row: Record<string, unknown>) {
+          ;(opts.inserts ??= []).push({ table, row })
+          return Promise.resolve({ error: opts.insertError ?? null })
         },
         update(patch: Record<string, unknown>) {
           const record: LifecycleUpdate = { table, patch, eqs: [] }
@@ -469,8 +485,14 @@ Deno.test('re-delivery with the SAME subscription id stores it again without a c
   assertEquals(alerts.length, 0)
 })
 
-Deno.test('missing provision row triggers a provision_missing alert so the live subscription is never silently untracked', async () => {
-  const opts: LifecycleOpts = { provisionBySub: null, provisionByRequest: null, updates: [] }
+Deno.test('missing provision row is self-healed with a minimal pending insert AND still alerts provision_missing', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: null,
+    provisionByRequest: null,
+    updates: [],
+    inserts: [],
+    requestAutomation: { requires_provisioning: false, connector_type: 'booking_concierge' },
+  }
   const event = {
     type: 'checkout.session.completed',
     data: { object: { id: 'cs_sub', subscription: 'sub_123', customer: 'cus_123', metadata: { request_id: 'req_abc' } } },
@@ -486,10 +508,50 @@ Deno.test('missing provision row triggers a provision_missing alert so the live 
   })
 
   assertEquals(res.status, 200)
+  // The hole is closed server-side: the live subscription is tracked again, so
+  // its cancellation event can find the provision.
+  const insert = opts.inserts!.find((i) => i.table === 'automation_provisions')
+  assertEquals(insert !== undefined, true)
+  assertEquals(insert!.row.request_id, 'req_abc')
+  assertEquals(insert!.row.status, 'pending')
+  assertEquals(insert!.row.stripe_subscription_id, 'sub_123')
+  assertEquals(insert!.row.stripe_customer_id, 'cus_123')
+  assertEquals(insert!.row.connector_type, 'booking_concierge') // derived from the automation
+  // A skipped upstream insert is still a state a human should know about.
   assertEquals(alerts.length, 1)
   assertEquals(alerts[0].type, 'provision_missing')
   assertEquals(alerts[0].fields?.requestId, 'req_abc')
   assertEquals(alerts[0].fields?.subscriptionId, 'sub_123')
+  assertEquals(alerts[0].fields?.selfHealed, true)
+})
+
+Deno.test('self-heal insert failure (e.g. unique race) still returns 200 and alerts provision_missing', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: null,
+    provisionByRequest: null,
+    updates: [],
+    inserts: [],
+    insertError: new Error('duplicate key value violates unique constraint'),
+  }
+  const event = {
+    type: 'checkout.session.completed',
+    data: { object: { id: 'cs_sub', subscription: 'sub_123', customer: 'cus_123', metadata: { request_id: 'req_abc' } } },
+  }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+  const alerts: { type: string; fields?: Record<string, unknown> }[] = []
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200) // Stripe must get its 200 either way
+  assertEquals(opts.inserts!.length, 1) // the insert was attempted
+  assertEquals(alerts.length, 1) // the alert is kept when the heal fails
+  assertEquals(alerts[0].type, 'provision_missing')
+  assertEquals(alerts[0].fields?.selfHealed, false)
 })
 
 Deno.test('trial-shaped checkout.session.completed (no payment yet) still marks paid, stores the subscription id, and provisions', async () => {
