@@ -140,6 +140,19 @@ export function AutomationDetailPage() {
             </span>
           </div>
 
+          {automation.pricing_model === 'subscription' && (
+            <>
+              <p className="detail-scarcity">
+                {t('automationDetail.scarcityNote')}
+              </p>
+              {/* Reassurance, not urgency: the trial note stays muted while the
+                  scarcity note above keeps the warning tone. */}
+              <p className="detail-trial">
+                {t('automationDetail.trialNote')}
+              </p>
+            </>
+          )}
+
           {user ? (
             <>
               {automation.connector_type === 'twilio_missed_call' && (

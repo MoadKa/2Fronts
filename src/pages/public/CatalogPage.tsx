@@ -22,7 +22,7 @@ const SITE = 'https://2fronts.de'
 // English content at all, since language was a client-side-only toggle).
 const DE_TITLE = '2Fronts — AI Appointment Setter für Coaches & Berater'
 const DE_DESCRIPTION =
-  'Dein KI-Appointment-Setter für 199 €/Monat: berät deine Interessenten 24/7 aus deinen eigenen Inhalten und bucht qualifizierte Erstgespräche direkt in deinen Kalender.'
+  'Dein KI-Appointment-Setter für 200 €/Monat: berät deine Interessenten 24/7 aus deinen eigenen Inhalten und bucht qualifizierte Erstgespräche direkt in deinen Kalender.'
 
 function formatPrice(cents: number, currency: string): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
@@ -378,6 +378,12 @@ export function CatalogPage() {
                           <span className="offer-per"> {t('catalog.perMonth')}</span>
                         )}
                       </span>
+                      {a.pricing_model === 'subscription' && (
+                        <>
+                          <span className="offer-scarcity">{t('automationDetail.scarcityNote')}</span>
+                          <span className="offer-trial">{t('automationDetail.trialNote')}</span>
+                        </>
+                      )}
                       <span className="offer-note">{t('offer.note')}</span>
                       <span className="btn btn-primary offer-cta">
                         {t('offer.cta')}
