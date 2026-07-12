@@ -12,13 +12,17 @@
     "npm:@types/node@^24.12.3": "24.13.2",
     "npm:@types/react-dom@^18.3.7": "18.3.7_@types+react@18.3.31",
     "npm:@types/react@^18.3.31": "18.3.31",
+    "npm:@vercel/analytics@^2.0.1": "2.0.1_react@18.3.1",
     "npm:@vitejs/plugin-react@^4.7.0": "4.7.0_vite@6.4.3__@types+node@24.13.2_@types+node@24.13.2",
     "npm:eslint-plugin-react-hooks@^7.1.1": "7.1.1_eslint@10.5.0",
     "npm:eslint-plugin-react-refresh@~0.5.2": "0.5.3_eslint@10.5.0",
     "npm:eslint@^10.3.0": "10.5.0",
     "npm:globals@^17.6.0": "17.6.0",
+    "npm:i18next-browser-languagedetector@^8.2.1": "8.2.1",
+    "npm:i18next@^26.3.1": "26.3.6_typescript@6.0.3",
     "npm:jsdom@23": "23.2.0",
     "npm:react-dom@^18.3.1": "18.3.1_react@18.3.1",
+    "npm:react-i18next@^17.0.8": "17.0.9_i18next@26.3.6__typescript@6.0.3_react@18.3.1_typescript@6.0.3",
     "npm:react-router-dom@^6.20.0": "6.30.4_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:react@^18.3.1": "18.3.1",
     "npm:stripe@16": "16.12.0",
@@ -845,6 +849,15 @@
         "eslint-visitor-keys@5.0.1"
       ]
     },
+    "@vercel/analytics@2.0.1_react@18.3.1": {
+      "integrity": "sha512-MTQG6V9qQrt1tsDeF+2Uoo5aPjqbVPys1xvnIftXSJYG2SrwXRHnqEvVoYID7BTruDz4lCd2Z7rM1BdkUehk2g==",
+      "dependencies": [
+        "react"
+      ],
+      "optionalPeers": [
+        "react"
+      ]
+    },
     "@vitejs/plugin-react@4.7.0_vite@6.4.3__@types+node@24.13.2_@types+node@24.13.2": {
       "integrity": "sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==",
       "dependencies": [
@@ -1515,6 +1528,12 @@
         "whatwg-encoding"
       ]
     },
+    "html-parse-stringify@3.0.1": {
+      "integrity": "sha512-KknJ50kTInJ7qIScF3jeaFRpMpE8/lfiTdzf/twXyPBLAGrLRTmkz3AdTnKeh40X8k9L2fdYwEp/42WGXIRGcg==",
+      "dependencies": [
+        "void-elements"
+      ]
+    },
     "http-proxy-agent@7.0.2": {
       "integrity": "sha512-T1gkAiYYDWYx3V5Bmyu7HcfcvL7mUrTWiM6yOfa3PIphViJ/gFPbvidQ+veqSOHci/PxBcDabeUNCzpOODJZig==",
       "dependencies": [
@@ -1527,6 +1546,21 @@
       "dependencies": [
         "agent-base",
         "debug"
+      ]
+    },
+    "i18next-browser-languagedetector@8.2.1": {
+      "integrity": "sha512-bZg8+4bdmaOiApD7N7BPT9W8MLZG+nPTOFlLiJiT8uzKXFjhxw4v2ierCXOwB5sFDMtuA5G4kgYZ0AznZxQ/cw==",
+      "dependencies": [
+        "@babel/runtime"
+      ]
+    },
+    "i18next@26.3.6_typescript@6.0.3": {
+      "integrity": "sha512-Bu5Z2nAXgfVyM8xvW3jk9EKRIuX37PudsrBViThNFx7CR7aaYTpP01cxNB/E4c4UUzTDiAZRstEhsRfPOL/8xA==",
+      "dependencies": [
+        "typescript"
+      ],
+      "optionalPeers": [
+        "typescript"
       ]
     },
     "iceberg-js@0.8.1": {
@@ -1934,6 +1968,20 @@
         "scheduler"
       ]
     },
+    "react-i18next@17.0.9_i18next@26.3.6__typescript@6.0.3_react@18.3.1_typescript@6.0.3": {
+      "integrity": "sha512-buLzOSqHtXxjf+qgSrLWNTXVZ1jSwO6kUv3uJqSP1roGBPgNnbhFm7OmdVwWcgf2gIbUyP0J333uPyx+Btsi3w==",
+      "dependencies": [
+        "@babel/runtime",
+        "html-parse-stringify",
+        "i18next",
+        "react",
+        "typescript",
+        "use-sync-external-store"
+      ],
+      "optionalPeers": [
+        "typescript"
+      ]
+    },
     "react-is@17.0.2": {
       "integrity": "sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w=="
     },
@@ -2265,6 +2313,12 @@
         "requires-port"
       ]
     },
+    "use-sync-external-store@1.6.0_react@18.3.1": {
+      "integrity": "sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==",
+      "dependencies": [
+        "react"
+      ]
+    },
     "vite-node@3.2.4_@types+node@24.13.2": {
       "integrity": "sha512-EbKSKh+bh1E1IFxeO0pg1n4dvoOTt0UDiXMd/qn++r98+jPO1xtJilvXldeuQ8giIB5IkpjCgMleHMNEsGH6pg==",
       "dependencies": [
@@ -2329,6 +2383,9 @@
         "jsdom"
       ],
       "bin": true
+    },
+    "void-elements@3.1.0": {
+      "integrity": "sha512-Dhxzh5HZuiHQhbvTW9AMetFfBHDMYpo23Uo9btPXgdYP+3T5S+p+jgNy7spra+veYhBP2dCSgxR/i2Y02h5/6w=="
     },
     "w3c-xmlserializer@5.0.0": {
       "integrity": "sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA==",
@@ -2441,6 +2498,7 @@
         "npm:@types/node@^24.12.3",
         "npm:@types/react-dom@^18.3.7",
         "npm:@types/react@^18.3.31",
+        "npm:@vercel/analytics@^2.0.1",
         "npm:@vitejs/plugin-react@^4.7.0",
         "npm:eslint-plugin-react-hooks@^7.1.1",
         "npm:eslint-plugin-react-refresh@~0.5.2",
