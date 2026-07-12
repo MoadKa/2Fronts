@@ -46,43 +46,60 @@
   var isEnglish = pageLang.indexOf('en') === 0
   var LABEL_OPEN = isEnglish ? 'Open chat' : 'Chat öffnen'
   var LABEL_CLOSE = isEnglish ? 'Close chat' : 'Chat schließen'
-  var LABEL_CHAT = isEnglish ? 'Chat' : 'Chat'
+  var LABEL_CHAT = 'Chat' // identical in German and English, no ternary needed
+
+  // IDs are scoped per slug (not a fixed 'tf-embed-bubble' etc.) so a coach
+  // with two or more concierges can paste more than one snippet into the same
+  // site-wide "custom code" field without the DOM ids or CSS selectors of one
+  // widget colliding with the other's.
+  function scopedId(name) {
+    return 'tf-embed-' + name + '-' + slug
+  }
 
   function mount() {
-    // Never mount twice (e.g. the snippet pasted into header AND footer).
-    if (document.getElementById('tf-embed-bubble')) return
+    // Never mount the SAME slug twice (e.g. the snippet pasted into header
+    // AND footer) — but a DIFFERENT slug must still mount normally, so the
+    // guard is keyed on slug via a shared registry, not a fixed element id.
+    var registry = (window.__tfEmbedMounted = window.__tfEmbedMounted || {})
+    if (registry[slug]) return
+    registry[slug] = true
+
+    var bubbleId = scopedId('bubble')
+    var panelId = scopedId('panel')
+    var frameId = scopedId('frame')
+    var closeId = scopedId('close')
 
     // ---- Scoped styles -----------------------------------------------------
     var style = document.createElement('style')
-    style.id = 'tf-embed-style'
+    style.id = scopedId('style')
     style.textContent =
-      '#tf-embed-bubble{position:fixed;right:20px;bottom:20px;width:60px;height:60px;' +
+      '#' + bubbleId + '{position:fixed;right:20px;bottom:20px;width:60px;height:60px;' +
       'display:flex;align-items:center;justify-content:center;padding:0;margin:0;border:none;' +
       'border-radius:50%;background:' + color + ';color:#fff;cursor:pointer;' +
       'box-shadow:0 4px 12px rgba(0,0,0,.18),0 2px 4px rgba(0,0,0,.12);' +
       'z-index:' + Z + ';transition:transform .15s ease,box-shadow .15s ease;line-height:0;}' +
-      '#tf-embed-bubble:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,.22),0 2px 6px rgba(0,0,0,.14);}' +
-      '#tf-embed-bubble:focus-visible{outline:3px solid ' + color + ';outline-offset:3px;}' +
-      '#tf-embed-bubble svg{width:28px;height:28px;display:block;}' +
-      '#tf-embed-panel{position:fixed;right:20px;bottom:96px;width:min(400px,calc(100vw - 40px));' +
+      '#' + bubbleId + ':hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,.22),0 2px 6px rgba(0,0,0,.14);}' +
+      '#' + bubbleId + ':focus-visible{outline:3px solid ' + color + ';outline-offset:3px;}' +
+      '#' + bubbleId + ' svg{width:28px;height:28px;display:block;}' +
+      '#' + panelId + '{position:fixed;right:20px;bottom:96px;width:min(400px,calc(100vw - 40px));' +
       'height:min(600px,calc(100vh - 120px));background:#fff;border-radius:16px;overflow:hidden;' +
       'box-shadow:0 12px 40px rgba(0,0,0,.24),0 4px 12px rgba(0,0,0,.12);' +
       'z-index:' + (Z + 1) + ';display:none;}' +
-      '#tf-embed-panel.tf-embed-open{display:block;}' +
-      '#tf-embed-frame{width:100%;height:100%;border:0;display:block;}' +
-      '#tf-embed-close{position:absolute;top:8px;right:8px;width:36px;height:36px;padding:0;border:none;' +
+      '#' + panelId + '.tf-embed-open{display:block;}' +
+      '#' + frameId + '{width:100%;height:100%;border:0;display:block;}' +
+      '#' + closeId + '{position:absolute;top:8px;right:8px;width:36px;height:36px;padding:0;border:none;' +
       'border-radius:50%;background:rgba(0,0,0,.45);color:#fff;font-size:20px;line-height:36px;' +
       'text-align:center;cursor:pointer;z-index:1;}' +
-      '#tf-embed-close:hover{background:rgba(0,0,0,.65);}' +
-      '#tf-embed-close:focus-visible{outline:3px solid ' + color + ';outline-offset:2px;}' +
-      '@media (max-width:639px){#tf-embed-panel{right:0;bottom:0;width:100vw;height:100dvh;' +
+      '#' + closeId + ':hover{background:rgba(0,0,0,.65);}' +
+      '#' + closeId + ':focus-visible{outline:3px solid ' + color + ';outline-offset:2px;}' +
+      '@media (max-width:639px){#' + panelId + '{right:0;bottom:0;width:100vw;height:100dvh;' +
       'max-height:100vh;border-radius:0;}}' +
-      '@media (prefers-reduced-motion:reduce){#tf-embed-bubble{transition:none;}' +
-      '#tf-embed-bubble:hover{transform:none;}}'
+      '@media (prefers-reduced-motion:reduce){#' + bubbleId + '{transition:none;}' +
+      '#' + bubbleId + ':hover{transform:none;}}'
 
     // ---- Bubble ------------------------------------------------------------
     var bubble = document.createElement('button')
-    bubble.id = 'tf-embed-bubble'
+    bubble.id = bubbleId
     bubble.type = 'button'
     bubble.setAttribute('aria-label', LABEL_OPEN)
     bubble.setAttribute('aria-expanded', 'false')
@@ -93,12 +110,12 @@
 
     // ---- Panel (iframe is created lazily on first open) ---------------------
     var panel = document.createElement('div')
-    panel.id = 'tf-embed-panel'
+    panel.id = panelId
     panel.setAttribute('role', 'dialog')
     panel.setAttribute('aria-label', LABEL_CHAT)
 
     var close = document.createElement('button')
-    close.id = 'tf-embed-close'
+    close.id = closeId
     close.type = 'button'
     close.setAttribute('aria-label', LABEL_CLOSE)
     close.innerHTML = '×'
@@ -110,7 +127,7 @@
     function ensureFrame() {
       if (frame) return
       frame = document.createElement('iframe')
-      frame.id = 'tf-embed-frame'
+      frame.id = frameId
       frame.title = LABEL_CHAT
       frame.setAttribute('allow', 'clipboard-write')
       frame.src = origin + '/c/' + encodeURIComponent(slug) + '?embed=1'
@@ -158,9 +175,21 @@
     // The chat itself runs in a cross-origin iframe, so its own keydown
     // events never reach this document — the page forwards Escape via
     // postMessage instead (see ConciergePublicPage's embed-mode effect).
+    // Both checks matter: e.origin must be OUR app (not some other script on
+    // the host page forging the message), and e.source must be THIS widget's
+    // own iframe (not another concierge's, when two are mounted on one page).
     window.addEventListener('message', function (e) {
       var data = e.data
-      if (data && data.source === 'tf-embed' && data.type === 'escape') shut()
+      if (
+        e.origin === origin &&
+        frame &&
+        e.source === frame.contentWindow &&
+        data &&
+        data.source === 'tf-embed' &&
+        data.type === 'escape'
+      ) {
+        shut()
+      }
     })
 
     document.head.appendChild(style)
