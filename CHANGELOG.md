@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.14.0.0] - 2026-07-12
+
+### Added
+- **14-day free trial on the AI Booking Concierge.** New coaches enter a card, use the setter free for 14 days, and are only charged once the trial ends. Coaches who've already had a subscription don't get a second trial — checked both against our own records and directly against Stripe, so the guard holds even if a signup happens before our database catches up.
+- **Founding price: the first 7 coaches keep €200/month for good.** Everyone after pays €300 flat. A scarcity note now appears on the product page and homepage pricing card, plus a plain-language line under the trial explaining nothing gets charged until day 15.
+- **Trial-aware confirmation screen.** After checkout, trial customers see "Trial started — first charge after 14 days" instead of a generic payment-received message.
+
+### Changed
+- **Price raised from €199 to €200/month**, updated everywhere it's quoted: homepage, pricing calculator, all six audience pages, the AI-agent-readable pricing page, and the Terms of Service.
+- **Terms of Service (AGB)** now spell out the trial: card held at signup, first charge after 14 days, no second trial on resubscribe, and access continues through a cancelled trial with no charge.
+- **Homepage hero copy simplified** — the "silent visitor" opening now reads in plainer language and names the real hurdle (writing to you) instead of an abstract one.
+
+### Fixed
+- **Checkout no longer creates a duplicate Stripe customer per purchase.** Each coach's Stripe customer is now stored and reused; a resubmitted checkout on an already-paid request is rejected instead of opening a second live session, and a stale/deleted customer id is detected and replaced automatically instead of failing checkout.
+- **Cancelled or failed subscriptions can no longer leave a concierge running untracked.** If a payment webhook can't find the matching internal record, we now recreate it and alert, instead of silently doing nothing.
+- **A profile's billing customer ID can no longer be edited by the account owner** — it's now locked to server-only writes, closing a gap where a user could point their own checkout at someone else's Stripe customer.
+
 ## [1.13.4.0] - 2026-07-06
 
 ### Added
