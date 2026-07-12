@@ -23,8 +23,12 @@ export function ConciergeEmbedSection({ slugs }: { slugs: string[] }) {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
 
   const copy = (slug: string) => {
-    navigator.clipboard?.writeText(embedSnippet(slug))
-    setCopiedSlug(slug)
+    // Only claim success once the write actually resolves — clipboard access
+    // can be unavailable (insecure context, older browser) or rejected
+    // (permission denied), and the coach must not be told it worked when it didn't.
+    const write = navigator.clipboard?.writeText(embedSnippet(slug))
+    if (!write) return
+    write.then(() => setCopiedSlug(slug)).catch(() => {})
   }
 
   return (

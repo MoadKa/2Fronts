@@ -12,6 +12,7 @@ describe('ConciergeEmbedSection', () => {
 
   beforeEach(() => {
     writeText.mockReset()
+    writeText.mockResolvedValue(undefined)
     // jsdom has no navigator.clipboard; provide the one API the component uses.
     Object.assign(navigator, { clipboard: { writeText } })
   })
@@ -26,11 +27,29 @@ describe('ConciergeEmbedSection', () => {
     expect(code.textContent).toBe(expectedSnippet('acme-coaching'))
   })
 
-  it('copies the snippet to the clipboard and confirms with "Kopiert!"', () => {
+  it('copies the snippet to the clipboard and confirms with "Kopiert!"', async () => {
     render(<ConciergeEmbedSection slugs={['acme']} />)
     fireEvent.click(screen.getByRole('button', { name: 'Kopieren' }))
     expect(writeText).toHaveBeenCalledWith(expectedSnippet('acme'))
-    expect(screen.getByRole('button', { name: 'Kopiert!' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Kopiert!' })).toBeInTheDocument()
+  })
+
+  it('does not claim success when the clipboard write is rejected (permission denied, insecure context)', async () => {
+    writeText.mockRejectedValueOnce(new Error('denied'))
+    render(<ConciergeEmbedSection slugs={['acme']} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Kopieren' }))
+    // Give the rejected promise a tick to settle, then confirm the button
+    // never flips to the false-success "Kopiert!" state.
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: 'Kopiert!' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Kopieren' })).toBeInTheDocument()
+  })
+
+  it('does not throw when the Clipboard API is unavailable (no navigator.clipboard)', () => {
+    Object.assign(navigator, { clipboard: undefined })
+    render(<ConciergeEmbedSection slugs={['acme']} />)
+    expect(() => fireEvent.click(screen.getByRole('button', { name: 'Kopieren' }))).not.toThrow()
+    expect(screen.getByRole('button', { name: 'Kopieren' })).toBeInTheDocument()
   })
 
   it('shows the 3-step tutorial and the collapsible platform hints', () => {
