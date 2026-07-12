@@ -18,19 +18,28 @@ create unique index profiles_stripe_customer_id_idx
 -- policy lets a user update their own profile ROW, which would include this
 -- column -- but stripe_customer_id is billing-trust: it decides which Stripe
 -- Customer future subscriptions (and the trial-eligibility check) attach to,
--- so only the edge functions (service_role) may write it. Same BEFORE UPDATE
--- trigger pattern as the role lock in 20260618030000_lock_profile_role_column:
--- a non-service_role writer silently keeps the OLD value; every other column
--- in the same statement still goes through.
+-- so only the edge functions (service_role) or an admin may write it. Same
+-- BEFORE UPDATE trigger pattern as the role lock in
+-- 20260618030000_lock_profile_role_column, with two deliberate differences:
+--   * is_admin() is exempt alongside service_role, mirroring the role lock's
+--     admin exemption, so an operator can repair a bad id without dropping to
+--     the service key.
+--   * an unauthorized write RAISES instead of silently keeping the OLD value:
+--     an operator/psql session that thinks it fixed a billing id must fail
+--     loudly, not report UPDATE 1 while the column quietly kept its old value.
+-- search_path is pinned (security-definer convention, see e.g.
+-- 20260625130000_concierge_rate_limit) so a schema squatting in the caller's
+-- search_path can never shadow is_admin().
 create function prevent_stripe_customer_id_client_write() returns trigger as $$
 begin
   if new.stripe_customer_id is distinct from old.stripe_customer_id
-     and auth.role() is distinct from 'service_role' then
-    new.stripe_customer_id := old.stripe_customer_id;
+     and auth.role() is distinct from 'service_role'
+     and not is_admin() then
+    raise exception 'stripe_customer_id may only be written by the service role or an admin';
   end if;
   return new;
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public, pg_temp;
 
 create trigger profiles_lock_stripe_customer_id
   before update on profiles
