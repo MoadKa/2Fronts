@@ -15,6 +15,7 @@ function fakeUserClient(
   email = 'coach@example.com',
   stripeCustomerId: string | null = null,
   status = 'requested',
+  checkoutSessionId: string | null = null,
 ) {
   return () => ({
     from() {
@@ -29,6 +30,7 @@ function fakeUserClient(
                       id: 'req-1',
                       status,
                       customer_id: 'user-1',
+                      stripe_checkout_session_id: checkoutSessionId,
                       automations: automation,
                       profiles: { email, stripe_customer_id: stripeCustomerId },
                     },
@@ -264,13 +266,18 @@ Deno.test('subscription automation creates a subscription-mode session with a re
 })
 
 // A stripe fake for the subscription path: records every session create's
-// params, mints cus_new when asked, and lets a test forbid customers.create,
-// stock the Customer's Stripe-side subscription history, or make the first
-// session create fail (the stale-customer retry).
+// params (plus session expires and Customer deletes), mints cus_new when
+// asked, and lets a test forbid customers.create, stock the Customer's
+// Stripe-side subscription history, make the first session create fail (the
+// stale-customer retry), or make expire/del fail (best-effort cleanup).
 interface SubscriptionStripeCaptured {
   params?: Record<string, unknown>
   allParams?: Record<string, unknown>[]
   listedCustomer?: string
+  // Every checkout.sessions.expire call, in order.
+  expiredSessionIds?: string[]
+  // Every customers.del call, in order.
+  deletedCustomerIds?: string[]
 }
 interface SubscriptionStripeOpts {
   forbidCustomerCreate?: boolean
@@ -280,6 +287,10 @@ interface SubscriptionStripeOpts {
   subscriptionsListError?: Error
   // When set, the FIRST checkout.sessions.create throws this; retries succeed.
   failFirstSessionCreate?: unknown
+  // When set, checkout.sessions.expire rejects with this error.
+  expireError?: Error
+  // When set, customers.del rejects with this error.
+  customerDelError?: Error
 }
 function subscriptionStripe(captured: SubscriptionStripeCaptured, opts: SubscriptionStripeOpts = {}) {
   let sessionCreates = 0
@@ -295,12 +306,22 @@ function subscriptionStripe(captured: SubscriptionStripeCaptured, opts: Subscrip
           }
           return Promise.resolve({ id: 'cs_sub', url: 'https://stripe/subscribe' })
         },
+        expire: (sessionId: string) => {
+          ;(captured.expiredSessionIds ??= []).push(sessionId)
+          if (opts.expireError) return Promise.reject(opts.expireError)
+          return Promise.resolve({ id: sessionId, status: 'expired' })
+        },
       },
     },
     customers: {
       create: () => {
         if (opts.forbidCustomerCreate) throw new Error('customers.create must NOT be called when a stripe_customer_id is stored')
         return Promise.resolve({ id: 'cus_new' })
+      },
+      del: (customerId: string) => {
+        ;(captured.deletedCustomerIds ??= []).push(customerId)
+        if (opts.customerDelError) return Promise.reject(opts.customerDelError)
+        return Promise.resolve({ id: customerId, deleted: true })
       },
     },
     subscriptions: {
@@ -437,6 +458,28 @@ Deno.test('lost persist race (zero rows updated): the concurrent winner\'s store
   // winner's Customer so the coach ends up with exactly one.
   assertEquals(stripe.params!.customer, 'cus_winner')
   assertEquals(admin.patches['automation_provisions'].stripe_customer_id, 'cus_winner')
+  // The loser's freshly minted Customer is deleted so it doesn't linger in
+  // Stripe as an empty duplicate.
+  assertEquals(stripe.deletedCustomerIds, ['cus_new'])
+})
+
+Deno.test('orphan Customer delete failure is ignored: winner still used, checkout succeeds', async () => {
+  const admin = newAdmin({ persistRaceLost: true, raceWinnerCustomerId: 'cus_winner' })
+  const stripe: SubscriptionStripeCaptured = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe, { customerDelError: new Error('stripe down') }),
+    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 200) // cleanup is hygiene, never a checkout blocker
+  assertEquals(body.url, 'https://stripe/subscribe')
+  assertEquals(stripe.params!.customer, 'cus_winner')
+  assertEquals(stripe.deletedCustomerIds, ['cus_new']) // the delete was attempted
 })
 
 Deno.test('persist error: checkout still succeeds with the freshly created Customer', async () => {
@@ -576,6 +619,117 @@ Deno.test('stale stored Customer (resource_missing): cleared, fresh Customer min
   assertEquals(profileUpdates.some((u) => u.patch.stripe_customer_id === null), true)
   assertEquals(profileUpdates[profileUpdates.length - 1].patch.stripe_customer_id, 'cus_new')
   assertEquals(admin.patches['automation_provisions'].stripe_customer_id, 'cus_new')
+})
+
+Deno.test('replay with a live session: the old session is expired before the new one is created and stored', async () => {
+  const admin = newAdmin()
+  const stripe: SubscriptionStripeCaptured = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe),
+    // A previous checkout already left this request payment_pending with a
+    // stored (still payable) session.
+    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', null, 'payment_pending', 'cs_old') as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 200)
+  assertEquals(body.url, 'https://stripe/subscribe')
+  // At most one live session per request: the old one is dead before the new
+  // one exists, so the webhook's session-id guard always matches the stored id.
+  assertEquals(stripe.expiredSessionIds, ['cs_old'])
+  assertEquals(admin.patches['automation_requests'].stripe_checkout_session_id, 'cs_sub')
+})
+
+Deno.test('expiring the old session fails (already expired/completed): checkout still proceeds', async () => {
+  const admin = newAdmin()
+  const stripe: SubscriptionStripeCaptured = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe, { expireError: new Error('session already expired') }),
+    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', null, 'payment_pending', 'cs_old') as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 200) // best-effort: a dead session can't race anyway
+  assertEquals(body.url, 'https://stripe/subscribe')
+  assertEquals(stripe.expiredSessionIds, ['cs_old']) // the expire was attempted
+  assertEquals(admin.patches['automation_requests'].stripe_checkout_session_id, 'cs_sub')
+})
+
+Deno.test('a first checkout (no stored session id) never calls sessions.expire', async () => {
+  const admin = newAdmin()
+  const stripe: SubscriptionStripeCaptured = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe),
+    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(stripe.expiredSessionIds, undefined)
+})
+
+Deno.test('stale-customer retry loses the persist race: the winner\'s id is used for the retried session and the orphan deleted', async () => {
+  const admin = newAdmin({ persistRaceLost: true, raceWinnerCustomerId: 'cus_winner' })
+  const stripe: SubscriptionStripeCaptured = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe, {
+      failFirstSessionCreate: { code: 'resource_missing', param: 'customer' },
+    }),
+    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stale') as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 200)
+  assertEquals(body.url, 'https://stripe/subscribe')
+  assertEquals(stripe.allParams!.length, 2)
+  assertEquals(stripe.allParams![0].customer, 'cus_stale')
+  // Between clearing the stale id and persisting the fresh one, a concurrent
+  // checkout stored its Customer: the retry converges on that winner instead
+  // of splitting the coach across two Customers.
+  assertEquals(stripe.allParams![1].customer, 'cus_winner')
+  assertEquals(stripe.deletedCustomerIds, ['cus_new']) // this request's orphan cleaned up
+  assertEquals(admin.patches['automation_provisions'].stripe_customer_id, 'cus_winner')
+})
+
+Deno.test('Stripe history of only incomplete/incomplete_expired subscriptions still earns the trial', async () => {
+  const admin = newAdmin() // DB: first-time subscriber
+  const stripe: SubscriptionStripeCaptured = {}
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: subscriptionStripe(stripe, {
+      forbidCustomerCreate: true,
+      // Abandoned checkouts leave incomplete subscriptions behind; neither
+      // status ever activated anything, so they must not veto the trial.
+      subscriptionsList: [
+        { id: 'sub_i', status: 'incomplete' },
+        { id: 'sub_ie', status: 'incomplete_expired' },
+      ],
+    }),
+    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stored') as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.resolve(),
+    getEnv,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(stripe.listedCustomer, 'cus_stored')
+  const subData = stripe.params!.subscription_data as { trial_period_days?: number }
+  assertEquals(subData.trial_period_days, 14) // never-activated history is not history
 })
 
 Deno.test('non-resource_missing Stripe errors are NOT retried', async () => {

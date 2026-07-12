@@ -39,6 +39,22 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
+// Best-effort cleanup of a Stripe Customer this request minted but lost to a
+// concurrent checkout: the winner's Customer is the one every session (and the
+// trial-eligibility history check) must attach to, so the loser's would sit in
+// Stripe forever as an empty duplicate. Deletion is pure hygiene — a failure
+// here must never affect the checkout, so errors are logged and swallowed.
+async function deleteOrphanCustomer(stripe: CheckoutDeps['stripe'], orphanId: string): Promise<void> {
+  try {
+    await stripe.customers.del(orphanId)
+  } catch (err) {
+    console.error(
+      `create-checkout-session: deleting orphaned Stripe customer ${orphanId} failed, ignoring:`,
+      err instanceof Error ? err.message : err,
+    )
+  }
+}
+
 export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = defaultDeps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: corsHeaders })
@@ -65,7 +81,7 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
   // named, reused Stripe Customer.
   const { data: requestRow, error: requestError } = await userClient
     .from('automation_requests')
-    .select('id, status, customer_id, automations(name, price_cents, currency, pricing_model, recurring_interval, connector_type), profiles(email, stripe_customer_id)')
+    .select('id, status, customer_id, stripe_checkout_session_id, automations(name, price_cents, currency, pricing_model, recurring_interval, connector_type), profiles(email, stripe_customer_id)')
     .eq('id', requestId)
     .single()
 
@@ -76,6 +92,30 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
   // for the same purchase.
   if ((requestRow as { status?: string }).status === 'paid') {
     return json({ error: 'Request already completed' }, 409)
+  }
+
+  // Replay while a session is still open: a coach who abandons checkout and
+  // retries would otherwise leave TWO payable sessions for one request. Expire
+  // the old one before creating its replacement so at most one live session
+  // exists per request — otherwise the coach could still complete the OLD
+  // session after we stored the NEW id, and the webhook's
+  // .eq('stripe_checkout_session_id', session.id) guard would never match.
+  // Best-effort: the old session may already be expired or completed (Stripe
+  // rejects expiring those), and either way it can no longer race the new
+  // session, so any error here is logged and checkout proceeds.
+  const previousSessionId =
+    (requestRow as { status?: string; stripe_checkout_session_id?: string | null }).status === 'payment_pending'
+      ? (requestRow as { stripe_checkout_session_id?: string | null }).stripe_checkout_session_id ?? null
+      : null
+  if (previousSessionId) {
+    try {
+      await deps.stripe.checkout.sessions.expire(previousSessionId)
+    } catch (err) {
+      console.error(
+        `create-checkout-session: expiring previous session ${previousSessionId} failed (already expired/completed?), proceeding:`,
+        err instanceof Error ? err.message : err,
+      )
+    }
   }
 
   const automation = requestRow.automations as unknown as {
@@ -152,6 +192,7 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
             .single()
           const winnerId = (winnerProfile as { stripe_customer_id?: string | null } | null)?.stripe_customer_id
           if (winnerId) {
+            await deleteOrphanCustomer(deps.stripe, stripeCustomerId)
             stripeCustomerId = winnerId
             reusedCustomer = true
           }
@@ -188,18 +229,24 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
 
     // Second, independent verdict from Stripe itself: the DB only knows about
     // subscriptions the webhook recorded, so a re-used Customer is also checked
-    // against Stripe's own subscription history (any status, including
-    // cancelled) — any hit means this coach already had their first-time
-    // moment. A Stripe outage must never crash checkout: on error the Stripe
-    // check simply contributes nothing and the DB verdict above stands.
+    // against Stripe's own subscription history (including cancelled) — any
+    // hit means this coach already had their first-time moment. EXCEPT
+    // incomplete/incomplete_expired: those are checkouts that never activated
+    // (this very flow creates one per session attempt), so an abandoned
+    // checkout must not cost the coach their trial. A Stripe outage must never
+    // crash checkout: on error the Stripe check simply contributes nothing and
+    // the DB verdict above stands.
     if (trialEligible && reusedCustomer) {
       try {
         const { data: stripeSubs } = await deps.stripe.subscriptions.list({
           customer: stripeCustomerId,
           status: 'all',
-          limit: 1,
+          limit: 10,
         })
-        if ((stripeSubs ?? []).length > 0) trialEligible = false
+        const everActivated = (stripeSubs ?? []).some(
+          (sub) => sub.status !== 'incomplete' && sub.status !== 'incomplete_expired',
+        )
+        if (everActivated) trialEligible = false
       } catch (err) {
         console.error(
           'create-checkout-session: Stripe subscription-history lookup failed, keeping DB trial verdict:',
@@ -296,10 +343,37 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
         metadata: { request_id: requestId },
       })
       stripeCustomerId = customer.id
-      await adminClient
-        .from('profiles')
-        .update({ stripe_customer_id: stripeCustomerId })
-        .eq('id', customerId)
+      // Same race-guarded persist as the main path: between our clear and this
+      // write a concurrent checkout can store ITS fresh Customer. `.is(null)`
+      // lets only one writer win; the loser re-reads the profile, adopts the
+      // winner's id for the retried session, and deletes its own orphan.
+      // Persisting stays reuse-bookkeeping: on error, retry with the fresh id.
+      try {
+        const { data: persisted, error: persistError } = await adminClient
+          .from('profiles')
+          .update({ stripe_customer_id: stripeCustomerId })
+          .eq('id', customerId)
+          .is('stripe_customer_id', null)
+          .select()
+        if (persistError) throw persistError
+        if ((persisted ?? []).length === 0) {
+          const { data: winnerProfile } = await adminClient
+            .from('profiles')
+            .select('stripe_customer_id')
+            .eq('id', customerId)
+            .single()
+          const winnerId = (winnerProfile as { stripe_customer_id?: string | null } | null)?.stripe_customer_id
+          if (winnerId) {
+            await deleteOrphanCustomer(deps.stripe, stripeCustomerId)
+            stripeCustomerId = winnerId
+          }
+        }
+      } catch (persistErr) {
+        console.error(
+          'create-checkout-session: persisting re-created stripe_customer_id failed, proceeding with fresh customer:',
+          persistErr instanceof Error ? persistErr.message : persistErr,
+        )
+      }
       session = await deps.stripe.checkout.sessions.create(sessionParams(stripeCustomerId))
     }
 
