@@ -266,6 +266,25 @@ describe('ConciergePublicPage', () => {
     expect(wrap).not.toHaveClass('concierge-wrap--embed')
   })
 
+  it('shows the 2fronts.de credit link in embed mode only', () => {
+    render(
+      <MemoryRouter initialEntries={['/c/acme?embed=1']}>
+        <Routes>
+          <Route path="/c/:slug" element={<ConciergePublicPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const credit = screen.getByRole('link', { name: 'Setter von 2fronts.de' })
+    expect(credit).toHaveAttribute('href', 'https://2fronts.de/?utm_source=widget&utm_medium=embed')
+    expect(credit).toHaveAttribute('target', '_blank')
+    expect(credit).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('shows no credit link on the standalone page (it already lives on 2fronts.de)', () => {
+    renderAt('acme')
+    expect(screen.queryByRole('link', { name: 'Setter von 2fronts.de' })).not.toBeInTheDocument()
+  })
+
   it('shows a friendly unavailable screen when the slug is not found', async () => {
     // The contact form is the first step, and it is where the unavailable slug surfaces.
     sendConciergeMessage.mockRejectedValue(new Error('conciergeChat.unavailable'))

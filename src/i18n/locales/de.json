@@ -442,7 +442,8 @@
     "contactSubmit": "Los geht's",
     "unavailableTitle": "Diese Seite ist nicht verfügbar",
     "unavailableBody": "Dieser Concierge-Link ist inaktiv oder existiert nicht. Bitte überprüfe den Link und versuche es erneut.",
-    "thinking": "Schreibt…"
+    "thinking": "Schreibt…",
+    "poweredBy": "Setter von 2fronts.de"
   },
   "conciergeChat": {
     "unavailable": "Dieser Concierge ist gerade nicht verfügbar.",

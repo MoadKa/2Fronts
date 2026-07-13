@@ -278,6 +278,17 @@ export function ConciergePublicPage() {
             </button>
           </form>
         )}
+
+        {isEmbed && (
+          <a
+            className="concierge-powered"
+            href="https://2fronts.de/?utm_source=widget&utm_medium=embed"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('conciergePublic.poweredBy')}
+          </a>
+        )}
       </div>
     </div>
   )

@@ -21,6 +21,20 @@
   padding: var(--space-md) var(--space-md) calc(var(--space-md) + env(safe-area-inset-bottom, 0px));
 }
 
+/* Embed-only footer credit: every widget on a coach's site carries a quiet
+   link back to 2fronts.de — the visitors there are exactly the audience. */
+.concierge-powered {
+  align-self: center;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.concierge-powered:hover,
+.concierge-powered:focus-visible {
+  text-decoration: underline;
+}
+
 .concierge-chat {
   display: flex;
   flex-direction: column;
