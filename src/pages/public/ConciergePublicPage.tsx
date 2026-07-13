@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { sendConciergeMessage, newSessionId } from '../../services/ConciergeService'
 import type { QualOption, QualPrompt } from '../../lib/qualification'
@@ -21,6 +21,26 @@ interface ChatMessage {
 export function ConciergePublicPage() {
   const { slug } = useParams<{ slug: string }>()
   const { t } = useTranslation()
+  // ?embed=1: the page runs inside the small widget iframe from public/embed.js,
+  // so the standalone-page breathing room goes away and the chat fills the frame.
+  const [searchParams] = useSearchParams()
+  const isEmbed = searchParams.get('embed') === '1'
+  const wrapClass = `concierge-wrap${isEmbed ? ' concierge-wrap--embed' : ''}`
+
+  // In embed mode, Escape must close the widget's parent panel — but a
+  // cross-origin iframe never receives the host page's keydown events, so
+  // embed.js can't listen for it directly. Forward it via postMessage instead;
+  // embed.js listens for this exact message shape.
+  useEffect(() => {
+    if (!isEmbed) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        window.parent.postMessage({ source: 'tf-embed', type: 'escape' }, '*')
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isEmbed])
 
   // One stable per-visitor session id for the whole page lifetime, so the AI
   // follows the thread across messages.
@@ -140,7 +160,7 @@ export function ConciergePublicPage() {
 
   if (unavailable) {
     return (
-      <div className="concierge-wrap">
+      <div className={wrapClass}>
         <div className="concierge-unavailable">
           <h1>{t('conciergePublic.unavailableTitle')}</h1>
           <p>{t('conciergePublic.unavailableBody')}</p>
@@ -150,7 +170,7 @@ export function ConciergePublicPage() {
   }
 
   return (
-    <div className="concierge-wrap">
+    <div className={wrapClass}>
       <div className="concierge-chat">
         <div className="concierge-messages" aria-live="polite">
           {messages.map((m, i) => (
@@ -257,6 +277,17 @@ export function ConciergePublicPage() {
               {sending ? t('conciergePublic.sending') : <SendIcon />}
             </button>
           </form>
+        )}
+
+        {isEmbed && (
+          <a
+            className="concierge-powered"
+            href="https://2fronts.de/?utm_source=widget&utm_medium=embed"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('conciergePublic.poweredBy')}
+          </a>
         )}
       </div>
     </div>

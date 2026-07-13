@@ -10,6 +10,7 @@ import {
 import { Input } from '../../components/ui/Input'
 import { Button } from '../../components/ui/Button'
 import { ProgressBar } from '../../components/ui/ProgressBar'
+import { ConciergeEmbedSection } from '../../components/concierge/ConciergeEmbedSection'
 import { BUILTIN_CRITERION_IDS, type QualCriterion } from '../../lib/qualification'
 import { INDUSTRIES, industryLabel } from '../../lib/industries'
 import {
@@ -396,6 +397,10 @@ export function ConciergeSetupPage() {
               {t('conciergeOnboarding.done.test')}
             </a>
           </div>
+
+          {/* Self-serve install: the widget snippet + 3-step tutorial, so the
+              coach can put the setter on their own website right now. */}
+          <ConciergeEmbedSection slugs={[createdSlug]} />
         </div>
       </div>
     )

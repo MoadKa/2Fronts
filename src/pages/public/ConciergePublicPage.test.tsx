@@ -219,6 +219,72 @@ describe('ConciergePublicPage', () => {
     expect(screen.getByPlaceholderText('Nachricht eingeben…')).toBeInTheDocument()
   })
 
+  it('switches to embed mode when opened with ?embed=1 (widget iframe)', () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/c/acme?embed=1']}>
+        <Routes>
+          <Route path="/c/:slug" element={<ConciergePublicPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(container.querySelector('.concierge-wrap')).toHaveClass('concierge-wrap--embed')
+  })
+
+  it('forwards Escape to the parent window in embed mode (cross-origin iframe bridge)', () => {
+    // A cross-origin iframe never receives the host page's own keydown listener,
+    // so embed.js can't catch Escape directly — this page posts it to the parent
+    // instead; embed.js listens for this exact message shape and closes the panel.
+    const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {})
+    render(
+      <MemoryRouter initialEntries={['/c/acme?embed=1']}>
+        <Routes>
+          <Route path="/c/:slug" element={<ConciergePublicPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(postMessage).toHaveBeenCalledWith({ source: 'tf-embed', type: 'escape' }, '*')
+    postMessage.mockRestore()
+  })
+
+  it('does not forward Escape when not in embed mode', () => {
+    const postMessage = vi.spyOn(window.parent, 'postMessage').mockImplementation(() => {})
+    renderAt('acme')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(postMessage).not.toHaveBeenCalled()
+    postMessage.mockRestore()
+  })
+
+  it('stays in normal page mode without ?embed=1', () => {
+    const { container } = renderAt('acme')
+    const wrap = container.querySelector('.concierge-wrap')
+    expect(wrap).toBeInTheDocument()
+    expect(wrap).not.toHaveClass('concierge-wrap--embed')
+  })
+
+  it('shows the 2fronts.de credit link in embed mode only', () => {
+    render(
+      <MemoryRouter initialEntries={['/c/acme?embed=1']}>
+        <Routes>
+          <Route path="/c/:slug" element={<ConciergePublicPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const credit = screen.getByRole('link', { name: 'Setter von 2fronts.de' })
+    expect(credit).toHaveAttribute('href', 'https://2fronts.de/?utm_source=widget&utm_medium=embed')
+    expect(credit).toHaveAttribute('target', '_blank')
+    expect(credit).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('shows no credit link on the standalone page (it already lives on 2fronts.de)', () => {
+    renderAt('acme')
+    expect(screen.queryByRole('link', { name: 'Setter von 2fronts.de' })).not.toBeInTheDocument()
+  })
+
   it('shows a friendly unavailable screen when the slug is not found', async () => {
     // The contact form is the first step, and it is where the unavailable slug surfaces.
     sendConciergeMessage.mockRejectedValue(new Error('conciergeChat.unavailable'))

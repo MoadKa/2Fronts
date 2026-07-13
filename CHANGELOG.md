@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.14.1.0] - 2026-07-12
+
+### Added
+- **Embeddable chat-bubble widget.** Coaches can now put their setter directly on their own website: one line of code (`<script src="https://2fronts.de/embed.js" data-concierge="...">`), no build step, no dependencies. It shows up as a floating chat bubble that opens the setter in an overlay — the visitor never leaves the coach's site.
+- **Self-serve install tutorial.** The setup wizard and the dashboard now show the coach's real embed snippet with a copy button, a 3-step guide, and collapsible instructions for WordPress, Wix, Squarespace, Webflow, and Jimdo.
+
+### Fixed
+- **Escape now closes the widget from inside the chat, not just from the host page.** The chat runs in a cross-origin iframe, so pressing Escape while typing didn't close it before — it does now.
+- **A coach with more than one concierge no longer loses the second one.** Installing two different concierges' snippets on the same page used to silently show only the first; each now mounts independently.
+- **The "copy snippet" button no longer claims success when the clipboard write actually failed** (unsupported browser, denied permission).
+
 ## [1.13.4.0] - 2026-07-06
 
 ### Added

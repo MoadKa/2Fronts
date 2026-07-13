@@ -211,3 +211,45 @@ Captured during /plan-eng-review (2026-06-20) for the AI-built missed-call lead 
 **Context:** Flagged by `/ship`'s pre-landing review (epic #22, v1.0.0.0).
 
 **Depends on:** Nothing blocking.
+
+## 16. Minify + cache `public/embed.js`, and defer its auto-open iframe mount
+
+**What:** `public/embed.js` (~6KB, unminified) is fetched fresh on every page view of every coach's third-party website with no explicit `Cache-Control` in `vercel.json`. Separately, the optional `data-auto-open` feature mounts the full chat iframe on a bare `setTimeout`, competing with the host page's own critical rendering path.
+
+**Why:** This is the one file in the repo whose bytes and load timing directly add to *someone else's* site performance, not just ours — worth a deliberate build/cache step once more than a handful of coaches install it.
+
+**Pros:** Cheap win once done (minify step + a cache header); real impact at scale.
+
+**Cons:** No coach has embedded the widget yet, so there's no measured impact to fix against today.
+
+**Context:** Flagged by the performance specialist during `/ship`'s pre-landing review of the embed widget (v1.14.1.0).
+
+**Depends on:** Nothing blocking — do before the widget sees meaningful install volume.
+
+## 17. Embed widget: iframe load-failure fallback + Shadow DOM style isolation
+
+**What:** Two related hardening gaps in `public/embed.js`: (a) the lazily-created chat iframe has no load-failure handling — a CSP block, ad blocker, deleted slug, or network failure leaves the panel open and permanently blank with zero fallback message; (b) the bubble/panel chrome has no Shadow DOM isolation and no `!important`, so an aggressive host-page CSS reset (common in some WordPress/Wix/Squarespace themes) could silently override its position/visibility.
+
+**Why:** Both are silent-failure modes specific to running on domains we don't control — the coach or visitor would see a broken/invisible widget with no diagnostic signal.
+
+**Pros:** Meaningfully improves reliability on real, uncontrolled third-party sites.
+
+**Cons:** Shadow DOM in particular is a real (if small) refactor, not a one-line fix; better scoped once we see real installs and can prioritize against actual breakage reports.
+
+**Context:** Flagged by the red-team pass during `/ship`'s pre-landing review of the embed widget (v1.14.1.0). The related dynamic-injection edge case (`document.currentScript` unavailable via tag managers falls back to the first `script[data-concierge]` tag in the DOM, which could resolve to the wrong slug if two widgets are injected that way) is a lower-severity variant of the same "runs on someone else's page" risk class — worth revisiting together.
+
+**Depends on:** Nothing blocking — no reported breakage yet, this is proactive hardening.
+
+## 18. Minor cleanup nits from the embed-widget review (DRY + coverage of defensive branches)
+
+**What:** A handful of small, low-confidence findings from `/ship`'s testing and maintainability specialists on the embed widget: the `.claude`/`.worktrees` ignore paths are duplicated verbatim in `eslint.config.js` and `vite.config.ts`; the `{source:'tf-embed',type:'escape'}` postMessage contract shape is duplicated as inline literals across `public/embed.js`, `ConciergePublicPage.tsx`, and both test files with no shared constant; a few defensive branches in `public/embed.js` (sessionStorage blocked, `new URL()` throw, legacy `'Esc'` key alias, empty `slugs=[]` in `ConciergeEmbedSection`) have no dedicated test.
+
+**Why:** None of these are bugs — they're small consistency/coverage gaps the specialists flagged at confidence too low to auto-fix or block shipping.
+
+**Pros:** Each is a 5-15 minute fix if ever picked up.
+
+**Cons:** Genuinely low value in isolation; not worth its own PR.
+
+**Context:** Flagged during `/ship`'s pre-landing review of the embed widget (v1.14.1.0); bundled here rather than as separate TODOs since none block anything.
+
+**Depends on:** Nothing blocking.

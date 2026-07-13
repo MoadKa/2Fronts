@@ -442,7 +442,8 @@
     "contactSubmit": "Let's go",
     "unavailableTitle": "This page isn't available",
     "unavailableBody": "This concierge link is inactive or doesn't exist. Please check the link and try again.",
-    "thinking": "Typing…"
+    "thinking": "Typing…",
+    "poweredBy": "Setter by 2fronts.de"
   },
   "conciergeChat": {
     "unavailable": "This concierge is not available right now.",
@@ -590,6 +591,39 @@
       "slugTaken": "That name is already taken — try a slightly different one.",
       "saveFailed": "We couldn't finish setup — please try again.",
       "mustSignIn": "Please sign in to set up your setter."
+    }
+  },
+  "conciergeEmbed": {
+    "title": "Add it to your website",
+    "intro": "One line of code is all it takes — your setter then appears as a chat bubble in the bottom-right corner of your site.",
+    "snippetLabel": "Embed code",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "step1": "Copy the line above.",
+    "step2": "Paste it into your website — see below for how to do it in your site builder.",
+    "step3": "Save and reload your site. The chat bubble appears in the bottom-right corner.",
+    "platformsLabel": "How to do it in your website builder:",
+    "platforms": {
+      "wordpress": {
+        "name": "WordPress",
+        "hint": "Open the Customizer and paste the line under \"Additional JavaScript\". Or use a plugin like \"Header/Footer Code\"."
+      },
+      "wix": {
+        "name": "Wix",
+        "hint": "Go to Settings → Custom Code and add the line for all pages."
+      },
+      "squarespace": {
+        "name": "Squarespace",
+        "hint": "Go to Settings → Advanced → Code Injection and paste the line there."
+      },
+      "webflow": {
+        "name": "Webflow",
+        "hint": "Open Project Settings → Custom Code and paste the line into the footer field."
+      },
+      "jimdo": {
+        "name": "Jimdo",
+        "hint": "Edit your site's head section and paste the line there."
+      }
     }
   },
   "demo": {
