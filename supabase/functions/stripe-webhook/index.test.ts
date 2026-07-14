@@ -648,6 +648,86 @@ Deno.test('customer.subscription.deleted is idempotent: re-delivery for an unkno
   assertEquals(opts.updates.length, 0) // nothing deactivated, no error
 })
 
+Deno.test('customer.subscription.updated to `unpaid` deactivates the concierge (dunning set to mark-unpaid, no deleted event)', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: { id: 'prov-9', config: { concierge_id: 'con-1' } },
+    updates: [],
+  }
+  const event = { type: 'customer.subscription.updated', data: { object: { id: 'sub_123', status: 'unpaid' } } }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: noopAlert,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  const conciergeUpdate = opts.updates.find((u) => u.table === 'concierges')
+  assertEquals(conciergeUpdate?.patch.is_active, false)
+  assertEquals(conciergeUpdate?.eqs[0], ['id', 'con-1'])
+  const provUpdate = opts.updates.find((u) => u.table === 'automation_provisions')
+  assertEquals(provUpdate?.patch.status, 'cancelled')
+})
+
+Deno.test('customer.subscription.updated to `canceled` (cancel-without-delete) deactivates the concierge', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: { id: 'prov-9', config: { concierge_id: 'con-1' } },
+    updates: [],
+  }
+  const event = { type: 'customer.subscription.updated', data: { object: { id: 'sub_123', status: 'canceled' } } }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: noopAlert,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(opts.updates.find((u) => u.table === 'concierges')?.patch.is_active, false)
+})
+
+Deno.test('customer.subscription.updated to `past_due` does NOT deactivate: access stays during the retry grace window', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: { id: 'prov-9', config: { concierge_id: 'con-1' } },
+    updates: [],
+  }
+  const event = { type: 'customer.subscription.updated', data: { object: { id: 'sub_123', status: 'past_due' } } }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: noopAlert,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(opts.updates.length, 0) // Stripe is still retrying; concierge stays live
+})
+
+Deno.test('customer.subscription.updated to `active` (trial converted, recovered) does NOT touch the concierge', async () => {
+  const opts: LifecycleOpts = {
+    provisionBySub: { id: 'prov-9', config: { concierge_id: 'con-1' } },
+    updates: [],
+  }
+  const event = { type: 'customer.subscription.updated', data: { object: { id: 'sub_123', status: 'active' } } }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: noopAlert,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(opts.updates.length, 0)
+})
+
 Deno.test('invoice.payment_failed sends an alert via the alert dependency', async () => {
   const opts: LifecycleOpts = { provisionBySub: null, updates: [] }
   const event = {

@@ -153,6 +153,25 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
     await deactivateSubscription(adminClient, subscription.id)
   }
 
+  // A subscription reached a terminal non-paying state WITHOUT being deleted.
+  // Whether Stripe deletes a subscription after dunning or leaves it behind is a
+  // dashboard setting: "cancel subscription" ends in customer.subscription.deleted
+  // (handled above), but "mark subscription unpaid" leaves it as `unpaid`, and a
+  // cancel-without-delete leaves it as `canceled` — neither of which fires a
+  // deleted event. Without this, that configuration would keep the concierge live
+  // forever on a plan that will never be paid. Deactivate here so access is
+  // removed no matter how dunning is configured. We deliberately do NOT act on
+  // `past_due`: Stripe is still retrying, so access stays through the grace
+  // window. deactivateSubscription is idempotent, so a later deleted event (or a
+  // re-delivery) re-applying the same flags is a safe no-op.
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object as Stripe.Subscription
+    if (subscription.status === 'unpaid' || subscription.status === 'canceled') {
+      const adminClient = deps.createAdminClient()
+      await deactivateSubscription(adminClient, subscription.id)
+    }
+  }
+
   // A recurring invoice failed (card declined, etc.). Alert ops so a human can
   // reach out before Stripe's dunning eventually cancels the subscription
   // (which then arrives as customer.subscription.deleted and deactivates the

@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.1.0] - 2026-07-14
+
+### Fixed
+- **Database access no longer relies on a Supabase default that is being switched off.** Every table's access depended on Supabase's legacy "auto-expose" behaviour, which Supabase removes on 2026-10-30 — after which a fresh project or reset would deny every read and write and take the whole app down (empty catalog, checkout unable to create a request). Access is now granted explicitly in a migration, with row-level security still deciding which rows each user can touch. Verified from a clean database reset with auto-expose turned off.
+- **A concierge is now switched off even when Stripe marks the subscription "unpaid" instead of cancelling it.** Access removal previously depended on Stripe firing a "subscription deleted" event after failed retries. If the Stripe dunning setting were ever changed to "mark unpaid" (or a subscription were cancelled without deletion), the concierge would have kept running for free forever. The billing webhook now also deactivates on a subscription reaching `unpaid` or `canceled`. Access still stays live during the retry grace window (`past_due` is untouched).
+
 ## [1.15.0.0] - 2026-07-13
 
 ### Added
