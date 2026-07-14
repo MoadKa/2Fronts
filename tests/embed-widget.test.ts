@@ -54,6 +54,15 @@ describe('public/embed.js widget', () => {
     expect(document.getElementById('tf-embed-frame-acme')).toBeNull()
   })
 
+  it('shows the robot icon at rest, not the old speech-bubble glyph', () => {
+    loadWidget()
+    const svg = document.querySelector('#tf-embed-bubble-acme svg')!
+    // The robot antenna path is the distinguishing mark of the calm launcher.
+    expect(svg.innerHTML).toContain('M12 3.5v2.2')
+    // Regression: the previous speech-bubble path must be gone.
+    expect(svg.innerHTML).not.toContain('M21 11.5a8.38')
+  })
+
   it('opens on click with an iframe pointing at the script origin /c/<slug>?embed=1', () => {
     loadWidget()
     document.getElementById('tf-embed-bubble-acme')!.click()
@@ -175,10 +184,44 @@ describe('public/embed.js widget', () => {
     expect(acmePanel.classList.contains('tf-embed-open')).toBe(true)
   })
 
-  it('applies data-color to the bubble styles', () => {
+  it('defaults to the bottom-right corner with no offset', () => {
+    loadWidget()
+    const style = document.getElementById('tf-embed-style-acme')!.textContent!
+    expect(style).toContain('#tf-embed-bubble-acme{position:fixed;right:20px;bottom:20px')
+    expect(style).toContain('#tf-embed-panel-acme{position:fixed;right:20px;bottom:96px')
+  })
+
+  it('data-position="left" mirrors bubble, panel, and invite to the bottom-left', () => {
+    loadWidget({ 'data-position': 'left' })
+    const style = document.getElementById('tf-embed-style-acme')!.textContent!
+    expect(style).toContain('#tf-embed-bubble-acme{position:fixed;left:20px;bottom:20px')
+    expect(style).toContain('#tf-embed-panel-acme{position:fixed;left:20px;bottom:96px')
+    expect(style).toContain('#tf-embed-invite-acme{position:fixed;left:92px')
+    // The speech tail flips to the invite's left edge, pointing at the bubble.
+    expect(style).toContain('#tf-embed-invite-acme::after{content:"";position:absolute;left:-6px')
+  })
+
+  it('data-offset-bottom lifts bubble, invite, and panel by N pixels', () => {
+    loadWidget({ 'data-offset-bottom': '90' })
+    const style = document.getElementById('tf-embed-style-acme')!.textContent!
+    expect(style).toContain('#tf-embed-bubble-acme{position:fixed;right:20px;bottom:110px')
+    expect(style).toContain('#tf-embed-invite-acme{position:fixed;right:92px;bottom:120px')
+    expect(style).toContain('#tf-embed-panel-acme{position:fixed;right:20px;bottom:186px')
+  })
+
+  it('ignores garbage data-position and data-offset-bottom values', () => {
+    loadWidget({ 'data-position': 'top', 'data-offset-bottom': 'lots' })
+    const style = document.getElementById('tf-embed-style-acme')!.textContent!
+    expect(style).toContain('#tf-embed-bubble-acme{position:fixed;right:20px;bottom:20px')
+  })
+
+  it('applies data-color as the accent (icon/border/ring), keeping the disc calm', () => {
     loadWidget({ 'data-color': '#123456' })
     const style = document.getElementById('tf-embed-style-acme')!
-    expect(style.textContent).toContain('background:#123456')
+    // Accent now paints the robot + focus ring via `color`, not the whole fill…
+    expect(style.textContent).toContain('color:#123456')
+    // …and the launcher disc stays a quiet light surface.
+    expect(style.textContent).toContain('background:#FFFDF7')
   })
 
   it('does nothing without a data-concierge slug', () => {
@@ -211,6 +254,99 @@ describe('public/embed.js widget', () => {
     const betaFrame = document.getElementById('tf-embed-frame-beta-coaching') as HTMLIFrameElement
     expect(betaFrame.src).toBe('https://2fronts.de/c/beta-coaching?embed=1')
     expect(document.getElementById('tf-embed-panel-acme')!.classList.contains('tf-embed-open')).toBe(false)
+  })
+
+  it('slides in the dezente Einladung once, after the delay, then hides it again', () => {
+    vi.useFakeTimers()
+    loadWidget()
+    const invite = document.getElementById('tf-embed-invite-acme')!
+    // At rest: present in the DOM but not shown (zero-footprint nudge).
+    expect(invite).not.toBeNull()
+    expect(invite.classList.contains('tf-embed-invite-in')).toBe(false)
+    expect(invite.textContent).toContain('Erstgespräch buchen?')
+
+    // Appears after the default 4s beat, and marks the session so it won't nag again.
+    vi.advanceTimersByTime(4000)
+    expect(invite.classList.contains('tf-embed-invite-in')).toBe(true)
+    expect(sessionStorage.getItem('tf-embed-invited:acme')).toBe('1')
+
+    // It never lingers: slides back out on its own.
+    vi.advanceTimersByTime(5000)
+    expect(invite.classList.contains('tf-embed-invite-in')).toBe(false)
+  })
+
+  it('opens the chat when the invite itself is clicked', () => {
+    vi.useFakeTimers()
+    loadWidget()
+    vi.advanceTimersByTime(4000)
+    document.getElementById('tf-embed-invite-acme')!.click()
+    expect(document.getElementById('tf-embed-panel-acme')!.classList.contains('tf-embed-open')).toBe(true)
+  })
+
+  it('honors data-invite-delay, and falls back to 4s on a garbage value', () => {
+    vi.useFakeTimers()
+    loadWidget({ 'data-invite-delay': '10' })
+    const invite = document.getElementById('tf-embed-invite-acme')!
+    // Not yet at the default 4s beat — the custom delay is in charge.
+    vi.advanceTimersByTime(4000)
+    expect(invite.classList.contains('tf-embed-invite-in')).toBe(false)
+    vi.advanceTimersByTime(6000)
+    expect(invite.classList.contains('tf-embed-invite-in')).toBe(true)
+
+    // A garbage delay must not break the nudge — it falls back to the 4s default.
+    document.head.innerHTML = ''
+    document.body.innerHTML = ''
+    sessionStorage.clear()
+    delete (window as unknown as { __tfEmbedMounted?: unknown }).__tfEmbedMounted
+    loadWidget({ 'data-invite-delay': 'soon' })
+    vi.advanceTimersByTime(4000)
+    expect(document.getElementById('tf-embed-invite-acme')!.classList.contains('tf-embed-invite-in')).toBe(true)
+  })
+
+  it('cancels the pending invite when the visitor opens the chat first', () => {
+    vi.useFakeTimers()
+    loadWidget()
+    // The visitor opens (and even closes) the chat before the 4s beat —
+    // the nudge is retired for the whole session, it must never pop later.
+    document.getElementById('tf-embed-bubble-acme')!.click()
+    document.getElementById('tf-embed-close-acme')!.click()
+    expect(sessionStorage.getItem('tf-embed-invited:acme')).toBe('1')
+
+    vi.advanceTimersByTime(20000)
+    expect(document.getElementById('tf-embed-invite-acme')!.classList.contains('tf-embed-invite-in')).toBe(false)
+  })
+
+  it('shows the invite at most once per browser session', () => {
+    vi.useFakeTimers()
+    loadWidget()
+    vi.advanceTimersByTime(4000)
+    expect(document.getElementById('tf-embed-invite-acme')!.classList.contains('tf-embed-invite-in')).toBe(true)
+
+    // A fresh page view in the same session: the flag suppresses the nudge.
+    document.head.innerHTML = ''
+    document.body.innerHTML = ''
+    delete (window as unknown as { __tfEmbedMounted?: unknown }).__tfEmbedMounted
+    loadWidget()
+    vi.advanceTimersByTime(10000)
+    expect(document.getElementById('tf-embed-invite-acme')!.classList.contains('tf-embed-invite-in')).toBe(false)
+  })
+
+  it('does not show the invite when data-invite="off"', () => {
+    vi.useFakeTimers()
+    loadWidget({ 'data-invite': 'off' })
+    vi.advanceTimersByTime(10000)
+    expect(document.getElementById('tf-embed-invite-acme')!.classList.contains('tf-embed-invite-in')).toBe(false)
+    // Silenced without side effects: the session flag was never set either.
+    expect(sessionStorage.getItem('tf-embed-invited:acme')).toBeNull()
+  })
+
+  it('suppresses the gentle invite when data-auto-open force-opens the chat', () => {
+    vi.useFakeTimers()
+    loadWidget({ 'data-auto-open': '5' })
+    vi.advanceTimersByTime(10000)
+    // The stronger nudge wins; the two never fire together.
+    expect(document.getElementById('tf-embed-panel-acme')!.classList.contains('tf-embed-open')).toBe(true)
+    expect(document.getElementById('tf-embed-invite-acme')!.classList.contains('tf-embed-invite-in')).toBe(false)
   })
 
   it('auto-opens after data-auto-open seconds, but only once per session', () => {
