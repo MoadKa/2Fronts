@@ -23,8 +23,8 @@ export interface ConciergeDraft {
   calendar_url?: string
 }
 
-// Fetch the readable text of a page. Injectable; the default uses Firecrawl
-// (renders JS + gets past bot-blocking), but tests pass canned page text.
+// Fetch the readable text of a page. Injectable; the default (defaultScrape)
+// uses Firecrawl with a plain-fetch fallback, but tests pass canned page text.
 export type ScrapeFn = (url: string) => Promise<string>
 
 // Turn a system prompt + the page text into the model's JSON draft. Injectable
@@ -110,22 +110,14 @@ export async function draftConciergeFromUrl(
 
 const FIRECRAWL_API_URL = 'https://api.firecrawl.dev/v1/scrape'
 
-// Scrape a page's readable text via Firecrawl. A plain fetch can't read modern
-// coach sites: site builders (Wix/Squarespace/Framer) render the page in the
-// browser, so the raw HTML is an empty shell, and Cloudflare/bot-protection
-// blocks a non-browser request outright — both leave the draft empty. Firecrawl
-// renders JS and gets past the blocks, returning clean markdown to ground the
-// draft (the coach still edits it). Injectable fetcher keeps tests offline. The
-// key goes ONLY in the Authorization header, never the URL/a log/an error.
-// Requires FIRECRAWL_API_KEY; without it (or on any Firecrawl failure) we throw,
-// the edge fn maps it to a 502, and the wizard falls back to manual entry.
-export async function defaultScrape(
-  url: string,
-  fetcher: typeof fetch = fetch,
-  apiKey: string | undefined = (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get('FIRECRAWL_API_KEY'),
-): Promise<string> {
-  if (!/^https?:\/\//i.test(url)) throw new Error('invalid_url')
-  if (!apiKey) throw new Error('FIRECRAWL_API_KEY is not set; cannot scrape the page')
+// Per-request wall clock. Without it a slow/never-responding server (or a
+// slow-loris trickle) holds the edge invocation open indefinitely.
+const FETCH_TIMEOUT_MS = 15_000
+
+// Scrape via Firecrawl (primary). Renders JS and gets past bot-blocking, which
+// a plain fetch can't for builder sites (Wix/Squarespace/Framer). The key goes
+// ONLY in the Authorization header, never the URL/a log/an error.
+async function firecrawlScrape(url: string, fetcher: typeof fetch, apiKey: string): Promise<string> {
   const res = await fetcher(FIRECRAWL_API_URL, {
     method: 'POST',
     headers: {
@@ -133,12 +125,227 @@ export async function defaultScrape(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ url, formats: ['markdown'], onlyMainContent: true }),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`scrape_failed_${res.status}`)
   const data = (await res.json().catch(() => ({}))) as { success?: boolean; data?: { markdown?: string } }
   const markdown = data?.data?.markdown ?? ''
   if (!data?.success || !markdown.trim()) throw new Error('scrape_empty')
   return markdown
+}
+
+// SSRF guard for the plain-fetch fallback: this runs server-side with a
+// user-supplied URL, so refuse anything pointing at a private/loopback/
+// link-local/metadata address. Two layers, because a string check alone is not
+// enough: (1) the hostname string (catches literal IPs — the WHATWG URL parser
+// already normalises decimal/octal/hex/short IPv4 like http://2130706433/ to
+// dotted-quad before we see it — plus localhost-family names), and (2) the
+// RESOLVED IPs (catches DNS rebinding: a public name whose A/AAAA record points
+// inward). Both the initial URL and every redirect hop go through both layers.
+
+// True if a raw IPv4 literal is loopback/private/link-local/CGNAT/unspecified.
+function isForbiddenIpv4(h: string): boolean {
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (!m) return false
+  const [a, b] = [Number(m[1]), Number(m[2])]
+  return (
+    a === 0 || a === 10 || a === 127 ||
+    (a === 169 && b === 254) ||             // link-local (incl. cloud metadata 169.254.169.254)
+    (a === 172 && b >= 16 && b <= 31) ||    // private
+    (a === 192 && b === 168) ||             // private
+    (a === 100 && b >= 64 && b <= 127) ||   // CGNAT
+    a >= 224                                // multicast (224/4) + reserved/broadcast (240/4, 255.255.255.255)
+  )
+}
+
+// True if a raw IPv6 literal (bracketed or not) is loopback/unique-local/
+// link-local, or an IPv4-mapped address whose embedded v4 is forbidden. The
+// WHATWG parser compresses ::ffff:127.0.0.1 to the HEX form ::ffff:7f00:1, so
+// both the dotted and hex spellings of the mapped tail are decoded.
+function isForbiddenIpv6(h: string): boolean {
+  const v = h.toLowerCase().replace(/^\[|\]$/g, '')
+  if (v === '::1' || v === '::' || v === '::0') return true
+  if (/^f[cd][0-9a-f]{2}:/.test(v)) return true // fc00::/7 unique-local
+  if (/^fe[89ab][0-9a-f]:/.test(v)) return true // fe80::/10 link-local
+  const dotted = v.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
+  if (dotted) return isForbiddenIpv4(dotted[1])
+  const hex = v.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
+  if (hex) {
+    const hi = parseInt(hex[1], 16)
+    const lo = parseInt(hex[2], 16)
+    return isForbiddenIpv4([(hi >> 8) & 255, hi & 255, (lo >> 8) & 255, lo & 255].join('.'))
+  }
+  return false
+}
+
+// Layer 1: reject on the hostname STRING (localhost-family names + IP literals).
+function isForbiddenHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/\.$/, '')
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true
+  if (h.startsWith('[') || h.includes(':')) return isForbiddenIpv6(h) || h === '::1'
+  return isForbiddenIpv4(h)
+}
+
+// Layer 2: resolve a hostname to its IPs and reject if any is internal. This
+// raises the bar on DNS-based SSRF (a public name with a static internal A
+// record is blocked outright) but does NOT fully close a rebinding attacker who
+// controls an authoritative server and answers our resolve and fetch's own
+// resolve differently (TOCTOU): Deno's fetch re-resolves by name, and it has no
+// first-class connect-to-IP-with-Host-header, so we can't pin the vetted IP.
+// Residual accepted for this authenticated-coach-only fallback; the real fix is
+// IP-pinning at the transport, tracked separately. Injectable for offline tests;
+// "cannot resolve" (no net permission in tests, NXDOMAIN) is treated as "no IPs
+// to object to" — Layer 1 still stands and a truly unresolvable host fails at fetch.
+export type ResolveHostFn = (hostname: string) => Promise<string[]>
+
+const defaultResolveHost: ResolveHostFn = async (hostname) => {
+  const D = (globalThis as { Deno?: { resolveDns?: (h: string, t: string) => Promise<string[]> } }).Deno
+  if (!D?.resolveDns) return []
+  const ips: string[] = []
+  for (const type of ['A', 'AAAA']) {
+    try {
+      ips.push(...(await D.resolveDns(hostname, type)))
+    } catch {
+      /* NXDOMAIN for that record type, or net permission denied in tests */
+    }
+  }
+  return ips
+}
+
+const MAX_REDIRECT_HOPS = 4
+const MAX_FALLBACK_HTML_BYTES = 1_000_000
+
+// Strip a fetched HTML document down to its readable text.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+// A JS-shell page (builder site) strips down to almost nothing — below this the
+// fallback treats the page as unreadable rather than drafting from boilerplate.
+const MIN_FALLBACK_TEXT = 150
+
+// Read a response body but stop at maxBytes INSTEAD of buffering it whole — a
+// hostile (or broken) page could otherwise stream gigabytes and OOM the isolate.
+async function readCappedText(res: Response, maxBytes: number): Promise<string> {
+  if (!res.body) return (await res.text()).slice(0, maxBytes) // bodyless/mocked responses
+  const reader = res.body.getReader()
+  const parts: Uint8Array[] = []
+  let total = 0
+  try {
+    while (total < maxBytes) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        parts.push(value)
+        total += value.byteLength
+      }
+    }
+  } finally {
+    try {
+      await reader.cancel() // stop the download; no-op if already drained
+    } catch {
+      /* already closed */
+    }
+  }
+  const merged = new Uint8Array(total)
+  let off = 0
+  for (const p of parts) {
+    merged.set(p, off)
+    off += p.byteLength
+  }
+  return new TextDecoder().decode(merged).slice(0, maxBytes)
+}
+
+// Both SSRF layers for one hostname: string check, then resolved-IP check.
+async function assertHostAllowed(hostname: string, resolveHost: ResolveHostFn): Promise<void> {
+  if (isForbiddenHost(hostname)) throw new Error('scrape_fallback_forbidden')
+  // A literal IP was already fully vetted by Layer 1; resolving it is a no-op.
+  const isIpLiteral =
+    hostname.startsWith('[') || hostname.includes(':') || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)
+  if (isIpLiteral) return
+  for (const ip of await resolveHost(hostname)) {
+    if (isForbiddenIpv4(ip) || isForbiddenIpv6(ip)) throw new Error('scrape_fallback_forbidden')
+  }
+}
+
+// Plain-fetch fallback: fetch the page directly and extract its text. Works for
+// server-rendered sites (WordPress & co. — a large share of coach sites) when
+// Firecrawl is unavailable. Redirects are followed manually so every hop passes
+// the SSRF guard (string + resolved IP); the response is size-capped.
+export async function plainFetchScrape(
+  url: string,
+  fetcher: typeof fetch = fetch,
+  resolveHost: ResolveHostFn = defaultResolveHost,
+): Promise<string> {
+  let current = url
+  for (let hop = 0; hop < MAX_REDIRECT_HOPS; hop++) {
+    const parsed = new URL(current)
+    if (!/^https?:$/.test(parsed.protocol)) throw new Error('scrape_fallback_forbidden')
+    await assertHostAllowed(parsed.hostname, resolveHost)
+    const res = await fetcher(current, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; 2FrontsBot/1.0; +https://2fronts.de)',
+        Accept: 'text/html,application/xhtml+xml',
+      },
+    })
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location')
+      if (!loc) throw new Error('scrape_fallback_failed')
+      current = new URL(loc, current).toString()
+      continue
+    }
+    if (!res.ok) throw new Error(`scrape_fallback_${res.status}`)
+    const html = await readCappedText(res, MAX_FALLBACK_HTML_BYTES)
+    const text = htmlToText(html)
+    if (text.length < MIN_FALLBACK_TEXT) throw new Error('scrape_fallback_empty')
+    return text
+  }
+  throw new Error('scrape_fallback_too_many_redirects')
+}
+
+// Scrape a page's readable text. Firecrawl first (renders JS, bypasses bot
+// blocks); when it can't deliver — key missing, credits exhausted (the 402 that
+// silently emptied the wizard draft), rate-limited, or an empty result — fall
+// back to fetching the page directly, which covers server-rendered sites. Only
+// when BOTH fail does this throw, and it rethrows the FIRECRAWL error so the
+// log shows the actionable cause (e.g. scrape_failed_402 = top up credits).
+export async function defaultScrape(
+  url: string,
+  fetcher: typeof fetch = fetch,
+  apiKey: string | undefined = (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get('FIRECRAWL_API_KEY'),
+  resolveHost: ResolveHostFn = defaultResolveHost,
+): Promise<string> {
+  if (!/^https?:\/\//i.test(url)) throw new Error('invalid_url')
+  let firecrawlError: Error
+  if (apiKey) {
+    try {
+      return await firecrawlScrape(url, fetcher, apiKey)
+    } catch (e) {
+      firecrawlError = e instanceof Error ? e : new Error('scrape_failed')
+    }
+  } else {
+    firecrawlError = new Error('FIRECRAWL_API_KEY is not set; cannot scrape the page')
+  }
+  try {
+    return await plainFetchScrape(url, fetcher, resolveHost)
+  } catch (fallbackError) {
+    // Rethrow the FIRECRAWL error (the actionable cause, e.g. scrape_failed_402),
+    // but keep the fallback's own failure as `cause` so the log still shows WHY
+    // the plain fetch also failed (forbidden host vs 403 vs too-short page).
+    firecrawlError.cause = fallbackError
+    throw firecrawlError
+  }
 }
 
 const GEMINI_MODEL = 'gemini-2.5-flash'
