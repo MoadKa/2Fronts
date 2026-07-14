@@ -338,7 +338,7 @@ interface LifecycleUpdate {
 }
 interface LifecycleOpts {
   // The provision returned when looking it up by stripe_subscription_id.
-  provisionBySub: { id: string; config: Record<string, unknown> } | null
+  provisionBySub: { id: string; config: Record<string, unknown>; status?: string } | null
   // The provision returned when the completed handler pre-reads it by
   // request_id (subscription-id store guard). Default: a plain pending row.
   provisionByRequest?: { id: string; stripe_subscription_id: string | null } | null
@@ -709,9 +709,11 @@ Deno.test('customer.subscription.updated to `past_due` does NOT deactivate: acce
   assertEquals(opts.updates.length, 0) // Stripe is still retrying; concierge stays live
 })
 
-Deno.test('customer.subscription.updated to `active` (trial converted, recovered) does NOT touch the concierge', async () => {
+Deno.test('customer.subscription.updated to `active` REVIVES a concierge we previously cancelled (unpaid invoice finally paid)', async () => {
+  // The one-way-door guard: without revive, an `unpaid` deactivation would lock a
+  // recovering paying customer out forever (nothing else flips is_active back on).
   const opts: LifecycleOpts = {
-    provisionBySub: { id: 'prov-9', config: { concierge_id: 'con-1' } },
+    provisionBySub: { id: 'prov-9', status: 'cancelled', config: { concierge_id: 'con-1' } },
     updates: [],
   }
   const event = { type: 'customer.subscription.updated', data: { object: { id: 'sub_123', status: 'active' } } }
@@ -725,7 +727,32 @@ Deno.test('customer.subscription.updated to `active` (trial converted, recovered
   })
 
   assertEquals(res.status, 200)
-  assertEquals(opts.updates.length, 0)
+  const conciergeUpdate = opts.updates.find((u) => u.table === 'concierges')
+  assertEquals(conciergeUpdate?.patch.is_active, true)
+  assertEquals(conciergeUpdate?.eqs[0], ['id', 'con-1'])
+  const provUpdate = opts.updates.find((u) => u.table === 'automation_provisions')
+  assertEquals(provUpdate?.patch.status, 'active')
+})
+
+Deno.test('customer.subscription.updated to `active` does NOT disturb an in-flight (non-cancelled) provision', async () => {
+  // A trialing/active update mid-onboarding must not clobber the pending ->
+  // provisioning -> active lifecycle: revive only ever touches a row WE cancelled.
+  const opts: LifecycleOpts = {
+    provisionBySub: { id: 'prov-9', status: 'provisioning', config: { concierge_id: 'con-1' } },
+    updates: [],
+  }
+  const event = { type: 'customer.subscription.updated', data: { object: { id: 'sub_123', status: 'active' } } }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakeLifecycleAdminClient(opts) as never,
+    alert: noopAlert,
+    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
+  })
+
+  assertEquals(res.status, 200)
+  assertEquals(opts.updates.length, 0) // in-flight provision left untouched
 })
 
 Deno.test('invoice.payment_failed sends an alert via the alert dependency', async () => {

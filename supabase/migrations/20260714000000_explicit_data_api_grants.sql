@@ -27,8 +27,22 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public
   TO anon, authenticated, service_role;
 
+-- Functions: EXECUTE goes to service_role ONLY, not anon/authenticated. The app
+-- never calls a public RPC from the browser (no client-side supabase.rpc()), and
+-- the one SECURITY-DEFINER routine (concierge_rate_limit_hit) is called only by
+-- the service-role edge functions. Granting anon EXECUTE would expose it as a
+-- public /rpc/ endpoint a script could hit to flood rate-limit buckets or force
+-- 429s on real visitors. Trigger functions run under the table owner and need no
+-- EXECUTE grant to the invoking role, so this does not affect them.
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public
-  TO anon, authenticated, service_role;
+  TO service_role;
+
+-- Postgres auto-grants EXECUTE to PUBLIC on every function at creation time, and
+-- anon/authenticated inherit through PUBLIC. Revoke that on the SECURITY DEFINER
+-- rate-limiter so it stops being a public /rpc/ endpoint (a script could otherwise
+-- flood rate-limit buckets or force 429s on real visitors). service_role keeps its
+-- explicit grant above, which is the only caller (concierge-chat's admin client).
+REVOKE EXECUTE ON FUNCTION public.concierge_rate_limit_hit(text, integer, integer) FROM PUBLIC;
 
 -- Future objects created by the migration role (postgres) inherit the same
 -- grants, so a new table added by a later migration is exposed automatically —
@@ -40,4 +54,4 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-  GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+  GRANT EXECUTE ON FUNCTIONS TO service_role;
