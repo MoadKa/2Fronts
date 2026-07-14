@@ -153,6 +153,32 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
     await deactivateSubscription(adminClient, subscription.id)
   }
 
+  // A subscription changed standing WITHOUT a delete event. Whether Stripe deletes
+  // a subscription after dunning or leaves it behind is a dashboard setting:
+  // "cancel subscription" ends in customer.subscription.deleted (handled above),
+  // but "mark subscription unpaid" leaves it as `unpaid`, and a cancel-without-
+  // delete leaves it as `canceled` — neither fires a deleted event. We sync the
+  // concierge to the subscription's standing here so access tracks payment no
+  // matter how dunning is configured.
+  if (event.type === 'customer.subscription.updated') {
+    const subscription = event.data.object as Stripe.Subscription
+    const adminClient = deps.createAdminClient()
+    if (subscription.status === 'unpaid' || subscription.status === 'canceled') {
+      // Terminal non-paying: switch the concierge off. We deliberately do NOT act
+      // on `past_due` — Stripe is still retrying, so access stays through the
+      // grace window. Idempotent, so a later deleted event is a safe no-op.
+      await deactivateSubscription(adminClient, subscription.id)
+    } else if (subscription.status === 'active' || subscription.status === 'trialing') {
+      // Recovery: `unpaid` is NOT terminal — if the customer pays the past-due
+      // invoice Stripe transitions unpaid -> active and fires this event. Without
+      // a revive path the concierge would stay dark forever (nothing else ever
+      // flips is_active back on). reactivateSubscription only revives a provision
+      // WE cancelled, so an ordinary trialing/active update mid-provisioning is
+      // never disturbed.
+      await reactivateSubscription(adminClient, subscription.id)
+    }
+  }
+
   // A recurring invoice failed (card declined, etc.). Alert ops so a human can
   // reach out before Stripe's dunning eventually cancels the subscription
   // (which then arrives as customer.subscription.deleted and deactivates the
@@ -210,6 +236,36 @@ async function deactivateSubscription(adminClient: SupabaseClient, subscriptionI
   await adminClient
     .from('automation_provisions')
     .update({ status: 'cancelled' })
+    .eq('id', (provision as { id: string }).id)
+}
+
+// Reverse of deactivateSubscription: bring a concierge back after its subscription
+// recovers to good standing (e.g. an `unpaid` invoice finally gets paid, which
+// Stripe reports as unpaid -> active). Guarded to only revive a provision we
+// previously marked 'cancelled', so it never touches an in-flight
+// pending/provisioning row or an already-active one — a plain trialing/active
+// update mid-onboarding is a no-op. Safe to call repeatedly.
+async function reactivateSubscription(adminClient: SupabaseClient, subscriptionId: string): Promise<void> {
+  const { data: provision } = await adminClient
+    .from('automation_provisions')
+    .select('id, status, config')
+    .eq('stripe_subscription_id', subscriptionId)
+    .maybeSingle()
+  if (!provision) return
+  if ((provision as { status?: string }).status !== 'cancelled') return
+
+  const config = ((provision as { config?: Record<string, unknown> }).config ?? {}) as Record<string, unknown>
+  const conciergeId = typeof config.concierge_id === 'string' ? config.concierge_id : undefined
+  if (conciergeId) {
+    await adminClient
+      .from('concierges')
+      .update({ is_active: true })
+      .eq('id', conciergeId)
+  }
+
+  await adminClient
+    .from('automation_provisions')
+    .update({ status: 'active' })
     .eq('id', (provision as { id: string }).id)
 }
 
