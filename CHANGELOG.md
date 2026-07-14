@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.2.0] - 2026-07-14
+
+### Changed
+- **The website chat widget now sits quietly instead of interrupting.** The launcher is a calm light disc with a small robot icon, and once per visit it slides in a short "Erstgespräch buchen?" nudge that fades away on its own, rather than auto-popping the whole chat open. `data-color` now tints the icon and ring (the disc stays neutral so it fits any site). Off by default with `data-invite="off"`; timing tunable with `data-invite-delay`.
+
+### Added
+- **Place the widget where the coach's site has room.** New snippet options `data-position="left"` (bottom-left instead of bottom-right, for sites whose corner is already taken by another chat/cookie badge) and `data-offset-bottom="N"` (lift it N pixels above something that must stay visible).
+
+### Fixed
+- **"Aus meiner Website entwerfen" no longer comes back empty when the scraper runs out of credit.** The onboarding wizard's website draft depended entirely on Firecrawl; when Firecrawl returned an error (e.g. exhausted credits — HTTP 402, which happened on a live demo), the draft silently fell back to blank fields. It now falls back to fetching the page directly, which recovers the draft for server-rendered sites (WordPress and the like). The direct fetch is guarded against SSRF (private/loopback/link-local/metadata addresses blocked by both hostname and resolved IP, with per-redirect re-checks), capped in size to prevent a memory blow-up, and time-bounded so a slow server can't hang the request.
+
 ## [1.15.1.0] - 2026-07-14
 
 ### Fixed
