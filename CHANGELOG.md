@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.3.0] - 2026-07-22
+
+### Changed
+- **The concierge chat now handles questions before it books.** The public chat at `/c/<slug>` runs a controlled flow: after the visitor leaves their name and email, the bot greets them and asks "Hast du noch Fragen an mich?" before anything else. Answering "Ja" opens a free-type Q&A loop (the bot answers each question, grounded in the coach's own content, with one "Ich habe keine Fragen mehr" button to move on); "Nein" goes straight into qualification. After the qualification questions the bot asks once more ("Bevor ich dir den Termin schicke: Hast du vorher noch Fragen?") before handing over the calendar. The booking link is now suppressed everywhere except the very end, so a visitor never sees the calendar before their questions are handled. Server-side only: the flow is driven by a new `phase` state machine, and the existing chat page renders it with no client change.
+
+### Added
+- **Conversation `phase` column.** A new `phase` column on `concierge_conversations` (default `'contact'`) tracks the current step (`contact` → `intro_gate` → `answering_intro` → `qualifying` → `final_gate` → `answering_final` → `booking`) so the stateless edge function resumes the right step each turn. Idempotent migration; existing conversations default to `'contact'`.
+
 ## [1.15.2.0] - 2026-07-14
 
 ### Changed
