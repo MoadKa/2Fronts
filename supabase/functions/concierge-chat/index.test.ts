@@ -13,10 +13,12 @@ import type { ChatCompleteFn, ClassifyAnswerFn, ClassifyResult } from '../_share
 interface Captured {
   conciergeRow: Record<string, unknown> | null
   existingConversation:
-    | { id: string; outcome: string; qualification_answers?: unknown[]; visitor_email?: string }
+    | { id: string; outcome: string; qualification_answers?: unknown[]; visitor_email?: string; phase?: string }
     | null
   // qualification_answers the new-session upsert returns (defaults to []).
   newConversationAnswers: unknown[]
+  // phase the new-session upsert returns (defaults to 'contact', as the column does).
+  newConversationPhase: string
   history: Array<{ role: string; content: string }>
   insertedMessages: Array<Record<string, unknown>>
   insertedConversation: Record<string, unknown> | null
@@ -25,6 +27,8 @@ interface Captured {
   qualificationUpdate: { qualification_answers: unknown[]; qualified: boolean | null } | null
   // The contact update applied when the visitor submits the name/email form.
   contactUpdate: { visitor_name: unknown; visitor_email: unknown } | null
+  // The most recent phase the handler wrote (via any conversation update patch).
+  phaseUpdate: string | null
 }
 
 function makeCaptured(overrides: Partial<Captured> = {}): Captured {
@@ -41,12 +45,14 @@ function makeCaptured(overrides: Partial<Captured> = {}): Captured {
     },
     existingConversation: null,
     newConversationAnswers: [],
+    newConversationPhase: 'contact',
     history: [],
     insertedMessages: [],
     insertedConversation: null,
     outcomeUpdate: null,
     qualificationUpdate: null,
     contactUpdate: null,
+    phaseUpdate: null,
     ...overrides,
   }
 }
@@ -82,7 +88,7 @@ function fakeAdminClient(c: Captured) {
                     Promise.resolve({
                       data: c.existingConversation
                         ? null
-                        : { id: 'conv-new', qualification_answers: c.newConversationAnswers, ...row },
+                        : { id: 'conv-new', qualification_answers: c.newConversationAnswers, phase: c.newConversationPhase, ...row },
                       error: null,
                     }),
                 }
@@ -107,6 +113,7 @@ function fakeAdminClient(c: Captured) {
             // The handler issues two kinds of update: booking outcome, or the
             // quick-reply qualification (answers + qualified). Capture each.
             if ('outcome' in patch) c.outcomeUpdate = patch.outcome as string
+            if ('phase' in patch) c.phaseUpdate = patch.phase as string
             if ('qualification_answers' in patch) {
               c.qualificationUpdate = {
                 qualification_answers: patch.qualification_answers as unknown[],
@@ -225,7 +232,7 @@ Deno.test('booking intent WITH contact on file: reply surfaces the link -> show_
   assertEquals(c.outcomeUpdate, 'booking_shown')
 })
 
-Deno.test('contact form submission stores name + email and OPENS the conversation (no booking)', async () => {
+Deno.test('contact form submission stores name + email and OPENS with the questions gate', async () => {
   const c = makeCaptured()
   const res = await handleConciergeChat(
     postReq({ slug: 'acme', session_id: 'sess-1', contact: { name: 'Max Muster', email: 'max@example.com' } }),
@@ -233,12 +240,15 @@ Deno.test('contact form submission stores name + email and OPENS the conversatio
   )
   assertEquals(res.status, 200)
   const json = await res.json()
-  // Contact is now the OPENING step: greet by name, no booking yet.
+  // Contact is the OPENING step: greet by name, then ask whether they have
+  // questions BEFORE anything else. No booking yet.
   assertEquals(json.show_booking, false)
   assertEquals(json.calendar_url, undefined)
   assertStringIncludes(json.reply, 'Max Muster')
-  // No criteria configured -> a gentle open lead, no quick replies.
-  assertEquals(json.quick_replies, undefined)
+  // The intro question-gate is offered as a Yes/No quick reply.
+  assertEquals(json.quick_replies.criterion_id, '__intro_gate__')
+  assertEquals(json.quick_replies.options.length, 2)
+  assertEquals(c.phaseUpdate, 'intro_gate')
   // Stored on the conversation; the outcome is NOT advanced to booking (it's the start).
   assertEquals(c.contactUpdate!.visitor_name, 'Max Muster')
   assertEquals(c.contactUpdate!.visitor_email, 'max@example.com')
@@ -247,7 +257,7 @@ Deno.test('contact form submission stores name + email and OPENS the conversatio
   assertStringIncludes(c.insertedMessages[0].content as string, 'max@example.com')
 })
 
-Deno.test('contact form submission WITH criteria opens by asking the first criterion', async () => {
+Deno.test('contact form submission WITH criteria still opens with the questions gate first', async () => {
   const c = makeCaptured()
   c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
   const res = await handleConciergeChat(
@@ -257,11 +267,10 @@ Deno.test('contact form submission WITH criteria opens by asking the first crite
   assertEquals(res.status, 200)
   const json = await res.json()
   assertEquals(json.show_booking, false)
-  // Greets by name AND leads with the first qualifying question.
+  // Greets by name AND asks the questions gate — NOT the first criterion yet.
   assertStringIncludes(json.reply, 'Max')
-  assertStringIncludes(json.reply, 'What is your budget?')
-  // The first unanswered criterion comes back as quick-reply buttons.
-  assertEquals(json.quick_replies.criterion_id, 'budget')
+  assertEquals(json.quick_replies.criterion_id, '__intro_gate__')
+  assertEquals(c.phaseUpdate, 'intro_gate')
   assertEquals(c.contactUpdate!.visitor_email, 'max@example.com')
 })
 
@@ -458,13 +467,10 @@ Deno.test('sending an answer records it, sets qualified, returns the next prompt
   assertEquals(json.quick_replies.criterion_id, 'timeline_role')
 })
 
-Deno.test('answering the last criterion returns no quick_replies and a disqualifying answer sets qualified false', async () => {
+Deno.test('answering the last criterion opens the FINAL questions gate (not booking yet), qualified false on a disqualifying answer', async () => {
   const c = makeCaptured()
-  c.conciergeRow!.qualification_criteria = [budgetCriterion]
-  // Conversation already has the budget answered as qualifying; now answer... wait,
-  // budget is the only criterion. Pre-seed a different prior answer so the new one
-  // is the last and we can assert AND-rule disqualification.
   c.conciergeRow!.qualification_criteria = [timelineCriterion, budgetCriterion]
+  c.newConversationPhase = 'qualifying'
   c.newConversationAnswers = [{ criterion_id: 'timeline_role', label: 'Now', qualifies: true }]
   const res = await handleConciergeChat(
     postReq({
@@ -477,22 +483,22 @@ Deno.test('answering the last criterion returns no quick_replies and a disqualif
   )
   assertEquals(res.status, 200)
   const json = await res.json()
-  // All criteria now answered -> no further prompt.
-  assertEquals(json.quick_replies, undefined)
-  // Completion must NOT stop at "thanks". With no contact yet it asks for name +
-  // email first (the booking comes after the form, see the contact test).
-  assertEquals(json.request_contact, true)
+  // Qualification done -> we do NOT book yet. We ask once more whether they have
+  // questions before the link (the final gate), as a Yes/No quick reply.
+  assertEquals(json.quick_replies.criterion_id, '__final_gate__')
   assertEquals(json.show_booking, false)
+  assertEquals(c.phaseUpdate, 'final_gate')
   // AND-rule: one disqualifying answer makes the whole conversation not qualified.
   assertEquals(c.qualificationUpdate!.qualification_answers.length, 2)
   assertEquals(c.qualificationUpdate!.qualified, false)
 })
 
-Deno.test('answering the last criterion WHEN contact is on file goes straight to booking', async () => {
+Deno.test('answering the last criterion WITH contact on file also opens the final gate first', async () => {
   const c = makeCaptured({
     existingConversation: {
       id: 'conv-x',
       outcome: 'open',
+      phase: 'qualifying',
       qualification_answers: [{ criterion_id: 'timeline_role', label: 'Now', qualifies: true }],
       visitor_email: 'lead@x.de',
     },
@@ -509,9 +515,10 @@ Deno.test('answering the last criterion WHEN contact is on file goes straight to
   )
   assertEquals(res.status, 200)
   const json = await res.json()
-  assertEquals(json.show_booking, true)
-  assertEquals(json.calendar_url, 'https://cal.com/acme')
-  assertStringIncludes(json.reply, 'Termin')
+  // Even with contact on file, qualification-complete opens the final gate, not booking.
+  assertEquals(json.show_booking, false)
+  assertEquals(json.quick_replies.criterion_id, '__final_gate__')
+  assertEquals(c.phaseUpdate, 'final_gate')
 })
 
 Deno.test('a concierge with NO criteria behaves exactly as before (no quick_replies)', async () => {
@@ -653,4 +660,295 @@ Deno.test('a stale pending_criterion_id (already answered) is ignored: no double
   assertEquals(c.qualificationUpdate, null)
   // The next unanswered criterion (timeline) is what gets asked.
   assertEquals(json.quick_replies.criterion_id, 'timeline_role')
+})
+
+// --- Question-gate flow (email -> "any questions?" -> qualify -> "any questions
+// before the link?" -> booking) -------------------------------------------------
+// After contact, the conversation runs a controlled flow tracked by `phase`. The
+// Yes/No gates and the "no more questions" exit are quick_replies with reserved
+// control criterion ids (__intro_gate__, __final_gate__, __done_questions__), so
+// no client change is needed. These never call the model unless a question is typed.
+
+// A conversation that already captured contact and sits in a given phase.
+function contacted(phase: string, answers: unknown[] = []) {
+  return {
+    existingConversation: {
+      id: 'conv-x',
+      outcome: 'open',
+      phase,
+      qualification_answers: answers,
+      visitor_email: 'lead@x.de',
+    },
+  }
+}
+const failIfModelCalled = (): [ChatCompleteFn, () => boolean] => {
+  let called = false
+  const fn: ChatCompleteFn = () => {
+    called = true
+    return Promise.resolve('should not happen')
+  }
+  return [fn, () => called]
+}
+
+Deno.test('intro gate: YES opens the free-type Q&A loop with a single "no more questions" exit button, no model call', async () => {
+  const c = makeCaptured(contacted('intro_gate'))
+  const [complete, wasCalled] = failIfModelCalled()
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Ja, ich habe Fragen',
+      answer: { criterion_id: '__intro_gate__', label: 'Ja, ich habe Fragen', qualifies: true },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, false)
+  assertEquals(json.quick_replies.criterion_id, '__done_questions__')
+  assertEquals(json.quick_replies.options.length, 1)
+  assertEquals(c.phaseUpdate, 'answering_intro')
+  assertEquals(wasCalled(), false)
+})
+
+Deno.test('intro gate: NO with criteria moves to the first qualifying question, no model call', async () => {
+  const c = makeCaptured(contacted('intro_gate'))
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const [complete, wasCalled] = failIfModelCalled()
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Nein, lass uns loslegen',
+      answer: { criterion_id: '__intro_gate__', label: 'Nein, lass uns loslegen', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.quick_replies.criterion_id, 'budget')
+  assertStringIncludes(json.reply, 'What is your budget?')
+  assertEquals(json.show_booking, false)
+  assertEquals(c.phaseUpdate, 'qualifying')
+  assertEquals(wasCalled(), false)
+})
+
+Deno.test('intro gate: NO with NO criteria goes straight to booking', async () => {
+  const c = makeCaptured(contacted('intro_gate')) // no criteria configured
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Nein',
+      answer: { criterion_id: '__intro_gate__', label: 'Nein', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('unused') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, true)
+  assertEquals(json.calendar_url, 'https://cal.com/acme')
+  assertEquals(c.phaseUpdate, 'booking')
+  assertEquals(c.outcomeUpdate, 'booking_shown')
+})
+
+Deno.test('answering_intro: a typed question is answered grounded, booking stays suppressed, exit button re-shown', async () => {
+  const c = makeCaptured(contacted('answering_intro'))
+  const res = await handleConciergeChat(
+    // The model returns a reply that even contains the calendar link; the gate must
+    // still NOT surface the booking button while we are in the questions loop.
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'Bietet ihr Ratenzahlung?' }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Ja. Mehr dazu hier: https://cal.com/acme') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertStringIncludes(json.reply, 'Ja.')
+  assertEquals(json.show_booking, false)
+  assertEquals(json.calendar_url, undefined)
+  // Still in the loop: the exit button comes back, phase unchanged.
+  assertEquals(json.quick_replies.criterion_id, '__done_questions__')
+  assertEquals(c.insertedMessages.map((m) => m.role), ['user', 'assistant'])
+})
+
+Deno.test('answering_intro: the exit button with criteria advances to qualification, no model call', async () => {
+  const c = makeCaptured(contacted('answering_intro'))
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const [complete, wasCalled] = failIfModelCalled()
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Ich habe keine Fragen mehr',
+      answer: { criterion_id: '__done_questions__', label: 'Ich habe keine Fragen mehr', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.quick_replies.criterion_id, 'budget')
+  assertEquals(c.phaseUpdate, 'qualifying')
+  assertEquals(wasCalled(), false)
+})
+
+Deno.test('answering_intro: the exit button with NO criteria goes to booking', async () => {
+  const c = makeCaptured(contacted('answering_intro'))
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Ich habe keine Fragen mehr',
+      answer: { criterion_id: '__done_questions__', label: 'Ich habe keine Fragen mehr', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('unused') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, true)
+  assertEquals(c.phaseUpdate, 'booking')
+  assertEquals(c.outcomeUpdate, 'booking_shown')
+})
+
+Deno.test('final gate: NO sends the booking link directly', async () => {
+  const c = makeCaptured(contacted('final_gate'))
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Nein',
+      answer: { criterion_id: '__final_gate__', label: 'Nein', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('unused') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, true)
+  assertEquals(json.calendar_url, 'https://cal.com/acme')
+  assertStringIncludes(json.reply, 'Termin')
+  assertEquals(c.phaseUpdate, 'booking')
+  assertEquals(c.outcomeUpdate, 'booking_shown')
+})
+
+Deno.test('final gate: YES re-opens the Q&A loop before booking, no model call', async () => {
+  const c = makeCaptured(contacted('final_gate'))
+  const [complete, wasCalled] = failIfModelCalled()
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Ja, ich habe Fragen',
+      answer: { criterion_id: '__final_gate__', label: 'Ja, ich habe Fragen', qualifies: true },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, false)
+  assertEquals(json.quick_replies.criterion_id, '__done_questions__')
+  assertEquals(c.phaseUpdate, 'answering_final')
+  assertEquals(wasCalled(), false)
+})
+
+Deno.test('answering_final: a typed question is answered grounded with booking suppressed, exit button re-shown', async () => {
+  const c = makeCaptured(contacted('answering_final'))
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'Wie lange dauert der Call?' }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Etwa 30 Minuten.') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.reply, 'Etwa 30 Minuten.')
+  assertEquals(json.show_booking, false)
+  assertEquals(json.quick_replies.criterion_id, '__done_questions__')
+})
+
+Deno.test('answering_final: the exit button sends the booking link', async () => {
+  const c = makeCaptured(contacted('answering_final'))
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Ich habe keine Fragen mehr',
+      answer: { criterion_id: '__done_questions__', label: 'Ich habe keine Fragen mehr', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('unused') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, true)
+  assertEquals(json.calendar_url, 'https://cal.com/acme')
+  assertEquals(c.phaseUpdate, 'booking')
+})
+
+Deno.test('the exit button at a non-answering phase does NOT reveal booking (no gate/contact bypass)', async () => {
+  // Guard against a crafted/stale __done_questions__ click: a no-criteria concierge
+  // must not hand over the booking link on a fresh session (phase 'contact'), which
+  // would skip contact capture and both gates. It falls through to normal handling.
+  const c = makeCaptured() // fresh session -> phase 'contact', no criteria, no contact
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-attack',
+      message: 'x',
+      answer: { criterion_id: '__done_questions__', label: 'Ich habe keine Fragen mehr', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Hallo!') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // No booking revealed, no calendar link, outcome never advanced to booking_shown.
+  assertEquals(json.show_booking, false)
+  assertEquals(json.calendar_url, undefined)
+  assertEquals(c.outcomeUpdate, null)
+  // The control id must NOT be recorded as a qualification answer.
+  assertEquals(c.qualificationUpdate, null)
+})
+
+Deno.test('the exit button at the qualifying phase does NOT skip to booking', async () => {
+  // A stale exit click while a qualification question is pending must not advance
+  // past qualification; it falls through (the criterion stays to be answered).
+  const c = makeCaptured(contacted('qualifying'))
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'x',
+      answer: { criterion_id: '__done_questions__', label: 'Ich habe keine Fragen mehr', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Hallo!') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, false)
+  assertEquals(c.outcomeUpdate, null)
+  // Not recorded as a qualification answer either.
+  assertEquals(c.qualificationUpdate, null)
+})
+
+Deno.test('typing a question at the intro gate (instead of clicking) enters the Q&A loop and answers it', async () => {
+  const c = makeCaptured(contacted('intro_gate'))
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'Wie läuft das ab?' }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('So und so läuft es ab.') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.reply, 'So und so läuft es ab.')
+  assertEquals(json.show_booking, false)
+  assertEquals(json.quick_replies.criterion_id, '__done_questions__')
+  assertEquals(c.phaseUpdate, 'answering_intro')
+})
+
+Deno.test('typing a question at the final gate (instead of clicking) enters the Q&A loop and answers it', async () => {
+  const c = makeCaptured(contacted('final_gate'))
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 'sess-1', message: 'Eine letzte Frage noch' }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Klar, klaeren wir.') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.reply, 'Klar, klaeren wir.')
+  assertEquals(json.show_booking, false)
+  assertEquals(json.quick_replies.criterion_id, '__done_questions__')
+  assertEquals(c.phaseUpdate, 'answering_final')
 })
