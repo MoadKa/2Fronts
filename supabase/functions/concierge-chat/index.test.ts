@@ -879,6 +879,52 @@ Deno.test('answering_final: the exit button sends the booking link', async () =>
   assertEquals(c.phaseUpdate, 'booking')
 })
 
+Deno.test('the exit button at a non-answering phase does NOT reveal booking (no gate/contact bypass)', async () => {
+  // Guard against a crafted/stale __done_questions__ click: a no-criteria concierge
+  // must not hand over the booking link on a fresh session (phase 'contact'), which
+  // would skip contact capture and both gates. It falls through to normal handling.
+  const c = makeCaptured() // fresh session -> phase 'contact', no criteria, no contact
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-attack',
+      message: 'x',
+      answer: { criterion_id: '__done_questions__', label: 'Ich habe keine Fragen mehr', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Hallo!') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  // No booking revealed, no calendar link, outcome never advanced to booking_shown.
+  assertEquals(json.show_booking, false)
+  assertEquals(json.calendar_url, undefined)
+  assertEquals(c.outcomeUpdate, null)
+  // The control id must NOT be recorded as a qualification answer.
+  assertEquals(c.qualificationUpdate, null)
+})
+
+Deno.test('the exit button at the qualifying phase does NOT skip to booking', async () => {
+  // A stale exit click while a qualification question is pending must not advance
+  // past qualification; it falls through (the criterion stays to be answered).
+  const c = makeCaptured(contacted('qualifying'))
+  c.conciergeRow!.qualification_criteria = [budgetCriterion, timelineCriterion]
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'x',
+      answer: { criterion_id: '__done_questions__', label: 'Ich habe keine Fragen mehr', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('Hallo!') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.show_booking, false)
+  assertEquals(c.outcomeUpdate, null)
+  // Not recorded as a qualification answer either.
+  assertEquals(c.qualificationUpdate, null)
+})
+
 Deno.test('typing a question at the intro gate (instead of clicking) enters the Q&A loop and answers it', async () => {
   const c = makeCaptured(contacted('intro_gate'))
   const res = await handleConciergeChat(

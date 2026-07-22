@@ -458,8 +458,12 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
           ? await enterQuestionLoop(admin, conversationId, concierge, 'answering_final', answer.label)
           : await revealBooking(admin, conversationId, concierge, answer.label)
       }
-      // Exit button: leave the Q&A loop and move forward from wherever it was opened.
-      if (answer.criterion_id === CONTROL.done) {
+      // Exit button: leave the Q&A loop and move forward from where it was opened.
+      // Guarded to the answering phases like the two gates above, so a stale or
+      // spoofed exit click at any other phase can never jump the flow forward or
+      // reveal the booking link (a no-criteria concierge would otherwise book on
+      // the very first request, skipping contact capture and both gates).
+      if (answer.criterion_id === CONTROL.done && (phase === 'answering_intro' || phase === 'answering_final')) {
         return phase === 'answering_final'
           ? await revealBooking(admin, conversationId, concierge, answer.label)
           : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, answer.label)
@@ -471,8 +475,11 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     //     button: record the answer, recompute `qualified`, log the label, and ask
     //     the NEXT criterion — or, when qualification is complete, open the FINAL
     //     gate (contact was captured at the start, so we never stop for it here).
-    //     No model call.
-    if (answer) {
+    //     No model call. Control ids are excluded: one that reached here fell
+    //     through the phase-guarded block above (stale/out-of-band click), so it
+    //     must NOT be recorded as a qualification answer — let it fall to the
+    //     normal reply path (which is contact-gated) instead.
+    if (answer && !isControlId(answer.criterion_id)) {
       const updatedAnswers: QualAnswer[] = [...priorAnswers, answer]
       const qualified = evaluateQualified(updatedAnswers)
       await admin
