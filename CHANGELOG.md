@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.4.0] - 2026-07-23
+
+### Changed
+- **Booking is never handed over without a name and email, even off the normal path.** `revealBooking` now gates on contact: if the flow ever reaches the booking step without a captured lead (an inconsistent state the phase guards already prevent), it asks for the name/email instead of surfacing the calendar link. Belt-and-suspenders on top of the v1.15.3.0 phase guard, so the coach always gets the lead.
+
+### Added
+- **`phase` column CHECK constraint.** `concierge_conversations.phase` is now constrained to its seven known values at the database level (matching the sibling `outcome` column), so a future code typo or phase-name drift fails at write time instead of silently storing an uninterpretable value. Idempotent migration; existing rows already conform.
+
 ## [1.15.3.0] - 2026-07-22
 
 ### Changed
