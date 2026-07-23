@@ -828,6 +828,31 @@ Deno.test('final gate: NO sends the booking link directly', async () => {
   assertEquals(c.outcomeUpdate, 'booking_shown')
 })
 
+Deno.test('revealBooking without contact on file asks for name/email instead of the link (defense in depth)', async () => {
+  // A conversation somehow at the booking-reveal step with no visitor_email (an
+  // inconsistent state the phase guards should prevent). revealBooking must gate
+  // on contact: request the form, never hand over show_booking/calendar_url.
+  const c = makeCaptured({
+    existingConversation: { id: 'conv-x', outcome: 'open', phase: 'final_gate', qualification_answers: [] },
+  }) // note: no visitor_email -> hasContact is false
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Nein',
+      answer: { criterion_id: '__final_gate__', label: 'Nein, alles klar', qualifies: false },
+    }),
+    { createAdminClient: fakeAdminClient(c) as never, complete: cannedComplete('unused') },
+  )
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.request_contact, true)
+  assertEquals(json.show_booking, false)
+  assertEquals(json.calendar_url, undefined)
+  // Never advanced to booking_shown without a lead.
+  assertEquals(c.outcomeUpdate, null)
+})
+
 Deno.test('final gate: YES re-opens the Q&A loop before booking, no model call', async () => {
   const c = makeCaptured(contacted('final_gate'))
   const [complete, wasCalled] = failIfModelCalled()

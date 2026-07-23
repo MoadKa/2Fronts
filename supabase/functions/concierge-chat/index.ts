@@ -276,12 +276,27 @@ async function enterQuestionLoop(
 // Reveal the booking link: mark the conversation booking-shown and hand over the
 // calendar. `userLabel` (a clicked control label) is logged as a user turn when
 // present. This is the ONLY deterministic path that sets show_booking.
+//
+// Defense in depth: every phase-guarded path that reaches here is downstream of
+// contact capture (a conversation only leaves the 'contact' phase once the
+// name/email form set visitor_email), so `hasContact` is true in practice. But
+// if a future refactor ever routes to booking without contact, ask for it
+// instead of leaking the link — the coach must always get the lead.
 async function revealBooking(
   admin: SupabaseClient,
   conversationId: string,
   concierge: ConciergeRow,
+  hasContact: boolean,
   userLabel?: string,
 ): Promise<Response> {
+  if (!hasContact) {
+    const reply = contactRequest(concierge.language)
+    await logTurns(admin, conversationId, [
+      ...(userLabel ? [{ role: 'user' as const, content: userLabel }] : []),
+      { role: 'assistant', content: reply },
+    ])
+    return ok({ reply, show_booking: false, request_contact: true })
+  }
   await admin
     .from('concierge_conversations')
     .update({ phase: 'booking', outcome: 'booking_shown' })
@@ -320,10 +335,11 @@ async function advancePastIntroQuestions(
   concierge: ConciergeRow,
   criteria: QualCriterion[],
   priorAnswers: QualAnswer[],
+  hasContact: boolean,
   userLabel: string,
 ): Promise<Response> {
   const next = nextUnansweredCriterion(criteria, priorAnswers)
-  if (!next) return revealBooking(admin, conversationId, concierge, userLabel)
+  if (!next) return revealBooking(admin, conversationId, concierge, hasContact, userLabel)
   await admin.from('concierge_conversations').update({ phase: 'qualifying' }).eq('id', conversationId)
   const reply = `${answerAck(concierge.language)} ${next.question}`
   await logTurns(admin, conversationId, [
@@ -450,13 +466,13 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       if (answer.criterion_id === CONTROL.intro && phase === 'intro_gate') {
         return answer.qualifies
           ? await enterQuestionLoop(admin, conversationId, concierge, 'answering_intro', answer.label)
-          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, answer.label)
+          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, hasContact, answer.label)
       }
       // Final gate: "any questions before I send the link?"
       if (answer.criterion_id === CONTROL.final && phase === 'final_gate') {
         return answer.qualifies
           ? await enterQuestionLoop(admin, conversationId, concierge, 'answering_final', answer.label)
-          : await revealBooking(admin, conversationId, concierge, answer.label)
+          : await revealBooking(admin, conversationId, concierge, hasContact, answer.label)
       }
       // Exit button: leave the Q&A loop and move forward from where it was opened.
       // Guarded to the answering phases like the two gates above, so a stale or
@@ -465,8 +481,8 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       // the very first request, skipping contact capture and both gates).
       if (answer.criterion_id === CONTROL.done && (phase === 'answering_intro' || phase === 'answering_final')) {
         return phase === 'answering_final'
-          ? await revealBooking(admin, conversationId, concierge, answer.label)
-          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, answer.label)
+          ? await revealBooking(admin, conversationId, concierge, hasContact, answer.label)
+          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, hasContact, answer.label)
       }
       // Control id but phase does not match: fall through (treated as free text).
     }
