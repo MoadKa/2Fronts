@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   sendConciergeMessage,
+  fetchConciergeIntro,
   createConcierge,
   linkProvisionToConcierge,
   newSessionId,
@@ -74,6 +75,36 @@ describe('ConciergeService', () => {
   it('sendConciergeMessage throws a generic error key on other failures', async () => {
     invokeResult = { data: null, error: { message: 'boom' } }
     await expect(sendConciergeMessage('acme', 'sess-1', 'hi')).rejects.toThrow('conciergeChat.error')
+  })
+
+  it('fetchConciergeIntro probes concierge-chat with slug + probe and returns language and name', async () => {
+    // The public page asks which language a slug speaks BEFORE the first turn, so
+    // its opening screen matches the coach's setting instead of the browser's.
+    // The `probe: true` flag is what tells the server to skip the conversation
+    // and the model — without it the server 400s and the feature silently dies.
+    invokeResult = { data: { language: 'en', business_name: 'Acme' }, error: null }
+    const result = await fetchConciergeIntro('acme')
+    expect(capturedInvoke?.name).toBe('concierge-chat')
+    expect(capturedInvoke?.body).toEqual({ slug: 'acme', probe: true })
+    expect(result).toEqual({ language: 'en', business_name: 'Acme' })
+  })
+
+  it('fetchConciergeIntro throws conciergeChat.unavailable when the slug is not found', async () => {
+    // Same key as the send path, so a dead link shows the same calm screen —
+    // only now on arrival instead of after the visitor typed their name.
+    invokeResult = {
+      data: null,
+      error: { context: { json: () => Promise.resolve({ error: 'not_found' }) } },
+    }
+    await expect(fetchConciergeIntro('nope')).rejects.toThrow('conciergeChat.unavailable')
+  })
+
+  it('fetchConciergeIntro throws the generic key on other failures (rate limit, network)', async () => {
+    // A probe rides the same per-IP rate limiter as a real turn, so a 429 on page
+    // load is reachable. It must map to the generic key the page swallows, NOT to
+    // `unavailable` — otherwise a busy IP would see a dead-link screen.
+    invokeResult = { data: null, error: { message: 'rate_limited' } }
+    await expect(fetchConciergeIntro('acme')).rejects.toThrow('conciergeChat.error')
   })
 
   it('createConcierge inserts a concierge owned by the current user and returns it', async () => {
