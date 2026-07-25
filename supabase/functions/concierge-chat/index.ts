@@ -362,6 +362,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     answer?: unknown
     pending_criterion_id?: unknown
     contact?: unknown
+    probe?: unknown
   }
   try {
     body = await req.json()
@@ -382,11 +383,26 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   // A submission from the name/email form. When present + valid we store it and
   // move straight to the booking, so `message` is not required on this turn.
   const contact = parseContact(body.contact)
-  if (!slug || !sessionId || (!message && !contact)) {
+  // A probe carries only the slug: the page asks which language this concierge
+  // speaks BEFORE the first turn, so its own opening screen (welcome line,
+  // name/email form) is rendered in the coach's configured language rather than
+  // the visitor's browser language. No conversation, no model call.
+  const isProbe = body.probe === true
+  // The two shapes reject differently, so say which one failed — the error string
+  // is the only documentation this public endpoint has, and telling a probe it
+  // needs a session_id it must not send sends the reader down the wrong path.
+  if (!slug) {
+    return new Response(JSON.stringify({ error: 'slug is required' }), { status: 400, headers: jsonHeaders })
+  }
+  if (!isProbe && (!sessionId || (!message && !contact))) {
     return new Response(JSON.stringify({ error: 'slug, session_id and message are required' }), { status: 400, headers: jsonHeaders })
   }
   // Bound public input: this endpoint takes no JWT, so unbounded message/session
-  // text would burn Gemini tokens and bloat the DB on abuse. Cap both early.
+  // text would burn Gemini tokens and bloat the DB on abuse. Cap all three early
+  // — on a probe the slug is the only input that reaches the database.
+  if (slug.length > 128) {
+    return new Response(JSON.stringify({ error: 'slug_too_long' }), { status: 400, headers: jsonHeaders })
+  }
   if (message.length > 2000) {
     return new Response(JSON.stringify({ error: 'message_too_long' }), { status: 400, headers: jsonHeaders })
   }
@@ -398,12 +414,40 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
 
   // Rate-limit by client IP BEFORE any expensive work (concierge load + Gemini
   // call). Public endpoint with no JWT, so this is the only spend guard.
+  // A probe makes no model call, so it draws on its own, more generous bucket:
+  // charging a cheap read against the chat budget lets a few page reloads starve
+  // the conversation the visitor actually came for.
   const limiter = deps.checkRateLimit ?? ((key: string) => dbRateLimit(admin, key))
-  if (!(await limiter(`ip:${clientIp(req)}`))) {
+  const limitKey = isProbe ? `probe:${clientIp(req)}` : `ip:${clientIp(req)}`
+  if (!(await limiter(limitKey))) {
     return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: jsonHeaders })
   }
 
-  // 1. Load the active concierge by slug, server-side. 404 if missing/inactive
+  // 1a. Probe: answer from a deliberately narrow read. The opening screen needs
+  //     two facts, so the coach's offer/qa (free text, often kilobytes) is never
+  //     even loaded on this public, session-less path — cheaper, and the private
+  //     content cannot leak from a row that was never fetched.
+  if (isProbe) {
+    const { data: introData, error: introErr } = await admin
+      .from('concierges')
+      .select('business_name, language')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (introErr || !introData) {
+      return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
+    }
+    const intro = introData as { business_name: string; language: string }
+    // The column has no CHECK constraint, so clamp rather than trust: an
+    // unexpected value would otherwise end up in the page's <html lang> while
+    // i18n silently renders German, declaring a language it is not speaking.
+    return ok({
+      language: intro.language === 'en' ? 'en' : 'de',
+      business_name: intro.business_name,
+    })
+  }
+
+  // 1b. Load the active concierge by slug, server-side. 404 if missing/inactive
   //    so an unknown or paused link gets a friendly "not available", never a
   //    crash — and we never even build a prompt for a concierge that isn't live.
   const { data: conciergeData, error: conciergeErr } = await admin

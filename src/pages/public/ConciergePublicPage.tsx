@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { sendConciergeMessage, newSessionId } from '../../services/ConciergeService'
+import {
+  sendConciergeMessage,
+  newSessionId,
+  fetchConciergeIntro,
+  CONCIERGE_UNAVAILABLE,
+  CONCIERGE_ERROR,
+  type ConciergeLanguage,
+} from '../../services/ConciergeService'
 import type { QualOption, QualPrompt } from '../../lib/qualification'
 import './ConciergePublicPage.css'
 
@@ -20,7 +27,21 @@ interface ChatMessage {
 
 export function ConciergePublicPage() {
   const { slug } = useParams<{ slug: string }>()
-  const { t } = useTranslation()
+  const { t: tBrowser, i18n } = useTranslation()
+  // The coach configured a language for this concierge, and the AI always replies
+  // in it. The page's OWN chrome (welcome line, name/email form, buttons) used to
+  // follow the visitor's browser instead, so an English browser saw an English
+  // opening screen in front of a German bot. Probe the slug's language and pin
+  // the page to it. Null until the probe answers -> browser language, which is
+  // the right guess to render immediately.
+  const [pageLang, setPageLang] = useState<ConciergeLanguage | null>(null)
+  const t = useMemo(
+    () => (pageLang ? i18n.getFixedT(pageLang) : tBrowser),
+    [pageLang, i18n, tBrowser],
+  )
+  // The coach's name, for the browser tab. A prospect often gets this link in a
+  // DM among many tabs; "Roman Kmenta" beats the app's generic title.
+  const [businessName, setBusinessName] = useState<string | null>(null)
   // ?embed=1: the page runs inside the small widget iframe from public/embed.js,
   // so the standalone-page breathing room goes away and the chat fills the frame.
   const [searchParams] = useSearchParams()
@@ -47,9 +68,9 @@ export function ConciergePublicPage() {
   const sessionId = useMemo(() => newSessionId(), [])
   const sessionRef = useRef(sessionId)
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: 'assistant', content: t('conciergePublic.greeting') },
-  ])
+  // Only the turns that actually happened. The opening welcome bubble is derived
+  // at render time so it re-renders in the coach's language once the probe lands.
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [bookingUrl, setBookingUrl] = useState<string | null>(null)
@@ -66,11 +87,65 @@ export function ConciergePublicPage() {
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
 
+  // Ask which language this concierge speaks. A failing probe is not fatal: the
+  // page stays in the browser language and the chat still works. Only a genuine
+  // unknown/paused slug flips to the unavailable screen — and doing it here means
+  // a dead link says so immediately instead of after the visitor types.
+  useEffect(() => {
+    if (!slug) return
+    let cancelled = false
+    fetchConciergeIntro(slug)
+      .then((intro) => {
+        if (cancelled) return
+        // Always record it, even when it matches the browser: `pageLang` also
+        // drives the document's lang attribute, and skipping the update when the
+        // two agree left an English page on a German document.
+        setPageLang(intro.language)
+        setBusinessName(intro.business_name)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        if (err instanceof Error && err.message === CONCIERGE_UNAVAILABLE) {
+          setUnavailable(true)
+          return
+        }
+        // Everything else degrades to the browser language on purpose. Log it:
+        // silently swallowed, a probe that is broken for EVERY visitor (a lagging
+        // edge-function deploy, say) looks like nothing at all from the outside.
+        console.warn('[concierge] language probe failed, falling back to browser language', err)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [slug])
+
+  // Keep the document language in step, so screen readers pronounce the chat in
+  // the language it is actually written in.
+  useEffect(() => {
+    if (!pageLang) return
+    const previous = document.documentElement.lang
+    document.documentElement.lang = pageLang
+    return () => {
+      document.documentElement.lang = previous
+    }
+  }, [pageLang])
+
+  // Name the tab after the coach. Skipped in embed mode: the widget's iframe has
+  // its own document whose title is never shown, so there is nothing to name.
+  useEffect(() => {
+    if (!businessName || isEmbed) return
+    const previous = document.title
+    document.title = businessName
+    return () => {
+      document.title = previous
+    }
+  }, [businessName, isEmbed])
+
   // Apply the unavailable/error handling shared by text + quick-reply sends.
   function handleSendError(err: unknown) {
-    const key = err instanceof Error ? err.message : 'conciergeChat.error'
+    const key = err instanceof Error ? err.message : CONCIERGE_ERROR
     // An unknown/inactive slug -> a calm dedicated screen, never a crash.
-    if (key === 'conciergeChat.unavailable') {
+    if (key === CONCIERGE_UNAVAILABLE) {
       setUnavailable(true)
     } else {
       setMessages((prev) => [...prev, { role: 'assistant', content: t('conciergeChat.error') }])
@@ -173,7 +248,7 @@ export function ConciergePublicPage() {
     <div className={wrapClass}>
       <div className="concierge-chat">
         <div className="concierge-messages" aria-live="polite">
-          {messages.map((m, i) => (
+          {[{ role: 'assistant' as const, content: t('conciergePublic.greeting') }, ...messages].map((m, i) => (
             <div key={i} className={`concierge-row concierge-row-${m.role} rise`}>
               {m.role === 'assistant' && (
                 <span className="concierge-avatar" aria-hidden="true">

@@ -66,6 +66,13 @@ export function newSessionId(): string {
   return `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+// The two failure keys this module throws. They double as control-flow sentinels
+// on the page (an unavailable slug gets its own screen), so they are constants
+// rather than literals repeated across files — renaming the translation key
+// would otherwise break that branch with no compiler error.
+export const CONCIERGE_UNAVAILABLE = 'conciergeChat.unavailable'
+export const CONCIERGE_ERROR = 'conciergeChat.error'
+
 // Read the edge function's error code (carried on a FunctionsHttpError's
 // `.context`) and map it to a customer-friendly i18n key. Mirrors SlackService.
 async function readChatErrorKey(error: unknown): Promise<string> {
@@ -73,12 +80,12 @@ async function readChatErrorKey(error: unknown): Promise<string> {
   if (ctx && typeof ctx.json === 'function') {
     try {
       const body = (await ctx.json()) as { error?: string }
-      if (body?.error === 'not_found') return 'conciergeChat.unavailable'
+      if (body?.error === 'not_found') return CONCIERGE_UNAVAILABLE
     } catch {
       // fall through
     }
   }
-  return 'conciergeChat.error'
+  return CONCIERGE_ERROR
 }
 
 /**
@@ -108,6 +115,36 @@ export async function sendConciergeMessage(
   })
   if (error) throw new Error(await readChatErrorKey(error))
   return data as ConciergeChatReply
+}
+
+// What the public page needs BEFORE the first turn: which language this
+// concierge speaks, so its opening screen matches the coach's setting instead of
+// the visitor's browser. business_name comes along for the document title.
+export interface ConciergeIntro {
+  language: ConciergeLanguage
+  business_name: string
+}
+
+/**
+ * Ask the concierge-chat edge function which language/name a slug is configured
+ * with. A probe turn: no session, no message, no model call, and the coach's
+ * offer/qa still never leave the server. Throws an i18n key like the send path,
+ * so an unknown slug surfaces the same "unavailable" screen.
+ */
+export async function fetchConciergeIntro(slug: string): Promise<ConciergeIntro> {
+  const { data, error } = await supabase.functions.invoke('concierge-chat', {
+    body: { slug, probe: true },
+  })
+  if (error) throw new Error(await readChatErrorKey(error))
+  // This endpoint serves two unrelated 200 shapes (chat reply vs intro), so the
+  // reply is checked rather than cast: during a partial deploy the old function
+  // can answer 200 in the other shape, and a blind cast would hand the page an
+  // object of undefineds instead of a failure it knows how to degrade from.
+  const intro = data as Partial<ConciergeIntro> | null
+  if (!intro || (intro.language !== 'de' && intro.language !== 'en')) {
+    throw new Error(CONCIERGE_ERROR)
+  }
+  return { language: intro.language, business_name: String(intro.business_name ?? '') }
 }
 
 // ---- Coach chat dashboard (#concierge-dashboard) ---------------------------
