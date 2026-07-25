@@ -977,3 +977,183 @@ Deno.test('typing a question at the final gate (instead of clicking) enters the 
   assertEquals(json.quick_replies.criterion_id, '__done_questions__')
   assertEquals(c.phaseUpdate, 'answering_final')
 })
+
+Deno.test('a probe returns the concierge language and name without a conversation or model call', async () => {
+  // The public page asks which language a slug speaks BEFORE the first turn, so
+  // its opening screen matches the coach's setting instead of the browser's.
+  const c = makeCaptured()
+  let modelCalled = false
+  const complete: ChatCompleteFn = () => {
+    modelCalled = true
+    return Promise.resolve('x')
+  }
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete,
+  })
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.language, 'de')
+  assertEquals(json.business_name, 'Acme')
+  // A probe is not a turn: no model, no conversation, no messages.
+  assertEquals(modelCalled, false)
+  assertEquals(c.insertedConversation, null)
+  assertEquals(c.insertedMessages.length, 0)
+  // And the coach's private knowledge never rides along. calendar_url matters
+  // as much as offer/qa: the booking link is the payload the whole qualification
+  // flow gates, and this response is public and session-less.
+  assertEquals(json.offer_description, undefined)
+  assertEquals(json.qa, undefined)
+  assertEquals(json.calendar_url, undefined)
+  assertEquals(json.qualification_criteria, undefined)
+  assertEquals(json.show_booking, undefined)
+})
+
+Deno.test('a probe for an unknown slug still 404s', async () => {
+  const c = makeCaptured({ conciergeRow: null })
+  const res = await handleConciergeChat(postReq({ slug: 'nope', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 404)
+  assertEquals((await res.json()).error, 'not_found')
+})
+
+Deno.test('a non-probe request still requires session_id and a message', async () => {
+  const c = makeCaptured()
+  const res = await handleConciergeChat(postReq({ slug: 'acme' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 400)
+  await res.body?.cancel()
+})
+
+Deno.test('a probe returns the coach language verbatim (an EN concierge answers "en", not the "de" default)', async () => {
+  // The probe exists precisely so an EN coach's page does not open in German.
+  // The other probe test uses the "de" fixture, which a hardcoded default would
+  // also satisfy — this one proves the value comes from the row.
+  const c = makeCaptured({
+    conciergeRow: {
+      id: 'con-1',
+      business_name: 'Acme Coaching',
+      offer_description: 'A program.',
+      qa: '',
+      tone: 'friendly',
+      language: 'en',
+      calendar_url: 'https://cal.com/acme',
+      qualification_criteria: [],
+    },
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 200)
+  const json = await res.json()
+  assertEquals(json.language, 'en')
+  assertEquals(json.business_name, 'Acme Coaching')
+})
+
+Deno.test('a probe without a slug is still rejected (the slug is the one thing a probe must carry)', async () => {
+  const c = makeCaptured()
+  const res = await handleConciergeChat(postReq({ probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 400)
+  // The message names the field a probe actually failed to send — telling it to
+  // supply a session_id and message would point the reader at the wrong shape.
+  assertEquals((await res.clone().json()).error, 'slug is required')
+  // No concierge lookup, no conversation: rejected before any work.
+  assertEquals(c.insertedConversation, null)
+  await res.body?.cancel()
+})
+
+Deno.test('a rate-limited probe gets 429 (and must degrade, not crash)', async () => {
+  // The client maps this 429 to the generic error key and keeps the chat usable
+  // in the browser language.
+  const c = makeCaptured()
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+    checkRateLimit: () => Promise.resolve(false),
+  })
+  assertEquals(res.status, 429)
+  assertEquals((await res.json()).error, 'rate_limited')
+})
+
+Deno.test('a probe draws on its own rate-limit bucket, not the chat budget', async () => {
+  // A probe makes no model call. Charging it against the same 30/60s bucket as
+  // real turns lets a few page reloads starve the conversation the visitor came
+  // for, so the two paths must use different keys.
+  const c = makeCaptured()
+  const keys: string[] = []
+  const capture = (key: string) => {
+    keys.push(key)
+    return Promise.resolve(true)
+  }
+  await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+    checkRateLimit: capture,
+  })
+  await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('reply'),
+    checkRateLimit: capture,
+  })
+  assertEquals(keys.length, 2)
+  assertEquals(keys[0].startsWith('probe:'), true)
+  assertEquals(keys[1].startsWith('ip:'), true)
+  assertEquals(keys[0] === keys[1], false)
+})
+
+Deno.test('a probe clamps an out-of-range language column to German', async () => {
+  // concierges.language has no CHECK constraint. An unexpected value would flow
+  // into the page's <html lang> while i18n silently renders German — the exact
+  // mismatch the language pin exists to prevent.
+  const c = makeCaptured({
+    conciergeRow: {
+      id: 'con-1',
+      business_name: 'Acme',
+      offer_description: 'A program.',
+      qa: '',
+      tone: 'friendly',
+      language: 'fr',
+      calendar_url: 'https://cal.com/acme',
+      qualification_criteria: [],
+    },
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).language, 'de')
+})
+
+Deno.test('an over-long slug is rejected before it reaches the database', async () => {
+  // On a probe the slug is the only input that reaches the DB, so it gets the
+  // same bound as the message and session id.
+  const c = makeCaptured()
+  const res = await handleConciergeChat(postReq({ slug: 'a'.repeat(129), probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 400)
+  assertEquals((await res.json()).error, 'slug_too_long')
+})
+
+Deno.test('probe must be literally true: a truthy string does not unlock the no-session shortcut', async () => {
+  // `probe` waives the session_id/message requirement, so the check is a strict
+  // === true. A sloppy or hostile body ({probe:"true"}) must fall back to the
+  // normal validation rather than skipping straight past it.
+  const c = makeCaptured()
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: 'true' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 400)
+  await res.body?.cancel()
+})
