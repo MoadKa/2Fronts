@@ -20,7 +20,12 @@ vi.mock('./lib/supabaseClient', () => ({
 // route needs no network.
 vi.mock('./services/ConciergeService', () => ({
   sendConciergeMessage: vi.fn(),
+  // The page probes the concierge's language on mount to render its opening
+  // screen in the coach's language rather than the visitor's browser.
+  fetchConciergeIntro: vi.fn().mockResolvedValue({ language: 'de', business_name: 'Test' }),
   newSessionId: () => 'test-session',
+  CONCIERGE_UNAVAILABLE: 'conciergeChat.unavailable',
+  CONCIERGE_ERROR: 'conciergeChat.error',
 }))
 
 function renderAppAt(path: string) {
