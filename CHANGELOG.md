@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.5.0] - 2026-07-25
+
+### Fixed
+- **The chat's opening screen now speaks the coach's language, not the visitor's browser language.** The AI always replied in the language configured on the concierge, but the page around it — the welcome line, the "Dein Name" / "Deine E-Mail" form, the "Los geht's" button — followed whatever language the visitor's browser was set to. A prospect on an English laptop met an English form in front of a German bot, and vice versa. The public page at `/c/<slug>` now asks the server which language the concierge speaks before the first turn and renders itself in it. The document's `lang` attribute follows too, so screen readers pronounce the chat in the language it is actually written in.
+- **A dead or paused concierge link says so on arrival.** The "not available" screen previously appeared only after the visitor had typed their name and email and pressed the button. The same lookup that resolves the language now surfaces an unknown or deactivated slug immediately.
+
+### Added
+- **`probe` request shape on the `concierge-chat` function.** `{ slug, probe: true }` answers with `{ language, business_name }` and nothing else: no conversation is opened, no message is stored, and no model is called. It reads only the two columns it returns, so the coach's offer and Q&A are not even loaded on this public path. Probes draw on their own rate-limit bucket, so a page load can never eat into the visitor's conversation budget, and the language value is clamped to a known value on the way out (the column carries no CHECK constraint).
+- **The browser tab is named after the coach.** A prospect usually opens the concierge link from a DM among a dozen tabs; the standalone page now titles itself with the concierge's business name. Skipped when the chat runs inside the website widget, where the iframe's title is never shown.
+
 ## [1.15.4.0] - 2026-07-23
 
 ### Changed

@@ -96,6 +96,18 @@ verbatim from the original captures — only structure changed.
 **Priority:** P1
 **Depends on:** Nothing blocking.
 
+### Rate-limit key can be minted by the client via `x-forwarded-for`
+
+**What:** `clientIp()` in `supabase/functions/concierge-chat/index.ts` takes the FIRST entry of `x-forwarded-for` (`if (fwd) return fwd.split(',')[0].trim()`). Proxies typically *append* the real client IP, so the first entry is the value the caller supplied — rotating a fake header per request yields a fresh rate-limit bucket every time. Prefer a platform-authoritative client-IP header, or take the LAST entry (the hop the trusted proxy appended).
+
+**Why:** The per-IP limiter is the only spend guard on a public, no-JWT endpoint that calls Gemini. If the key can be minted at will, the guard is decorative under a deliberate attacker. Bounded in practice: it protects a Gemini bill, not private data, and no abuse has been observed.
+
+**Context:** Flagged by the security specialist during `/ship`'s pre-landing review of the concierge language fix (v1.15.5.0), confidence 6/10. Pre-existing (`clientIp` is unchanged by that branch) and deliberately not fixed there, because getting it right needs knowledge of exactly which headers Supabase Edge sets and trusts — a wrong guess silently disables rate limiting entirely.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Confirming Supabase Edge's trusted proxy header behaviour first.
+
 ### Minify + cache `public/embed.js`, and defer its auto-open iframe mount
 
 **What:** `public/embed.js` (~6KB, unminified) is fetched fresh on every page view of every coach's third-party website with no explicit `Cache-Control` in `vercel.json`. Separately, the optional `data-auto-open` feature mounts the full chat iframe on a bare `setTimeout`, competing with the host page's own critical rendering path.
