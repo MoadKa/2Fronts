@@ -318,3 +318,26 @@ Deno.test('createGeminiDraftComplete retries a transient 503 then succeeds', asy
   assertEquals(reply.includes('offer_description'), true)
   assertEquals(calls, 2)
 })
+
+Deno.test('createGeminiDraftComplete disables thinking so the answer gets the whole token budget', async () => {
+  // Regression, observed in production: Gemini 2.5 reasons by default and bills
+  // those tokens against maxOutputTokens. On a real coach website the thinking
+  // consumed 980 of 1024 tokens, leaving 30 for the answer, and the JSON came
+  // back truncated mid-string (finishReason MAX_TOKENS) -> every draft failed
+  // with draft_unparseable. Turning a page into four fields needs no reasoning.
+  let body: Record<string, unknown> = {}
+  const fetcher = ((_u: string | URL | Request, init?: RequestInit) => {
+    body = JSON.parse(String(init?.body)) as Record<string, unknown>
+    return Promise.resolve(
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{}' }] } }] }), { status: 200 }),
+    )
+  }) as typeof fetch
+
+  await createGeminiDraftComplete('k', fetcher)('sys', 'page text')
+
+  const cfg = body.generationConfig as Record<string, unknown>
+  const thinking = cfg.thinkingConfig as Record<string, unknown>
+  assertEquals(thinking.thinkingBudget, 0)
+  // Headroom for a content-heavy page, on top of the reasoning fix.
+  assertEquals(cfg.maxOutputTokens, 2048)
+})

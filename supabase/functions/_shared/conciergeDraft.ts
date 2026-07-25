@@ -374,7 +374,18 @@ export function createGeminiDraftComplete(
       body: JSON.stringify({
         system_instruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: pageText }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+        // thinkingBudget MUST stay 0. Gemini 2.5 reasons by default and charges
+        // those tokens against maxOutputTokens — on a real coach website the
+        // thinking ate 980 of 1024, left 30 for the answer, and returned JSON
+        // truncated mid-string (finishReason MAX_TOKENS). Every draft failed
+        // with draft_unparseable. Turning a website into four fields needs no
+        // chain of thought; 2048 is headroom for a content-heavy page.
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 2048,
+          responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     }
     // Retry transient Gemini failures (rate-limit / overload / network blip).

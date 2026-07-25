@@ -196,7 +196,15 @@ export function createGeminiComplete(
       },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0, maxOutputTokens: 1024 },
+        // thinkingBudget 0: Gemini 2.5 reasons by default and bills those tokens
+        // against maxOutputTokens, which truncated the concierge draft's JSON
+        // mid-string until it was turned off. Matching a handful of spreadsheet
+        // headers to known fields is a lookup, not a reasoning task.
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: 1024,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     }
     // Retry transient Gemini failures (rate-limit / overload / network blip).

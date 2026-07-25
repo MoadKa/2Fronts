@@ -218,3 +218,23 @@ Deno.test('createGeminiComplete retries a transient 503 then succeeds', async ()
   assertEquals(await complete('x'), 'mapped')
   assertEquals(calls, 2)
 })
+
+Deno.test('createGeminiComplete disables thinking so the mapping gets the whole token budget', async () => {
+  // Same regression as the concierge draft path: Gemini 2.5 reasons by default
+  // and bills those tokens against maxOutputTokens, which truncated that
+  // response mid-string. Matching spreadsheet headers to known fields is a
+  // lookup, not a reasoning task.
+  let body: Record<string, unknown> = {}
+  const fetcher = ((_u: string | URL | Request, init?: RequestInit) => {
+    body = JSON.parse(String(init?.body)) as Record<string, unknown>
+    return Promise.resolve(
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{}' }] } }] }), { status: 200 }),
+    )
+  }) as typeof fetch
+
+  await createGeminiComplete('k', fetcher)('prompt')
+
+  const cfg = body.generationConfig as Record<string, unknown>
+  const thinking = cfg.thinkingConfig as Record<string, unknown>
+  assertEquals(thinking.thinkingBudget, 0)
+})
