@@ -10,6 +10,7 @@ import {
   type ConciergeLanguage,
 } from '../../services/ConciergeService'
 import type { QualOption, QualPrompt } from '../../lib/qualification'
+import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import './ConciergePublicPage.css'
 
 // Light client-side email check; the server validates authoritatively.
@@ -42,6 +43,10 @@ export function ConciergePublicPage() {
   // The coach's name, for the browser tab. A prospect often gets this link in a
   // DM among many tabs; "Roman Kmenta" beats the app's generic title.
   const [businessName, setBusinessName] = useState<string | null>(null)
+  // A demo concierge was built for a prospect, not by them. The page speaks as
+  // their business, so it says so — out loud, on the page itself, not only in
+  // whatever message the link arrived in.
+  const [isDemo, setIsDemo] = useState(false)
   // ?embed=1: the page runs inside the small widget iframe from public/embed.js,
   // so the standalone-page breathing room goes away and the chat fills the frame.
   const [searchParams] = useSearchParams()
@@ -102,6 +107,7 @@ export function ConciergePublicPage() {
         // two agree left an English page on a German document.
         setPageLang(intro.language)
         setBusinessName(intro.business_name)
+        setIsDemo(intro.is_demo)
       })
       .catch((err: unknown) => {
         if (cancelled) return
@@ -129,6 +135,13 @@ export function ConciergePublicPage() {
       document.documentElement.lang = previous
     }
   }, [pageLang])
+
+  // Keep this route OUT of search results. Not optional: a concierge is a
+  // per-visitor chat surface, not content anyone should reach from a search —
+  // and a DEMO concierge is a page on 2Fronts' domain speaking as a named real
+  // person's business. Both demos that existed when this was added were
+  // indexable. No title here; the effect below owns it (embed mode differs).
+  useDocumentMeta({ noindex: true })
 
   // Name the tab after the coach. Skipped in embed mode: the widget's iframe has
   // its own document whose title is never shown, so there is nothing to name.
@@ -352,6 +365,13 @@ export function ConciergePublicPage() {
               {sending ? t('conciergePublic.sending') : <SendIcon />}
             </button>
           </form>
+        )}
+
+        {/* Demo disclosure. Rendered in embed mode too: the widget iframe is
+            exactly where a prospect meets this, so hiding it there would hide it
+            from the only audience that needs it. */}
+        {isDemo && (
+          <p className="concierge-demo-note">{t('conciergePublic.demoNote')}</p>
         )}
 
         {isEmbed && (

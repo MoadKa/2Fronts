@@ -79,4 +79,19 @@ describe('useDocumentMeta', () => {
     unmount()
     expect(document.head.querySelectorAll('link[rel="alternate"]')).toHaveLength(0)
   })
+
+  it('leaves the title alone when none is given, but still sets robots', () => {
+    // /c/:slug needs noindex while owning its own title (it names the tab after
+    // the coach, but only outside embed mode, and a hook cannot be conditional).
+    // Setting the title to undefined here would blank the tab.
+    document.title = 'Kept'
+    const { unmount } = renderHook(() => useDocumentMeta({ noindex: true }))
+    expect(document.title).toBe('Kept')
+    expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+      'noindex, follow',
+    )
+    unmount()
+    expect(document.title).toBe('Kept')
+    expect(document.head.querySelector('meta[name="robots"]')).toBeNull()
+  })
 })

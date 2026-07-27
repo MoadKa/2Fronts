@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from 'jsr:@std/assert@1'
-import { handleConciergeChat } from './index.ts'
+import { handleConciergeChat, isExpiredDemo } from './index.ts'
 import type { ChatCompleteFn, ClassifyAnswerFn, ClassifyResult } from '../_shared/conciergeChat.ts'
 
 // A fake admin client modelling exactly the calls handleConciergeChat makes:
@@ -1017,6 +1017,108 @@ Deno.test('a probe for an unknown slug still 404s', async () => {
   })
   assertEquals(res.status, 404)
   assertEquals((await res.json()).error, 'not_found')
+})
+
+// --- Demo concierges: disclosure + expiry (migration 20260727120000) ---------
+// A demo concierge is a public page speaking as a named real business, so the
+// page must be able to SAY it is a demo, and the row must be able to stop
+// serving on its own.
+
+Deno.test('a probe reports is_demo so the page can render its disclosure', async () => {
+  const c = makeCaptured({
+    conciergeRow: { ...makeCaptured().conciergeRow, is_demo: true } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).is_demo, true)
+})
+
+Deno.test('a probe on a real customer concierge reports is_demo false, not undefined', async () => {
+  // The page renders the disclosure on a boolean. An older row whose column is
+  // null must read as "not a demo", never as a missing field the page has to
+  // guess about.
+  const c = makeCaptured({
+    conciergeRow: { ...makeCaptured().conciergeRow, is_demo: null } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals((await res.json()).is_demo, false)
+})
+
+Deno.test('an expired demo 404s on the probe, exactly like an unknown link', async () => {
+  const c = makeCaptured({
+    conciergeRow: {
+      ...makeCaptured().conciergeRow,
+      is_demo: true,
+      demo_expires_at: '2026-07-01T00:00:00Z',
+    } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+    now: () => new Date('2026-07-27T00:00:00Z'),
+  })
+  assertEquals(res.status, 404)
+  assertEquals((await res.json()).error, 'not_found')
+})
+
+Deno.test('an expired demo also 404s mid-chat, so an open tab cannot keep talking to it', async () => {
+  const c = makeCaptured({
+    conciergeRow: {
+      ...makeCaptured().conciergeRow,
+      is_demo: true,
+      demo_expires_at: '2026-07-01T00:00:00Z',
+    } as never,
+  })
+  let modelCalled = false
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 's-1', message: 'hallo' }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: () => {
+        modelCalled = true
+        return Promise.resolve('x')
+      },
+      now: () => new Date('2026-07-27T00:00:00Z'),
+    },
+  )
+  assertEquals(res.status, 404)
+  // Expiry has to bite BEFORE the model call, or an expired demo still costs money.
+  assertEquals(modelCalled, false)
+  await res.body?.cancel()
+})
+
+Deno.test('a demo whose expiry has not passed still serves', async () => {
+  const c = makeCaptured({
+    conciergeRow: {
+      ...makeCaptured().conciergeRow,
+      is_demo: true,
+      demo_expires_at: '2026-08-30T00:00:00Z',
+    } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+    now: () => new Date('2026-07-27T00:00:00Z'),
+  })
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).is_demo, true)
+})
+
+Deno.test('isExpiredDemo treats null, empty and unparseable expiries as "never expires"', () => {
+  // A garbled timestamp must not silently take a live demo offline: failing
+  // open is recoverable, failing closed looks like the product is broken.
+  const now = new Date('2026-07-27T00:00:00Z')
+  assertEquals(isExpiredDemo({}, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: null }, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: '' }, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: 'not-a-date' }, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: '2026-07-26T23:59:59Z' }, now), true)
 })
 
 Deno.test('a non-probe request still requires session_id and a message', async () => {

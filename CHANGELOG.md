@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.7.0] - 2026-07-27
+
+### Fixed
+- **A demo setter built for a prospect now says that it is one, and stops on its own.** When a setter is set up as a sales demo, the page at `/c/<slug>` speaks as that prospect's business — on our domain, without them having asked for it. That page was also open to search engines, carried no notice anywhere on it, and had no end date. It now carries a quiet line saying it is a non-binding demo built by 2Fronts and that its answers come from publicly available content, and it can be given an expiry date after which it simply stops answering. The expiry is checked both when the page opens and on every message, so a tab left open cannot keep talking to a demo that has run out.
+- **Setter chat pages are no longer indexable.** `/c/<slug>` never set a `noindex` tag, and `robots.txt` allowed everything. A setter page is a private conversation surface, not content anyone should reach from a search result. Both are now closed, and the tag applies even when the backend is unreachable — a page that fails to load its setter must not fail open to Google.
+
 ## [1.15.5.0] - 2026-07-25
 
 ### Fixed

@@ -52,6 +52,28 @@ export interface ConciergeChatDeps {
   // their text against that criterion. Defaults to a tiny Gemini classification
   // call built from `complete`; tests inject a stub so they stay offline.
   classifyAnswer?: ClassifyAnswerFn
+  // Injectable clock, so the demo-expiry branch is testable without waiting.
+  now?: () => Date
+}
+
+// A sales-demo concierge stops serving on its own date (migration
+// 20260727120000). Checked here rather than as a query filter for two reasons:
+// the owner must still be able to READ and revive an expired row, and the rule
+// then lives in one testable place instead of being duplicated across the probe
+// query and the main load query.
+//
+// NULL / absent expiry = never expires, which is every real customer row.
+export function isExpiredDemo(
+  row: { demo_expires_at?: string | null },
+  now: Date,
+): boolean {
+  const expiresAt = row.demo_expires_at
+  if (typeof expiresAt !== 'string' || expiresAt === '') return false
+  const parsed = Date.parse(expiresAt)
+  // An unparseable timestamp must not silently take a demo offline; treat it as
+  // "no expiry" and let the row keep serving.
+  if (Number.isNaN(parsed)) return false
+  return parsed <= now.getTime()
 }
 
 const defaultDeps: ConciergeChatDeps = {
@@ -411,6 +433,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   }
 
   const admin = deps.createAdminClient()
+  const nowFn = deps.now ?? (() => new Date())
 
   // Rate-limit by client IP BEFORE any expensive work (concierge load + Gemini
   // call). Public endpoint with no JWT, so this is the only spend guard.
@@ -430,20 +453,39 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   if (isProbe) {
     const { data: introData, error: introErr } = await admin
       .from('concierges')
-      .select('business_name, language')
+      // is_demo / demo_expires_at come from migration 20260727120000. PostgREST
+      // errors on an unknown column, and that error lands in the 404 branch
+      // below — so deploying this function ahead of the migration would take
+      // EVERY concierge page down, paying customers included. The deploy
+      // workflow already runs `supabase db push` before `functions deploy`;
+      // don't deploy functions by hand without pushing migrations first.
+      .select('business_name, language, is_demo, demo_expires_at')
       .eq('slug', slug)
       .eq('is_active', true)
       .maybeSingle()
     if (introErr || !introData) {
       return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
     }
-    const intro = introData as { business_name: string; language: string }
+    const intro = introData as {
+      business_name: string
+      language: string
+      is_demo?: boolean | null
+      demo_expires_at?: string | null
+    }
+    // An expired demo is indistinguishable from an unknown link, on purpose: the
+    // visitor gets the same calm "not available" screen either way.
+    if (isExpiredDemo(intro, nowFn())) {
+      return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
+    }
     // The column has no CHECK constraint, so clamp rather than trust: an
     // unexpected value would otherwise end up in the page's <html lang> while
     // i18n silently renders German, declaring a language it is not speaking.
     return ok({
       language: intro.language === 'en' ? 'en' : 'de',
       business_name: intro.business_name,
+      // Drives the page's visible "this is a demo" line. Sent on the probe so
+      // the disclosure renders on the opening screen, before the first turn.
+      is_demo: intro.is_demo === true,
     })
   }
 
@@ -452,11 +494,16 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   //    crash — and we never even build a prompt for a concierge that isn't live.
   const { data: conciergeData, error: conciergeErr } = await admin
     .from('concierges')
-    .select('id, business_name, offer_description, qa, tone, language, calendar_url, qualification_criteria')
+    .select('id, business_name, offer_description, qa, tone, language, calendar_url, qualification_criteria, demo_expires_at')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle()
   if (conciergeErr || !conciergeData) {
+    return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
+  }
+  // Same expiry gate as the probe. Both paths need it: a visitor who already has
+  // the chat open when a demo lapses must not keep talking to it.
+  if (isExpiredDemo(conciergeData as { demo_expires_at?: string | null }, nowFn())) {
     return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
   }
   const concierge = conciergeData as ConciergeRow
