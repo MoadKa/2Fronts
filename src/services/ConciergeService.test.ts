@@ -86,7 +86,34 @@ describe('ConciergeService', () => {
     const result = await fetchConciergeIntro('acme')
     expect(capturedInvoke?.name).toBe('concierge-chat')
     expect(capturedInvoke?.body).toEqual({ slug: 'acme', probe: true })
-    expect(result).toEqual({ language: 'en', business_name: 'Acme' })
+    // is_demo is absent from this payload on purpose: it models an edge function
+    // deployed before the demo-disclosure change. It must read false, so a lagging
+    // deploy can never make a real coach's page claim to be a demo.
+    expect(result).toEqual({ language: 'en', business_name: 'Acme', is_demo: false })
+  })
+
+  it('fetchConciergeIntro carries is_demo through so the page can disclose it', async () => {
+    // A demo concierge speaks as a named real business. The page renders a visible
+    // "this is a demo" line off this flag, so losing it in the service layer would
+    // silently drop the disclosure while everything still looked fine.
+    invokeResult = {
+      // Invented fixture name on purpose: this repo is public, and tying a real
+      // person to is_demo would publish a claim they never agreed to.
+      data: { language: 'de', business_name: 'Beispiel Coaching', is_demo: true },
+      error: null,
+    }
+    const result = await fetchConciergeIntro('beispiel-coaching')
+    expect(result.is_demo).toBe(true)
+  })
+
+  it('fetchConciergeIntro treats a non-boolean is_demo as false', async () => {
+    // Anything other than a literal true is not a demo. Fail toward "normal
+    // page" rather than stamping a customer's setter with a demo notice.
+    invokeResult = {
+      data: { language: 'de', business_name: 'Acme', is_demo: 'yes' },
+      error: null,
+    }
+    expect((await fetchConciergeIntro('acme')).is_demo).toBe(false)
   })
 
   it('fetchConciergeIntro throws conciergeChat.unavailable when the slug is not found', async () => {

@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.7.0] - 2026-07-27
+
+### Security
+- **A coach who cancels can no longer switch their own setter back on.** The rule that let a coach edit their setter checked which *row* they were allowed to touch, never which *columns* — so `is_active`, the flag Stripe turns off when a subscription ends, was theirs to write. Anyone whose plan had lapsed could turn their setter back on from the browser and keep it running for free, with the model costs landing on us, because nothing re-checks Stripe once a conversation starts. That column is now locked to the billing system and support, the same way the account role and the Stripe customer id already were. The demo flag and its expiry date are locked with it, so a demo cannot extend itself either. Editing the parts of a setter that *are* the coach's — name, offer, questions — is untouched.
+- **The setter chat now has a spending ceiling that cannot be talked around.** The only guard on a public, no-login endpoint that calls the model on every message was a per-visitor limit counted by IP address, and that address was read from a header the caller sends. Changing it on each request handed out a fresh allowance every time, so the limit never actually bit. There is now a second daily ceiling counted per setter — a caller can lie about who they are, but not about which setter they are talking to. It is charged only on messages that reach the model, so tapping buttons and filling in the contact form still cost a visitor nothing.
+- **The lead-intake endpoint now refuses to run unconfigured.** `intake` writes with a key that bypasses the database's own access rules, and a shared secret was its only gate — but the check was skipped entirely when that secret was missing, quietly leaving the endpoint open to anyone. A missing secret is a deployment fault, not permission to accept anything, so it now returns an error instead of accepting the write.
+
+### Fixed
+- **A demo setter built for a prospect now says that it is one, and stops on its own.** When a setter is set up as a sales demo, the page at `/c/<slug>` speaks as that prospect's business — on our domain, without them having asked for it. That page was also open to search engines, carried no notice anywhere on it, and had no end date. It now carries a quiet line saying it is a non-binding demo built by 2Fronts and that its answers come from publicly available content, and it can be given an expiry date after which it simply stops answering. The expiry is checked both when the page opens and on every message, so a tab left open cannot keep talking to a demo that has run out.
+- **Setter chat pages are no longer indexable.** `/c/<slug>` never set a `noindex` tag, and `robots.txt` allowed everything. A setter page is a private conversation surface, not content anyone should reach from a search result. Both are now closed, and the tag applies even when the backend is unreachable — a page that fails to load its setter must not fail open to Google.
+
 ## [1.15.5.0] - 2026-07-25
 
 ### Fixed

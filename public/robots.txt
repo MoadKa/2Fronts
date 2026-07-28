@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
 
+# Concierge chat pages are per-visitor chat surfaces, not content. A demo
+# concierge additionally speaks as a prospect's business, so these must never
+# appear in search results. The route sets noindex as well; this is the belt to
+# that braces.
+Disallow: /c/
+
 Sitemap: https://2fronts.de/sitemap.xml
