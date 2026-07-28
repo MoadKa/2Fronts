@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
-## [1.15.6.0] - 2026-07-25
+## [1.15.8.0] - 2026-07-25
 
 ### Fixed
 - **"Aus meiner Website entwerfen" works again.** Every attempt failed with a generic error, on every site, regardless of the scraper. The cause was not the scrape: Gemini 2.5 reasons before answering by default, and those reasoning tokens are billed against the same `maxOutputTokens` budget as the reply. On a real coach website the reasoning consumed 980 of the 1024 tokens, left 30 for the answer, and returned JSON cut off mid-string — which then failed to parse. Reasoning is now switched off for this call (turning a page into four fields needs none) and the budget raised to 2048 for content-heavy sites. Verified against two real coach websites: 980 reasoning tokens → 0, and the draft parses.
