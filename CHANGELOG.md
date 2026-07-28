@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
-## [1.15.8.0] - 2026-07-27
+## [1.15.9.0] - 2026-07-27
 
 ### Added
 - **"Aus meiner Website entwerfen" now drafts the qualifying questions too.** The website draft filled in the offer, the Q&A, the tone and the booking link, and then left the coach to build their qualifying questions from scratch — the one part of the setup that is a structured list rather than a paragraph, and the part the whole "ask before you book" flow runs on. A setter with no questions walks straight past that step and books anyone. The draft now proposes two or three questions based on who the page says the coach actually works with, each with tappable answers and the ones that make someone a poor fit marked as such. They arrive in the same editor they would otherwise have been typed into, so they can be reworded, reordered or removed like any other draft.
