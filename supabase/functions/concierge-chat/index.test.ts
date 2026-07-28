@@ -1368,3 +1368,51 @@ Deno.test('spend cap: a control-button turn does NOT charge the cap (no model ca
   assertEquals(capCharged, false)
   await res.body?.cancel()
 })
+
+// --- Limiter failure posture (review finding) --------------------------------
+// The two buckets fail in OPPOSITE directions on a database error, and that
+// asymmetry is the whole design: the per-IP limiter fails OPEN so a transient
+// Postgres blip never blocks a real visitor's booking, while the per-concierge
+// spend cap fails CLOSED so the same blip cannot license unbounded model spend.
+// Every other test injects checkRateLimit/checkSpendCap and never reaches the
+// real limiter, so without these two the branch that decides it is dead code.
+
+// The real limiter path goes through admin.rpc. The base fake has no .rpc at
+// all, which hitBucket reads as "unit-test double -> allow"; supplying one is
+// what forces the production error branch to run.
+function fakeAdminClientWithRpc(c: Captured, rpcResult: { data?: unknown; error?: unknown }) {
+  const base = (fakeAdminClient(c) as () => Record<string, unknown>)()
+  return () => ({ ...base, rpc: () => Promise.resolve(rpcResult) })
+}
+
+Deno.test('limiter DB error: the per-concierge spend cap fails CLOSED (429, no model call)', async () => {
+  const c = makeCaptured()
+  let modelCalled = false
+  const complete: ChatCompleteFn = () => {
+    modelCalled = true
+    return Promise.resolve('x')
+  }
+  const res = await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClientWithRpc(c, { data: null, error: { message: 'db down' } }) as never,
+    complete,
+    // Isolate the spend cap: the IP gate is not what this test is about.
+    checkRateLimit: () => Promise.resolve(true),
+    // checkSpendCap deliberately NOT injected -> the real dbSpendCap runs.
+  })
+  assertEquals(res.status, 429)
+  assertEquals((await res.json()).error, 'rate_limited')
+  assertEquals(modelCalled, false)
+})
+
+Deno.test('limiter DB error: the per-IP limiter fails OPEN so a booking is never blocked', async () => {
+  const c = makeCaptured()
+  const res = await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClientWithRpc(c, { data: null, error: { message: 'db down' } }) as never,
+    complete: cannedComplete('reply'),
+    // checkRateLimit deliberately NOT injected -> the real dbRateLimit runs.
+    // Isolate it: the spend cap would otherwise fail closed and mask the result.
+    checkSpendCap: () => Promise.resolve(true),
+  })
+  assertEquals(res.status, 200)
+  await res.body?.cancel()
+})
