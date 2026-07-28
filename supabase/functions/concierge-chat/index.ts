@@ -52,6 +52,10 @@ export interface ConciergeChatDeps {
   // their text against that criterion. Defaults to a tiny Gemini classification
   // call built from `complete`; tests inject a stub so they stay offline.
   classifyAnswer?: ClassifyAnswerFn
+  // Injectable per-concierge daily spend cap (true = allowed). Separate from
+  // checkRateLimit because the two have opposite failure postures — see
+  // dbSpendCap. Tests inject a stub to assert the cap's 429 path.
+  checkSpendCap?: (key: string) => Promise<boolean>
   // Injectable clock, so the demo-expiry branch is testable without waiting.
   now?: () => Date
 }
@@ -86,6 +90,24 @@ const defaultDeps: ConciergeChatDeps = {
 const RATE_LIMIT_MAX = 30
 const RATE_LIMIT_WINDOW_SECS = 60
 
+// Second, independent spend guard: a per-CONCIERGE daily ceiling on model-backed
+// turns (CSO 2026-07-27, finding #3).
+//
+// The per-IP bucket above is keyed on clientIp(), which reads X-Forwarded-For —
+// a header the client sends. A proxy appends the real peer address to whatever
+// arrived, so the LEFTMOST entry that clientIp() returns is the least
+// trustworthy hop by construction. An attacker rotating that header gets a
+// fresh bucket per request and the per-IP cap never binds.
+//
+// This bucket keys on the concierge id, resolved server-side from the slug. An
+// attacker can forge which IP they claim to be; they cannot forge which
+// concierge they are talking to. So the ceiling holds regardless of whether the
+// header is trustworthy today. 1000 model calls/day is far above any real
+// coach's traffic (roughly 50 visitors asking 5 questions each is 250) while
+// still turning unbounded spend into a bounded, affordable worst case.
+const SPEND_CAP_MAX = 1000
+const SPEND_CAP_WINDOW_SECS = 86_400
+
 function clientIp(req: Request): string {
   const fwd = req.headers.get('x-forwarded-for')
   if (fwd) return fwd.split(',')[0].trim()
@@ -96,17 +118,42 @@ function clientIp(req: Request): string {
 // transient DB issue): a limiter glitch must never block a real booking. The
 // happy path still limits abusers.
 async function dbRateLimit(admin: SupabaseClient, key: string): Promise<boolean> {
+  return await hitBucket(admin, key, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SECS, true)
+}
+
+// The per-concierge daily cap, and the reason it is a separate function: it fails
+// CLOSED. The per-IP limiter fails open on purpose — a transient DB error must
+// never block a real visitor's booking, and the cost of letting one request
+// through is one Gemini call. Here the tradeoff inverts: this bucket exists
+// precisely because the per-IP one can be defeated by a forged header, so
+// treating a DB error as "allow" would hand an attacker a second free path to
+// unbounded spend just by making the database unhappy. A concierge going quiet
+// during a Postgres outage is recoverable; an uncapped model bill is not.
+async function dbSpendCap(admin: SupabaseClient, key: string): Promise<boolean> {
+  return await hitBucket(admin, key, SPEND_CAP_MAX, SPEND_CAP_WINDOW_SECS, false)
+}
+
+// Shared fixed-window counter. `failOpen` decides what a real error means; the
+// missing-rpc branch always allows, because that is a unit-test double rather
+// than a production condition (the real admin client always has .rpc).
+async function hitBucket(
+  admin: SupabaseClient,
+  key: string,
+  max: number,
+  windowSecs: number,
+  failOpen: boolean,
+): Promise<boolean> {
   try {
     if (typeof (admin as { rpc?: unknown }).rpc !== 'function') return true
     const { data, error } = await admin.rpc('concierge_rate_limit_hit', {
       p_key: key,
-      p_max: RATE_LIMIT_MAX,
-      p_window_secs: RATE_LIMIT_WINDOW_SECS,
+      p_max: max,
+      p_window_secs: windowSecs,
     })
-    if (error) return true
+    if (error) return failOpen
     return data !== false
   } catch {
-    return true
+    return failOpen
   }
 }
 
@@ -623,6 +670,17 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       .order('created_at', { ascending: false })
       .limit(HISTORY_LIMIT)
     const history = ((historyData ?? []) as ChatTurn[]).reverse()
+
+    // Per-concierge daily spend cap. Placed here, not at the top of the handler,
+    // because every branch that returns BEFORE this point (the contact form, the
+    // Yes/No control buttons) is deterministic and never calls the model — those
+    // turns are free, so charging them against a spend cap would starve a real
+    // visitor's conversation for traffic that cost nothing. Everything from here
+    // down reaches Gemini. Fails CLOSED: see dbSpendCap.
+    const spendCap = deps.checkSpendCap ?? ((key: string) => dbSpendCap(admin, key))
+    if (!(await spendCap(`conc:${concierge.id}`))) {
+      return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: jsonHeaders })
+    }
 
     const complete = deps.complete ?? createGeminiChatComplete()
 

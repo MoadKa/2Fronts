@@ -1259,3 +1259,112 @@ Deno.test('probe must be literally true: a truthy string does not unlock the no-
   assertEquals(res.status, 400)
   await res.body?.cancel()
 })
+
+// --- Per-concierge daily spend cap (CSO 2026-07-27, finding #3) --------------
+// The per-IP bucket keys on X-Forwarded-For, which the client sends, so an
+// attacker rotating that header gets a fresh bucket every request and the
+// per-IP cap never binds. This second bucket keys on the concierge id resolved
+// server-side from the slug — forgeable IP, unforgeable concierge.
+
+Deno.test('spend cap: a capped concierge gets 429 and the model is never called', async () => {
+  const c = makeCaptured()
+  let modelCalled = false
+  const complete: ChatCompleteFn = () => {
+    modelCalled = true
+    return Promise.resolve('x')
+  }
+  const res = await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete,
+    checkSpendCap: () => Promise.resolve(false),
+  })
+  assertEquals(res.status, 429)
+  assertEquals((await res.json()).error, 'rate_limited')
+  // The whole point of the cap: no Gemini call happens once it is reached.
+  assertEquals(modelCalled, false)
+})
+
+Deno.test('spend cap: the bucket is keyed on the concierge id, not the caller IP', async () => {
+  const c = makeCaptured()
+  const keys: string[] = []
+  await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('reply'),
+    checkSpendCap: (key: string) => {
+      keys.push(key)
+      return Promise.resolve(true)
+    },
+  })
+  assertEquals(keys, ['conc:con-1'])
+})
+
+Deno.test('spend cap: a forged X-Forwarded-For does not buy a fresh budget', async () => {
+  // The exploit this cap exists for: rotating the header defeats the per-IP
+  // bucket, but every request still lands on the SAME concierge key.
+  const c = makeCaptured()
+  const keys: string[] = []
+  const spendCap = (key: string) => {
+    keys.push(key)
+    return Promise.resolve(true)
+  }
+  for (const ip of ['1.2.3.4', '5.6.7.8', '9.10.11.12']) {
+    const req = new Request('http://localhost/concierge-chat', {
+      method: 'POST',
+      headers: { 'x-forwarded-for': ip },
+      body: JSON.stringify({ slug: 'acme', session_id: 's1', message: 'hi' }),
+    })
+    const res = await handleConciergeChat(req, {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('reply'),
+      checkSpendCap: spendCap,
+    })
+    await res.body?.cancel()
+  }
+  // Three different claimed IPs, one budget.
+  assertEquals(keys, ['conc:con-1', 'conc:con-1', 'conc:con-1'])
+})
+
+Deno.test('spend cap: the contact form does NOT charge the cap (no model call that turn)', async () => {
+  // Charging deterministic turns would let a visitor's free steps starve the
+  // conversation they came for. Only model-backed turns draw on the budget.
+  const c = makeCaptured()
+  let capCharged = false
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 's1', contact: { name: 'Max Muster', email: 'max@example.com' } }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('x'),
+      checkSpendCap: () => {
+        capCharged = true
+        return Promise.resolve(false)
+      },
+    },
+  )
+  assertEquals(res.status, 200)
+  assertEquals(capCharged, false)
+  await res.body?.cancel()
+})
+
+Deno.test('spend cap: a control-button turn does NOT charge the cap (no model call that turn)', async () => {
+  const c = makeCaptured(contacted('intro_gate')) // no criteria configured
+  let capCharged = false
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Nein',
+      answer: { criterion_id: '__intro_gate__', label: 'Nein', qualifies: false },
+    }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('x'),
+      checkSpendCap: () => {
+        capCharged = true
+        return Promise.resolve(false)
+      },
+    },
+  )
+  assertEquals(res.status, 200)
+  assertEquals(capCharged, false)
+  await res.body?.cancel()
+})
