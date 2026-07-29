@@ -309,7 +309,16 @@ export function createGeminiChatComplete(
       body: JSON.stringify({
         system_instruction: { parts: [{ text: system }] },
         contents: toGeminiContents(turns),
-        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+        // thinkingBudget 0: Gemini 2.5 reasons by default and bills those tokens
+        // against maxOutputTokens. The concierge draft path hit exactly that and
+        // returned answers cut off mid-sentence; here it would truncate a reply
+        // to a visitor. The bot answers from the coach's own text, so it has
+        // nothing to reason its way to.
+        generationConfig: {
+          temperature: 0.4,
+          maxOutputTokens: 1024,
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     }
 
