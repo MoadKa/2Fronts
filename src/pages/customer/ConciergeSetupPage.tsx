@@ -294,7 +294,11 @@ export function ConciergeSetupPage() {
       // that reads as "done" with blank fields. Treat empty as a failure so the
       // coach gets the honest "fill it in manually" note instead.
       const hasContent = !!(
-        draft.offer_description || draft.qa || draft.tone || draft.calendar_url
+        draft.offer_description ||
+        draft.qa ||
+        draft.tone ||
+        draft.calendar_url ||
+        draft.qualification_criteria?.length
       )
       if (!hasContent) {
         setScrapeState('failed')
@@ -305,6 +309,11 @@ export function ConciergeSetupPage() {
         ...(draft.qa ? { qa: draft.qa } : {}),
         ...(draft.tone ? { tone: draft.tone } : {}),
         ...(draft.calendar_url ? { calendarUrl: draft.calendar_url } : {}),
+        // Drafted qualifying questions land in the same editor the coach would
+        // otherwise fill by hand. The server already validated their shape.
+        ...(draft.qualification_criteria?.length
+          ? { qualificationCriteria: draft.qualification_criteria }
+          : {}),
       })
       setScrapeState('done')
     } catch {
