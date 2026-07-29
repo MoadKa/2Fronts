@@ -447,7 +447,8 @@
     "unavailableTitle": "Diese Seite ist nicht verfügbar",
     "unavailableBody": "Dieser Concierge-Link ist inaktiv oder existiert nicht. Bitte überprüfe den Link und versuche es erneut.",
     "thinking": "Schreibt…",
-    "poweredBy": "Setter von 2fronts.de"
+    "poweredBy": "Setter von 2fronts.de",
+    "demoNote": "Unverbindliche Demo von 2fronts.de. Diese Seite wurde nicht von dem hier dargestellten Unternehmen beauftragt. Die Antworten basieren auf öffentlich zugänglichen Inhalten."
   },
   "conciergeChat": {
     "unavailable": "Dieser Concierge ist gerade nicht verfügbar.",

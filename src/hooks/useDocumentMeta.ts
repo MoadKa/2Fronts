@@ -6,7 +6,12 @@ interface HreflangLink {
 }
 
 interface DocumentMetaOptions {
-  title: string
+  /**
+   * Optional. Omit when a route needs the robots/canonical handling but manages
+   * its own title — /c/:slug names the tab after the coach, but only outside
+   * embed mode, and a hook cannot be called conditionally.
+   */
+  title?: string
   description?: string
   noindex?: boolean
   /** Self-referencing canonical URL for this route (absolute). */
@@ -36,7 +41,7 @@ export function useDocumentMeta({
 }: DocumentMetaOptions) {
   useEffect(() => {
     const previousTitle = document.title
-    document.title = title
+    if (title !== undefined) document.title = title
 
     const descTag = description ? document.querySelector('meta[name="description"]') : null
     const previousDescription = descTag?.getAttribute('content') ?? null
@@ -71,7 +76,7 @@ export function useDocumentMeta({
     }
 
     return () => {
-      document.title = previousTitle
+      if (title !== undefined) document.title = previousTitle
       if (descTag && previousDescription !== null) descTag.setAttribute('content', previousDescription)
       robotsTag?.remove()
       canonicalTag?.remove()

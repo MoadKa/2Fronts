@@ -127,6 +127,14 @@ export async function sendConciergeMessage(
 export interface ConciergeIntro {
   language: ConciergeLanguage
   business_name: string
+  /**
+   * True when this concierge is a sales demo built for a prospect rather than a
+   * paying coach's own setter. The public page renders a visible disclosure line
+   * for it: the page speaks as a named real business, so it has to say what it
+   * is. Defaults to false, which is the safe reading of any older function
+   * deploy that doesn't send the field yet.
+   */
+  is_demo: boolean
 }
 
 /**
@@ -148,7 +156,11 @@ export async function fetchConciergeIntro(slug: string): Promise<ConciergeIntro>
   if (!intro || (intro.language !== 'de' && intro.language !== 'en')) {
     throw new Error(CONCIERGE_ERROR)
   }
-  return { language: intro.language, business_name: String(intro.business_name ?? '') }
+  return {
+    language: intro.language,
+    business_name: String(intro.business_name ?? ''),
+    is_demo: intro.is_demo === true,
+  }
 }
 
 // ---- Coach chat dashboard (#concierge-dashboard) ---------------------------
