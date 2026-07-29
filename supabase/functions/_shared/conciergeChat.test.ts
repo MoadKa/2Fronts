@@ -286,3 +286,23 @@ Deno.test('createGeminiChatComplete does NOT retry a non-retryable 400 (fails fa
   )
   assertEquals(calls, 1)
 })
+
+Deno.test('createGeminiChatComplete disables thinking so the reply gets the whole token budget', async () => {
+  // Same regression as the concierge draft path: Gemini 2.5 reasons by default
+  // and bills those tokens against maxOutputTokens. There it truncated the JSON
+  // mid-string; here it would cut off a reply to a visitor mid-sentence. The
+  // bot answers from the coach's own text, so it has nothing to reason toward.
+  let body: Record<string, unknown> = {}
+  const fetcher = ((_u: string | URL | Request, init?: RequestInit) => {
+    body = JSON.parse(String(init?.body)) as Record<string, unknown>
+    return Promise.resolve(
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: 'ok' }] } }] }), { status: 200 }),
+    )
+  }) as typeof fetch
+
+  await createGeminiChatComplete('k', fetcher)('sys', [{ role: 'user', content: 'hi' }])
+
+  const cfg = body.generationConfig as Record<string, unknown>
+  const thinking = cfg.thinkingConfig as Record<string, unknown>
+  assertEquals(thinking.thinkingBudget, 0)
+})

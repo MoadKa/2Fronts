@@ -285,6 +285,94 @@ describe('ConciergeSetupPage onboarding wizard', () => {
     expect(draftConciergeFromUrl).toHaveBeenCalledWith('https://acme.com', 'de')
   })
 
+  it('scrape accelerator prefills the drafted qualifying questions too', async () => {
+    // The coach used to hand-build these while every other field arrived filled
+    // in. They travel a different path from the text fields (they are structured
+    // objects, not strings), so a wiring mistake drops them silently and the
+    // wizard just looks like it never drafted any.
+    draftConciergeFromUrl.mockResolvedValue({
+      offer_description: 'Drafted offer from site.',
+      // The booking step needs a calendar URL before it will advance, and this
+      // test walks all the way through to the qualify step.
+      calendar_url: 'https://cal.com/drafted',
+      qualification_criteria: [
+        {
+          id: 'budget',
+          question: 'Wie hoch ist dein Budget?',
+          options: [
+            { label: '5k+', qualifies: true },
+            { label: 'unter 1k', qualifies: false },
+          ],
+        },
+      ],
+    })
+    renderPage()
+    const T = i18n.getFixedT('de')
+
+    fireEvent.click(screen.getByRole('button', { name: T('conciergeOnboarding.welcome.languageDe') }))
+    fireEvent.click(screen.getByText("Los geht's"))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.business.title')), {
+      target: { value: 'Acme Coaching' },
+    })
+    fireEvent.click(screen.getByText('Weiter'))
+
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.offer.scrapePrompt')), {
+      target: { value: 'https://acme.com' },
+    })
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.offer.scrapeButton')))
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(T('conciergeOnboarding.offer.title'))).toHaveValue(
+        'Drafted offer from site.',
+      ),
+    )
+    // Walk on to the qualify step and confirm the drafted question is sitting
+    // there, editable, exactly where the coach would otherwise have typed it.
+    // (WIZARD_STEPS: offer -> questions -> booking -> qualify. "questions" is
+    // the FAQ step; "qualify" is the one that holds the criteria.)
+    fireEvent.click(screen.getByText('Weiter')) // -> questions
+    fireEvent.click(screen.getByText('Weiter')) // -> booking
+    fireEvent.click(screen.getByText('Weiter')) // -> qualify
+    await waitFor(() =>
+      expect(screen.getByDisplayValue('Wie hoch ist dein Budget?')).toBeInTheDocument(),
+    )
+  })
+
+  it('treats a draft with ONLY qualifying questions as content, not a failure', async () => {
+    // A page can yield usable qualifying criteria while the offer text comes back
+    // empty. Judging "did the scrape work?" on the text fields alone would throw
+    // that away and show the manual-fallback note.
+    draftConciergeFromUrl.mockResolvedValue({
+      qualification_criteria: [
+        {
+          id: 'industry',
+          question: 'In welcher Branche bist du?',
+          options: [
+            { label: 'Coaching', qualifies: true },
+            { label: 'Andere', qualifies: false },
+          ],
+        },
+      ],
+    })
+    renderPage()
+    const T = i18n.getFixedT('de')
+
+    fireEvent.click(screen.getByRole('button', { name: T('conciergeOnboarding.welcome.languageDe') }))
+    fireEvent.click(screen.getByText("Los geht's"))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.business.title')), {
+      target: { value: 'Acme Coaching' },
+    })
+    fireEvent.click(screen.getByText('Weiter'))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.offer.scrapePrompt')), {
+      target: { value: 'https://acme.com' },
+    })
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.offer.scrapeButton')))
+
+    await waitFor(() =>
+      expect(screen.queryByText(T('conciergeOnboarding.offer.scrapeFailed'))).not.toBeInTheDocument(),
+    )
+  })
+
   it('treats an empty draft as a failure (no fake "done" with blank fields)', async () => {
     // A 200 with nothing usable (e.g. a JS-shell page) must NOT show success and
     // prefill nothing — the coach should get the honest manual-fallback note.

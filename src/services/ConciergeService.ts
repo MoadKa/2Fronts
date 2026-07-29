@@ -55,6 +55,10 @@ export interface ConciergeDraft {
   qa?: string
   tone?: 'friendly' | 'professional' | 'casual'
   calendar_url?: string
+  // The qualifying questions the concierge asks before offering a booking. The
+  // server validates these against the runtime's contract before they get here,
+  // so anything present is safe to drop straight into the wizard's editor.
+  qualification_criteria?: QualCriterion[]
 }
 
 // A throwaway per-visitor id so the AI can follow the thread across messages. No

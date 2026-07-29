@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from 'jsr:@std/assert@1'
+import { assertEquals, assertRejects, assertStringIncludes } from 'jsr:@std/assert@1'
 import {
   buildDraftSystemPrompt,
   createGeminiDraftComplete,
@@ -317,4 +317,154 @@ Deno.test('createGeminiDraftComplete retries a transient 503 then succeeds', asy
   const reply = await createGeminiDraftComplete('k', fetcher)('sys', 'page text')
   assertEquals(reply.includes('offer_description'), true)
   assertEquals(calls, 2)
+})
+
+Deno.test('createGeminiDraftComplete disables thinking so the answer gets the whole token budget', async () => {
+  // Regression, observed in production: Gemini 2.5 reasons by default and bills
+  // those tokens against maxOutputTokens. On a real coach website the thinking
+  // consumed 980 of 1024 tokens, leaving 30 for the answer, and the JSON came
+  // back truncated mid-string (finishReason MAX_TOKENS) -> every draft failed
+  // with draft_unparseable. Turning a page into four fields needs no reasoning.
+  let body: Record<string, unknown> = {}
+  const fetcher = ((_u: string | URL | Request, init?: RequestInit) => {
+    body = JSON.parse(String(init?.body)) as Record<string, unknown>
+    return Promise.resolve(
+      new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{}' }] } }] }), { status: 200 }),
+    )
+  }) as typeof fetch
+
+  await createGeminiDraftComplete('k', fetcher)('sys', 'page text')
+
+  const cfg = body.generationConfig as Record<string, unknown>
+  const thinking = cfg.thinkingConfig as Record<string, unknown>
+  assertEquals(thinking.thinkingBudget, 0)
+  // Headroom for a content-heavy page, on top of the reasoning fix — raised
+  // again when qualification_criteria became a fifth field that is itself an
+  // array of questions with labelled options. Truncation here breaks the PAYING
+  // customer's wizard, so this number is pinned deliberately.
+  assertEquals(cfg.maxOutputTokens, 4096)
+})
+
+// --- qualification_criteria drafting ----------------------------------------
+// The coach used to hand-build these in the wizard while every other field
+// arrived filled in, and a concierge with no criteria skips straight past the
+// question gate that is the point of the flow. The model is free-form; the gate
+// is not, so everything it returns is validated before it can reach the wizard.
+
+const CRITERION = {
+  id: 'budget',
+  question: 'Wie hoch ist dein Budget?',
+  options: [
+    { label: '5k+', qualifies: true },
+    { label: 'unter 1k', qualifies: false },
+  ],
+}
+
+Deno.test('parseDraft keeps well-formed qualification criteria', () => {
+  const d = parseDraft(JSON.stringify({ qualification_criteria: [CRITERION] }))
+  assertEquals(d.qualification_criteria?.length, 1)
+  assertEquals(d.qualification_criteria?.[0].id, 'budget')
+  assertEquals(d.qualification_criteria?.[0].options.length, 2)
+})
+
+Deno.test('CRITICAL REGRESSION: a draft with no criteria still returns the other four fields', () => {
+  // This is the shape every existing coach's wizard gets today. If adding a
+  // fifth field changed it, the change made for a sales tool would have broken
+  // paying-customer onboarding.
+  const d = parseDraft(JSON.stringify({
+    offer_description: 'Ein Programm.',
+    qa: 'Frage? — Antwort.',
+    tone: 'professional',
+    calendar_url: 'https://cal.com/acme',
+  }))
+  assertEquals(d.offer_description, 'Ein Programm.')
+  assertEquals(d.qa, 'Frage? — Antwort.')
+  assertEquals(d.tone, 'professional')
+  assertEquals(d.calendar_url, 'https://cal.com/acme')
+  // Absent, not an empty array: the wizard shows its normal empty state rather
+  // than something it has to interpret.
+  assertEquals(d.qualification_criteria, undefined)
+})
+
+Deno.test('parseDraft rejects the runtime RESERVED control ids', () => {
+  // concierge-chat intercepts these before qualification, so a drafted
+  // criterion carrying one would be swallowed as a control message and silently
+  // never asked.
+  for (const id of ['__intro_gate__', '__final_gate__', '__done_questions__']) {
+    const d = parseDraft(JSON.stringify({ qualification_criteria: [{ ...CRITERION, id }] }))
+    assertEquals(d.qualification_criteria, undefined)
+  }
+})
+
+Deno.test('parseDraft rejects ids the wizard cannot render', () => {
+  const d = parseDraft(JSON.stringify({
+    qualification_criteria: [{ ...CRITERION, id: 'vibes' }, { ...CRITERION, id: 'custom_2' }],
+  }))
+  assertEquals(d.qualification_criteria?.length, 1)
+  assertEquals(d.qualification_criteria?.[0].id, 'custom_2')
+})
+
+Deno.test('parseDraft drops a question with fewer than two options', () => {
+  // One option is not a question.
+  const d = parseDraft(JSON.stringify({
+    qualification_criteria: [{ ...CRITERION, options: [{ label: 'Ja', qualifies: true }] }],
+  }))
+  assertEquals(d.qualification_criteria, undefined)
+})
+
+Deno.test('parseDraft drops a question no answer can pass', () => {
+  // Every option qualifies: false is a dead end that disqualifies every visitor
+  // who reaches it — worse than not asking at all.
+  const d = parseDraft(JSON.stringify({
+    qualification_criteria: [{
+      ...CRITERION,
+      options: [{ label: 'a', qualifies: false }, { label: 'b', qualifies: false }],
+    }],
+  }))
+  assertEquals(d.qualification_criteria, undefined)
+})
+
+Deno.test('parseDraft drops malformed options rather than the whole draft', () => {
+  // An accelerator degrades; it does not fall back to a blank form because one
+  // option lost its boolean.
+  const d = parseDraft(JSON.stringify({
+    offer_description: 'Ein Programm.',
+    qualification_criteria: [{
+      ...CRITERION,
+      options: [
+        { label: '5k+', qualifies: true },
+        { label: 'unter 1k', qualifies: 'nope' },
+        { label: '', qualifies: false },
+        { label: '1k-5k', qualifies: false },
+      ],
+    }],
+  }))
+  assertEquals(d.offer_description, 'Ein Programm.')
+  assertEquals(d.qualification_criteria?.[0].options.length, 2)
+})
+
+Deno.test('parseDraft caps criteria at three and de-duplicates ids', () => {
+  const d = parseDraft(JSON.stringify({
+    qualification_criteria: [
+      { ...CRITERION, id: 'budget' },
+      { ...CRITERION, id: 'budget' },
+      { ...CRITERION, id: 'industry' },
+      { ...CRITERION, id: 'age' },
+      { ...CRITERION, id: 'timeline_role' },
+    ],
+  }))
+  assertEquals(d.qualification_criteria?.length, 3)
+  assertEquals(d.qualification_criteria?.map((c) => c.id), ['budget', 'industry', 'age'])
+})
+
+Deno.test('parseDraft tolerates a non-array qualification_criteria without throwing', () => {
+  const d = parseDraft(JSON.stringify({ offer_description: 'x', qualification_criteria: 'two questions' }))
+  assertEquals(d.offer_description, 'x')
+  assertEquals(d.qualification_criteria, undefined)
+})
+
+Deno.test('the prompt asks for qualifying questions in the coach language', () => {
+  assertStringIncludes(buildDraftSystemPrompt('de'), 'qualification_criteria')
+  assertStringIncludes(buildDraftSystemPrompt('de'), 'asked in German')
+  assertStringIncludes(buildDraftSystemPrompt('en'), 'asked in English')
 })

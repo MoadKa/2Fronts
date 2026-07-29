@@ -10,6 +10,7 @@
 // the wizard catches it and falls back to manual entry with no error wall.
 
 import { geminiFetchWithRetry } from './geminiRetry.ts'
+import type { QualCriterion, QualOption } from './qualification.ts'
 
 export type ConciergeLanguage = 'de' | 'en'
 
@@ -21,6 +22,58 @@ export interface ConciergeDraft {
   qa?: string
   tone?: 'friendly' | 'professional' | 'casual'
   calendar_url?: string
+  // The qualifying questions the concierge asks before offering a booking.
+  // Drafted here because the coach otherwise hand-builds them in the wizard
+  // while every other field arrives filled in — and because a concierge with no
+  // criteria skips straight past the question gate that is the whole point of
+  // the flow.
+  qualification_criteria?: QualCriterion[]
+}
+
+// Ids the runtime reserves for its own control prompts (the Yes/No gates and the
+// "no more questions" exit in concierge-chat). A drafted criterion carrying one
+// of these would be intercepted as a control message and silently never asked,
+// so they are rejected outright rather than trusted.
+const RESERVED_CRITERION_IDS = new Set(['__intro_gate__', '__final_gate__', '__done_questions__'])
+
+// The ids the wizard's own UI knows how to render, plus free-form custom_<n>.
+const BUILTIN_CRITERION_IDS = new Set(['budget', 'industry', 'age', 'timeline_role'])
+
+function isUsableCriterionId(id: unknown): id is string {
+  if (typeof id !== 'string' || id === '') return false
+  if (RESERVED_CRITERION_IDS.has(id)) return false
+  return BUILTIN_CRITERION_IDS.has(id) || /^custom_\d+$/.test(id)
+}
+
+// Keep only criteria the runtime can actually ask. A model is free-form; the
+// question gate is not. Anything malformed is DROPPED rather than thrown on:
+// this is an accelerator, and a coach is better served by three good questions
+// and one missing than by falling back to a blank form.
+export function parseQualificationCriteria(raw: unknown): QualCriterion[] {
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  const out: QualCriterion[] = []
+  for (const entry of raw) {
+    const c = entry as { id?: unknown; question?: unknown; options?: unknown }
+    if (!isUsableCriterionId(c.id) || seen.has(c.id)) continue
+    if (typeof c.question !== 'string' || c.question.trim() === '') continue
+    if (!Array.isArray(c.options)) continue
+    const options: QualOption[] = []
+    for (const o of c.options) {
+      const opt = o as { label?: unknown; qualifies?: unknown }
+      if (typeof opt.label !== 'string' || opt.label.trim() === '') continue
+      if (typeof opt.qualifies !== 'boolean') continue
+      options.push({ label: opt.label.trim(), qualifies: opt.qualifies })
+    }
+    // A one-option question is not a question, and a question no answer can pass
+    // is a dead end that disqualifies every visitor who reaches it.
+    if (options.length < 2) continue
+    if (!options.some((o) => o.qualifies)) continue
+    seen.add(c.id)
+    out.push({ id: c.id, question: c.question.trim(), options })
+  }
+  // Three is the most the flow asks before booking; more is just tokens.
+  return out.slice(0, 3)
 }
 
 // Fetch the readable text of a page. Injectable; the default (defaultScrape)
@@ -54,13 +107,26 @@ export function buildDraftSystemPrompt(language: ConciergeLanguage): string {
     '  "offer_description": string,  // one short paragraph: what they offer, for whom, the outcome',
     '  "qa": string,                 // a few likely Q&A pairs, one per line ("Question? — Answer."), or "" if unknown',
     '  "tone": "friendly" | "professional" | "casual",  // the voice the site uses',
-    '  "calendar_url": string        // a Calendly/Cal.com/scheduling link IF one appears on the page, else ""',
+    '  "calendar_url": string,       // a Calendly/Cal.com/scheduling link IF one appears on the page, else ""',
+    '  "qualification_criteria": [   // 2-3 questions the assistant asks BEFORE offering a call',
+    '    {',
+    '      "id": string,             // "budget" | "industry" | "age" | "timeline_role" | "custom_1", "custom_2", …',
+    `      "question": string,       // asked in ${languageName(language)}, one short sentence`,
+    '      "options": [ { "label": string, "qualifies": boolean } ]   // 2-4 options, at least one with qualifies: true',
+    '    }',
+    '  ]',
     '}',
     '',
     'RULES:',
     '- Use ONLY what the page actually says. Do NOT invent prices, guarantees, or facts.',
     '- If the page has too little to go on, return short best-effort values; never fabricate.',
     '- Output must be valid JSON and nothing else.',
+    '',
+    'QUALIFYING QUESTIONS:',
+    '- Base them on who this coach actually works with, as stated on the page.',
+    '- Each must be answerable by tapping one option, never free text.',
+    '- Mark qualifies: false for the answers that make someone a poor fit.',
+    '- Keep them short. Three is the maximum; two good ones beat three vague ones.',
   ].join('\n')
 }
 
@@ -87,6 +153,10 @@ export function parseDraft(raw: string): ConciergeDraft {
     const v = obj.calendar_url.trim()
     if (/^https?:\/\//i.test(v)) draft.calendar_url = v
   }
+  // Absent or unusable criteria leave the key off entirely, so the wizard shows
+  // its normal empty state rather than an empty array it has to interpret.
+  const criteria = parseQualificationCriteria(obj.qualification_criteria)
+  if (criteria.length > 0) draft.qualification_criteria = criteria
   return draft
 }
 
@@ -374,7 +444,26 @@ export function createGeminiDraftComplete(
       body: JSON.stringify({
         system_instruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: pageText }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+        // thinkingBudget MUST stay 0. Gemini 2.5 reasons by default and charges
+        // those tokens against maxOutputTokens — on a real coach website the
+        // thinking ate 980 of 1024, left 30 for the answer, and returned JSON
+        // truncated mid-string (finishReason MAX_TOKENS). Every draft failed
+        // with draft_unparseable. Turning a website into a few fields needs no
+        // chain of thought.
+        //
+        // 2048 was headroom for FOUR fields. qualification_criteria is a fifth,
+        // and it is itself an array of 2-3 questions with 2-4 labelled options
+        // each, written in German — plausibly 400-800 more output tokens, which
+        // eats most of that headroom. Raised rather than measured, deliberately:
+        // truncation here breaks the PAYING customer's onboarding wizard, and
+        // output tokens cost far less than a repeat of that incident. Worth
+        // measuring against a real content-heavy page before trimming back.
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 4096,
+          responseMimeType: 'application/json',
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     }
     // Retry transient Gemini failures (rate-limit / overload / network blip).
