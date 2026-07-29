@@ -35,6 +35,20 @@
   text-decoration: underline;
 }
 
+/* Demo disclosure: this concierge was built BY 2Fronts as a sales demo, not by
+   the business it speaks for. Quiet by design — it has to be readable and
+   honest, not a warning banner that wrecks the impression the demo exists to
+   make. Muted ink per DESIGN.md, same size as the powered-by credit. */
+.concierge-demo-note {
+  align-self: center;
+  margin: 0;
+  max-width: 34rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
 .concierge-chat {
   display: flex;
   flex-direction: column;

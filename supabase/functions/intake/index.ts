@@ -9,6 +9,9 @@ interface IntakeDeps {
   // Sheets call. Defaults to the production resolve->token->run wiring.
   fileLead?: (admin: SupabaseClient, lead: LeadRow, deps: LeadFilingDeps) => Promise<{ outcome: string; reason?: string }>
   leadFilingDeps?: LeadFilingDeps
+  // Injectable so the misconfigured (no secret) branch is testable without
+  // mutating the process environment, which would make test order significant.
+  getIntakeSecret?: () => string | undefined
 }
 
 const defaultDeps: IntakeDeps = {
@@ -41,10 +44,21 @@ export async function handleIntake(req: Request, deps: IntakeDeps = defaultDeps)
     return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
-  // Optional shared-secret gate. When INTAKE_SECRET is configured, require a
-  // matching x-intake-secret header; otherwise the endpoint is open (TODO below).
-  const expectedSecret = Deno.env.get('INTAKE_SECRET')
-  if (expectedSecret && req.headers.get('x-intake-secret') !== expectedSecret) {
+  // MANDATORY shared-secret gate (CSO 2026-07-27, finding #2).
+  //
+  // This function runs with verify_jwt = false and writes through
+  // createAdminClient(), which bypasses RLS — so this header is the ONLY thing
+  // standing between an anonymous POST and forged leads landing in a customer's
+  // connected Google Sheet. It used to read `if (expectedSecret && ...)`, which
+  // meant an unset INTAKE_SECRET skipped the check entirely and silently opened
+  // the endpoint. A gate in front of an RLS-bypassing client must fail CLOSED:
+  // a missing secret is a deployment fault, not permission to accept anything.
+  const expectedSecret = (deps.getIntakeSecret ?? (() => Deno.env.get('INTAKE_SECRET')))()
+  if (!expectedSecret) {
+    console.error('intake: INTAKE_SECRET is not configured — refusing unauthenticated writes')
+    return new Response(JSON.stringify({ error: 'misconfigured' }), { status: 500, headers: jsonHeaders })
+  }
+  if (req.headers.get('x-intake-secret') !== expectedSecret) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: jsonHeaders })
   }
 

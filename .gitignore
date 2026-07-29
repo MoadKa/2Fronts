@@ -15,3 +15,41 @@ tmp_page.html
 
 # Legal source PDFs (contain personal address/phone — keep local)
 *.pdf
+
+# ---------------------------------------------------------------------------
+# This repo is PUBLIC (github.com/MoadKa/2Fronts). Everything below is personal
+# data, unpublished commercial material, or internal sales collateral, and a
+# single `git add -A` would publish it permanently and irreversibly. The rules
+# are named narrowly so none of them shadows a tracked file — verified with
+# `git ls-files -i -c --exclude-standard`.
+# ---------------------------------------------------------------------------
+
+# Personal data of real third parties (lead lists, customer record exports).
+# The originals live in Desktop\2Fronts-Marketing\data-exports; these rules are
+# the second layer, so a stray copy landing back here is never staged.
+*.csv
+backup-*.json
+
+# Unpublished commercial material: business plans, pitch decks, sales scripts.
+*.docx
+*.pptx
+/pitch-deck/
+/BUSINESSPLAN_APPLICATIONS_RESEARCH.md
+/business-plan-qatar-draft.md
+
+# Internal demo choreography (contains a demo account credential).
+/DEMO_RUNBOOK.md
+
+# Personal photos.
+founder.jpg
+
+# Sales-demo pages built around named real prospects. These sit in public/, so
+# committing one publishes it at 2fronts.de/<name>.html — deliberately ignored
+# rather than left one `git add -A` from being served.
+/public/demo-*.html
+/public/__mockup2.html
+
+# Local agent/editor scratch.
+.claude/
+/out/
+/scripts/repro*.mjs

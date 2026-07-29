@@ -320,6 +320,48 @@ describe('ConciergePublicPage', () => {
     expect(screen.queryByPlaceholderText('Dein Name')).not.toBeInTheDocument()
   })
 
+  it('keeps /c/:slug out of search results', async () => {
+    // A concierge is a per-visitor chat surface, not content — and a demo one is
+    // a page on 2Fronts' domain speaking as a named real business. Both demos
+    // that existed when this was added were indexable.
+    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: 'Acme', is_demo: false })
+    renderAt('acme')
+
+    await waitFor(() =>
+      expect(document.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe(
+        'noindex, follow',
+      ),
+    )
+  })
+
+  it('renders the demo disclosure when the concierge is a demo', async () => {
+    // The prospect has to be able to see, on the page itself, that this was built
+    // by 2Fronts rather than commissioned by the business it speaks for.
+    // Fixture name is deliberately invented. This repository is public, and a
+    // test asserting "<real person> is a sales demo" publishes a claim about
+    // someone who never agreed to be one.
+    fetchConciergeIntro.mockResolvedValue({
+      language: 'de',
+      business_name: 'Beispiel Coaching',
+      is_demo: true,
+    })
+    renderAt('beispiel-coaching')
+
+    await waitFor(() =>
+      expect(screen.getByText(/Unverbindliche Demo von 2fronts\.de/)).toBeInTheDocument(),
+    )
+  })
+
+  it('does NOT render the demo disclosure on a real customer concierge', async () => {
+    // The inverse matters as much: stamping a paying coach's own setter with a
+    // "this is a demo" notice would be worse than the exposure it prevents.
+    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: 'Acme', is_demo: false })
+    renderAt('acme')
+
+    await waitFor(() => expect(screen.getByPlaceholderText('Dein Name')).toBeInTheDocument())
+    expect(screen.queryByText(/Unverbindliche Demo/)).not.toBeInTheDocument()
+  })
+
   it('keeps the chat usable when the language probe fails', async () => {
     // A transient probe failure must not block the visitor: the page falls back
     // to the browser language and the chat still works end to end.

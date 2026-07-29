@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from 'jsr:@std/assert@1'
-import { handleConciergeChat } from './index.ts'
+import { handleConciergeChat, isExpiredDemo } from './index.ts'
 import type { ChatCompleteFn, ClassifyAnswerFn, ClassifyResult } from '../_shared/conciergeChat.ts'
 
 // A fake admin client modelling exactly the calls handleConciergeChat makes:
@@ -1019,6 +1019,108 @@ Deno.test('a probe for an unknown slug still 404s', async () => {
   assertEquals((await res.json()).error, 'not_found')
 })
 
+// --- Demo concierges: disclosure + expiry (migration 20260727120000) ---------
+// A demo concierge is a public page speaking as a named real business, so the
+// page must be able to SAY it is a demo, and the row must be able to stop
+// serving on its own.
+
+Deno.test('a probe reports is_demo so the page can render its disclosure', async () => {
+  const c = makeCaptured({
+    conciergeRow: { ...makeCaptured().conciergeRow, is_demo: true } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).is_demo, true)
+})
+
+Deno.test('a probe on a real customer concierge reports is_demo false, not undefined', async () => {
+  // The page renders the disclosure on a boolean. An older row whose column is
+  // null must read as "not a demo", never as a missing field the page has to
+  // guess about.
+  const c = makeCaptured({
+    conciergeRow: { ...makeCaptured().conciergeRow, is_demo: null } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals((await res.json()).is_demo, false)
+})
+
+Deno.test('an expired demo 404s on the probe, exactly like an unknown link', async () => {
+  const c = makeCaptured({
+    conciergeRow: {
+      ...makeCaptured().conciergeRow,
+      is_demo: true,
+      demo_expires_at: '2026-07-01T00:00:00Z',
+    } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+    now: () => new Date('2026-07-27T00:00:00Z'),
+  })
+  assertEquals(res.status, 404)
+  assertEquals((await res.json()).error, 'not_found')
+})
+
+Deno.test('an expired demo also 404s mid-chat, so an open tab cannot keep talking to it', async () => {
+  const c = makeCaptured({
+    conciergeRow: {
+      ...makeCaptured().conciergeRow,
+      is_demo: true,
+      demo_expires_at: '2026-07-01T00:00:00Z',
+    } as never,
+  })
+  let modelCalled = false
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 's-1', message: 'hallo' }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: () => {
+        modelCalled = true
+        return Promise.resolve('x')
+      },
+      now: () => new Date('2026-07-27T00:00:00Z'),
+    },
+  )
+  assertEquals(res.status, 404)
+  // Expiry has to bite BEFORE the model call, or an expired demo still costs money.
+  assertEquals(modelCalled, false)
+  await res.body?.cancel()
+})
+
+Deno.test('a demo whose expiry has not passed still serves', async () => {
+  const c = makeCaptured({
+    conciergeRow: {
+      ...makeCaptured().conciergeRow,
+      is_demo: true,
+      demo_expires_at: '2026-08-30T00:00:00Z',
+    } as never,
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+    now: () => new Date('2026-07-27T00:00:00Z'),
+  })
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).is_demo, true)
+})
+
+Deno.test('isExpiredDemo treats null, empty and unparseable expiries as "never expires"', () => {
+  // A garbled timestamp must not silently take a live demo offline: failing
+  // open is recoverable, failing closed looks like the product is broken.
+  const now = new Date('2026-07-27T00:00:00Z')
+  assertEquals(isExpiredDemo({}, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: null }, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: '' }, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: 'not-a-date' }, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: '2026-07-26T23:59:59Z' }, now), true)
+})
+
 Deno.test('a non-probe request still requires session_id and a message', async () => {
   const c = makeCaptured()
   const res = await handleConciergeChat(postReq({ slug: 'acme' }), {
@@ -1155,5 +1257,162 @@ Deno.test('probe must be literally true: a truthy string does not unlock the no-
     complete: cannedComplete('x'),
   })
   assertEquals(res.status, 400)
+  await res.body?.cancel()
+})
+
+// --- Per-concierge daily spend cap (CSO 2026-07-27, finding #3) --------------
+// The per-IP bucket keys on X-Forwarded-For, which the client sends, so an
+// attacker rotating that header gets a fresh bucket every request and the
+// per-IP cap never binds. This second bucket keys on the concierge id resolved
+// server-side from the slug — forgeable IP, unforgeable concierge.
+
+Deno.test('spend cap: a capped concierge gets 429 and the model is never called', async () => {
+  const c = makeCaptured()
+  let modelCalled = false
+  const complete: ChatCompleteFn = () => {
+    modelCalled = true
+    return Promise.resolve('x')
+  }
+  const res = await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete,
+    checkSpendCap: () => Promise.resolve(false),
+  })
+  assertEquals(res.status, 429)
+  assertEquals((await res.json()).error, 'rate_limited')
+  // The whole point of the cap: no Gemini call happens once it is reached.
+  assertEquals(modelCalled, false)
+})
+
+Deno.test('spend cap: the bucket is keyed on the concierge id, not the caller IP', async () => {
+  const c = makeCaptured()
+  const keys: string[] = []
+  await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('reply'),
+    checkSpendCap: (key: string) => {
+      keys.push(key)
+      return Promise.resolve(true)
+    },
+  })
+  assertEquals(keys, ['conc:con-1'])
+})
+
+Deno.test('spend cap: a forged X-Forwarded-For does not buy a fresh budget', async () => {
+  // The exploit this cap exists for: rotating the header defeats the per-IP
+  // bucket, but every request still lands on the SAME concierge key.
+  const c = makeCaptured()
+  const keys: string[] = []
+  const spendCap = (key: string) => {
+    keys.push(key)
+    return Promise.resolve(true)
+  }
+  for (const ip of ['1.2.3.4', '5.6.7.8', '9.10.11.12']) {
+    const req = new Request('http://localhost/concierge-chat', {
+      method: 'POST',
+      headers: { 'x-forwarded-for': ip },
+      body: JSON.stringify({ slug: 'acme', session_id: 's1', message: 'hi' }),
+    })
+    const res = await handleConciergeChat(req, {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('reply'),
+      checkSpendCap: spendCap,
+    })
+    await res.body?.cancel()
+  }
+  // Three different claimed IPs, one budget.
+  assertEquals(keys, ['conc:con-1', 'conc:con-1', 'conc:con-1'])
+})
+
+Deno.test('spend cap: the contact form does NOT charge the cap (no model call that turn)', async () => {
+  // Charging deterministic turns would let a visitor's free steps starve the
+  // conversation they came for. Only model-backed turns draw on the budget.
+  const c = makeCaptured()
+  let capCharged = false
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 's1', contact: { name: 'Max Muster', email: 'max@example.com' } }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('x'),
+      checkSpendCap: () => {
+        capCharged = true
+        return Promise.resolve(false)
+      },
+    },
+  )
+  assertEquals(res.status, 200)
+  assertEquals(capCharged, false)
+  await res.body?.cancel()
+})
+
+Deno.test('spend cap: a control-button turn does NOT charge the cap (no model call that turn)', async () => {
+  const c = makeCaptured(contacted('intro_gate')) // no criteria configured
+  let capCharged = false
+  const res = await handleConciergeChat(
+    postReq({
+      slug: 'acme',
+      session_id: 'sess-1',
+      message: 'Nein',
+      answer: { criterion_id: '__intro_gate__', label: 'Nein', qualifies: false },
+    }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: cannedComplete('x'),
+      checkSpendCap: () => {
+        capCharged = true
+        return Promise.resolve(false)
+      },
+    },
+  )
+  assertEquals(res.status, 200)
+  assertEquals(capCharged, false)
+  await res.body?.cancel()
+})
+
+// --- Limiter failure posture (review finding) --------------------------------
+// The two buckets fail in OPPOSITE directions on a database error, and that
+// asymmetry is the whole design: the per-IP limiter fails OPEN so a transient
+// Postgres blip never blocks a real visitor's booking, while the per-concierge
+// spend cap fails CLOSED so the same blip cannot license unbounded model spend.
+// Every other test injects checkRateLimit/checkSpendCap and never reaches the
+// real limiter, so without these two the branch that decides it is dead code.
+
+// The real limiter path goes through admin.rpc. The base fake has no .rpc at
+// all, which hitBucket reads as "unit-test double -> allow"; supplying one is
+// what forces the production error branch to run.
+function fakeAdminClientWithRpc(c: Captured, rpcResult: { data?: unknown; error?: unknown }) {
+  const base = (fakeAdminClient(c) as () => Record<string, unknown>)()
+  return () => ({ ...base, rpc: () => Promise.resolve(rpcResult) })
+}
+
+Deno.test('limiter DB error: the per-concierge spend cap fails CLOSED (429, no model call)', async () => {
+  const c = makeCaptured()
+  let modelCalled = false
+  const complete: ChatCompleteFn = () => {
+    modelCalled = true
+    return Promise.resolve('x')
+  }
+  const res = await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClientWithRpc(c, { data: null, error: { message: 'db down' } }) as never,
+    complete,
+    // Isolate the spend cap: the IP gate is not what this test is about.
+    checkRateLimit: () => Promise.resolve(true),
+    // checkSpendCap deliberately NOT injected -> the real dbSpendCap runs.
+  })
+  assertEquals(res.status, 429)
+  assertEquals((await res.json()).error, 'rate_limited')
+  assertEquals(modelCalled, false)
+})
+
+Deno.test('limiter DB error: the per-IP limiter fails OPEN so a booking is never blocked', async () => {
+  const c = makeCaptured()
+  const res = await handleConciergeChat(postReq({ slug: 'acme', session_id: 's1', message: 'hi' }), {
+    createAdminClient: fakeAdminClientWithRpc(c, { data: null, error: { message: 'db down' } }) as never,
+    complete: cannedComplete('reply'),
+    // checkRateLimit deliberately NOT injected -> the real dbRateLimit runs.
+    // Isolate it: the spend cap would otherwise fail closed and mask the result.
+    checkSpendCap: () => Promise.resolve(true),
+  })
+  assertEquals(res.status, 200)
   await res.body?.cancel()
 })

@@ -40,8 +40,18 @@ function fakeAdminClient(captured: CapturedInsert, opts: { insertError?: unknown
   })
 }
 
+// The shared secret is now MANDATORY (CSO finding #2): the endpoint fails
+// closed when it is unset. Tests exercise the real env-backed path rather than
+// stubbing it away, so every request below carries the matching header.
+const TEST_SECRET = 'test-intake-secret'
+Deno.env.set('INTAKE_SECRET', TEST_SECRET)
+
 function postReq(body: string) {
-  return new Request('http://localhost/intake', { method: 'POST', body })
+  return new Request('http://localhost/intake', {
+    method: 'POST',
+    body,
+    headers: { 'x-intake-secret': TEST_SECRET },
+  })
 }
 
 Deno.test('inserts into leads with status received and returns 200 for a valid body', async () => {
@@ -214,4 +224,73 @@ Deno.test('returns 500 when the admin insert returns an error', async () => {
   assertEquals(res.status, 500)
   assertEquals(captured.table, 'leads')
   await res.body?.cancel()
+})
+
+// --- Mandatory shared-secret gate (CSO 2026-07-27, finding #2) ---------------
+// intake runs verify_jwt=false and writes via createAdminClient(), which bypasses
+// RLS. The header is the only gate, so it must fail CLOSED.
+
+Deno.test('an UNSET INTAKE_SECRET returns 500 and never reaches the database', async () => {
+  // The regression this locks: the old `if (expectedSecret && ...)` short-circuit
+  // treated a missing secret as "no auth required" and silently opened an
+  // RLS-bypassing write endpoint to anonymous POSTs.
+  let adminUsed = false
+  const res = await handleIntake(
+    postReq(JSON.stringify({ customer_id: 'cust-1', automation_id: 'auto-1', source: 'webform', payload: {} })),
+    {
+      createAdminClient: (() => {
+        adminUsed = true
+        throw new Error('database must not be touched when the secret is unset')
+      }) as never,
+      getIntakeSecret: () => undefined,
+    },
+  )
+  assertEquals(res.status, 500)
+  assertEquals((await res.json()).error, 'misconfigured')
+  assertEquals(adminUsed, false)
+})
+
+Deno.test('an EMPTY INTAKE_SECRET is treated as unset, not as a matchable value', async () => {
+  // Guards the empty-string footgun: '' is falsy, so a blank secret must take the
+  // misconfigured branch rather than becoming a secret an attacker can match by
+  // sending an empty header.
+  const res = await handleIntake(
+    postReq(JSON.stringify({ customer_id: 'cust-1', automation_id: 'auto-1', source: 'webform', payload: {} })),
+    {
+      createAdminClient: (() => {
+        throw new Error('database must not be touched')
+      }) as never,
+      getIntakeSecret: () => '',
+    },
+  )
+  assertEquals(res.status, 500)
+  assertEquals((await res.json()).error, 'misconfigured')
+})
+
+Deno.test('a wrong x-intake-secret is rejected with 401 before any database work', async () => {
+  const req = new Request('http://localhost/intake', {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: 'cust-1', automation_id: 'auto-1', source: 'webform', payload: {} }),
+    headers: { 'x-intake-secret': 'wrong' },
+  })
+  const res = await handleIntake(req, {
+    createAdminClient: (() => {
+      throw new Error('database must not be touched on a bad secret')
+    }) as never,
+  })
+  assertEquals(res.status, 401)
+  assertEquals((await res.json()).error, 'Unauthorized')
+})
+
+Deno.test('a MISSING x-intake-secret header is rejected with 401', async () => {
+  const req = new Request('http://localhost/intake', {
+    method: 'POST',
+    body: JSON.stringify({ customer_id: 'cust-1', automation_id: 'auto-1', source: 'webform', payload: {} }),
+  })
+  const res = await handleIntake(req, {
+    createAdminClient: (() => {
+      throw new Error('database must not be touched without a secret')
+    }) as never,
+  })
+  assertEquals(res.status, 401)
 })
