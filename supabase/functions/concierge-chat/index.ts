@@ -80,6 +80,40 @@ export function isExpiredDemo(
   return parsed <= now.getTime()
 }
 
+// Whether this concierge is currently PAID FOR (migration 20260729100000).
+//
+// is_active alone was never a paywall. It only records what the Stripe webhook
+// last said, so a webhook that never arrived -- dropped, retried past its
+// window, or simply never sent because the row was created without a purchase
+// at all -- left the bot serving on the operator's model spend forever. The
+// three insert paths that produced such a row are closed at the database now,
+// but that only stops NEW ones; this is the check that decides whether a row
+// gets served, whatever put it there.
+//
+// A demo has no subscription and is bounded by isExpiredDemo instead, so it is
+// entitled by construction while it is still in date.
+//
+// NULL entitled_until on a non-demo row = NOT entitled. That is the whole point:
+// the value lapses on its own, so a missed cancellation stops being permanent
+// free service. Existing rows are backfilled with a grace window by the
+// migration so nobody is cut off at deploy time.
+export function isEntitledToServe(
+  row: { is_demo?: boolean | null; demo_expires_at?: string | null; entitled_until?: string | null },
+  now: Date,
+): boolean {
+  if (row.is_demo === true) return !isExpiredDemo(row, now)
+
+  const until = row.entitled_until
+  if (typeof until !== 'string' || until === '') return false
+  const parsed = Date.parse(until)
+  // Unparseable cuts the OTHER way from isExpiredDemo. There, a bad value must
+  // not take a demo offline; here, a bad value must not hand out unpaid service
+  // -- and unlike a demo, a real customer being wrongly refused is visible and
+  // gets reported, where a freeloader never will be.
+  if (Number.isNaN(parsed)) return false
+  return parsed > now.getTime()
+}
+
 const defaultDeps: ConciergeChatDeps = {
   createAdminClient,
 }
@@ -506,7 +540,7 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       // EVERY concierge page down, paying customers included. The deploy
       // workflow already runs `supabase db push` before `functions deploy`;
       // don't deploy functions by hand without pushing migrations first.
-      .select('business_name, language, is_demo, demo_expires_at')
+      .select('business_name, language, is_demo, demo_expires_at, entitled_until')
       .eq('slug', slug)
       .eq('is_active', true)
       .maybeSingle()
@@ -518,10 +552,12 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       language: string
       is_demo?: boolean | null
       demo_expires_at?: string | null
+      entitled_until?: string | null
     }
-    // An expired demo is indistinguishable from an unknown link, on purpose: the
-    // visitor gets the same calm "not available" screen either way.
-    if (isExpiredDemo(intro, nowFn())) {
+    // An expired demo, an unpaid concierge and an unknown link are all the same
+    // 404 on purpose: the visitor gets the same calm "not available" screen, and
+    // the response never reveals which of the three it was.
+    if (isExpiredDemo(intro, nowFn()) || !isEntitledToServe(intro, nowFn())) {
       return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
     }
     // The column has no CHECK constraint, so clamp rather than trust: an
@@ -541,16 +577,23 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   //    crash — and we never even build a prompt for a concierge that isn't live.
   const { data: conciergeData, error: conciergeErr } = await admin
     .from('concierges')
-    .select('id, business_name, offer_description, qa, tone, language, calendar_url, qualification_criteria, demo_expires_at')
+    .select('id, business_name, offer_description, qa, tone, language, calendar_url, qualification_criteria, is_demo, demo_expires_at, entitled_until')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle()
   if (conciergeErr || !conciergeData) {
     return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
   }
-  // Same expiry gate as the probe. Both paths need it: a visitor who already has
-  // the chat open when a demo lapses must not keep talking to it.
-  if (isExpiredDemo(conciergeData as { demo_expires_at?: string | null }, nowFn())) {
+  // Same two gates as the probe, and both paths need them: a visitor who already
+  // has the chat open when a demo lapses -- or when a subscription ends -- must
+  // not keep talking to it. This runs BEFORE the model call, so a lapsed
+  // concierge costs nothing rather than costing per message.
+  const entitlementRow = conciergeData as {
+    is_demo?: boolean | null
+    demo_expires_at?: string | null
+    entitled_until?: string | null
+  }
+  if (isExpiredDemo(entitlementRow, nowFn()) || !isEntitledToServe(entitlementRow, nowFn())) {
     return new Response(JSON.stringify({ error: 'not_found' }), { status: 404, headers: jsonHeaders })
   }
   const concierge = conciergeData as ConciergeRow

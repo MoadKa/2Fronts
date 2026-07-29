@@ -34,9 +34,17 @@ comment on column concierges.demo_expires_at is
 -- convenience.
 --
 -- Flag them by hand instead, once, from the SQL editor (the slugs are in the
--- local DEMO_RUNBOOK, which is untracked):
+-- local DEMO_RUNBOOK, which is untracked).
 --
+-- NOTE: a bare UPDATE here now RAISES. 20260727130000 locked these columns, and
+-- the SQL editor connects as `postgres`, which is not a superuser on Supabase
+-- and carries no JWT claims — so auth.role() is NULL and is_admin() is false.
+-- Impersonate the service role for the one transaction:
+--
+--   begin;
+--   set local request.jwt.claims = '{"role":"service_role"}';
 --   update concierges set is_demo = true where slug in ('…', '…');
+--   commit;
 --
 -- Leave demo_expires_at null on anything mid-outreach: expiring a demo
 -- retroactively breaks a link that may already be sitting in someone's inbox.

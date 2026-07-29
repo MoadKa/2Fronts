@@ -40,17 +40,17 @@ async function loadOwnedProvision(
   admin: SupabaseClient,
   provisionId: string,
   uid: string,
-): Promise<{ config: Record<string, unknown> } | { error: Response }> {
+): Promise<{ config: Record<string, unknown>; paid: boolean } | { error: Response }> {
   const { data, error } = await admin
     .from('automation_provisions')
-    .select('config, automation_requests(customer_id)')
+    .select('config, automation_requests(customer_id, status)')
     .eq('id', provisionId)
     .maybeSingle()
   if (error || !data) {
     return { error: new Response(JSON.stringify({ error: 'provision_not_found' }), { status: 404, headers: jsonHeaders }) }
   }
   const rel = (data as { automation_requests?: unknown }).automation_requests
-  const reqRow = (Array.isArray(rel) ? rel[0] : rel) as { customer_id?: string } | undefined
+  const reqRow = (Array.isArray(rel) ? rel[0] : rel) as { customer_id?: string; status?: string } | undefined
   const customerId = reqRow?.customer_id
   if (!customerId) {
     return { error: new Response(JSON.stringify({ error: 'provision_not_found' }), { status: 404, headers: jsonHeaders }) }
@@ -59,8 +59,21 @@ async function loadOwnedProvision(
     return { error: new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: jsonHeaders }) }
   }
   const config = ((data as { config?: Record<string, unknown> }).config ?? {}) as Record<string, unknown>
-  return { config }
+  // checkout.session.completed flips the request to 'paid' (including for a
+  // trial, where the session still completes at 0 €). This is the purchase
+  // signal that decides whether the concierge is allowed to go live.
+  return { config, paid: reqRow?.status === 'paid' }
 }
+
+// Entitlement granted at setup, before Stripe has told us anything about periods.
+//
+// The renewal webhook cannot cover the first period: customer.subscription.updated
+// fires when the subscription is created, which is BEFORE the coach has finished
+// the wizard, so config.concierge_id does not exist yet and syncEntitlement has
+// nothing to write to. Without a bootstrap here the concierge would sit dark
+// until the first renewal, a month later. The next real subscription event
+// overwrites this with Stripe's actual current_period_end.
+const BOOTSTRAP_ENTITLEMENT_MS = 35 * 24 * 60 * 60 * 1000
 
 export async function handleConciergeSetup(req: Request, deps: ConciergeSetupDeps = defaultDeps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -101,7 +114,26 @@ export async function handleConciergeSetup(req: Request, deps: ConciergeSetupDep
   if (updErr) {
     return new Response(JSON.stringify({ error: 'persist_failed' }), { status: 500, headers: jsonHeaders })
   }
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers: jsonHeaders })
+
+  // Take the concierge live. Migration 20260729100000 makes every client-inserted
+  // concierge start is_active = false with no entitlement, so THIS is the only
+  // path by which a coach's setter begins serving — and it happens only against a
+  // provision the caller owns AND that was actually paid for.
+  //
+  // An unpaid provision still gets linked (harmless, and it keeps a
+  // mid-provisioning race from stranding the wizard) but stays dark. If payment
+  // lands later the subscription webhook entitles it.
+  if (loaded.paid) {
+    const entitledUntil = new Date(Date.now() + BOOTSTRAP_ENTITLEMENT_MS).toISOString()
+    const { error: actErr } = await admin
+      .from('concierges')
+      .update({ is_active: true, entitled_until: entitledUntil })
+      .eq('id', conciergeId)
+    if (actErr) {
+      return new Response(JSON.stringify({ error: 'persist_failed' }), { status: 500, headers: jsonHeaders })
+    }
+  }
+  return new Response(JSON.stringify({ ok: true, activated: loaded.paid }), { status: 200, headers: jsonHeaders })
 }
 
 if (import.meta.main) {

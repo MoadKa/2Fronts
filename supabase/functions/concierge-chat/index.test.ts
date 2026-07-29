@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from 'jsr:@std/assert@1'
-import { handleConciergeChat, isExpiredDemo } from './index.ts'
+import { handleConciergeChat, isEntitledToServe, isExpiredDemo } from './index.ts'
 import type { ChatCompleteFn, ClassifyAnswerFn, ClassifyResult } from '../_shared/conciergeChat.ts'
 
 // A fake admin client modelling exactly the calls handleConciergeChat makes:
@@ -42,6 +42,11 @@ function makeCaptured(overrides: Partial<Captured> = {}): Captured {
       language: 'de',
       calendar_url: 'https://cal.com/acme',
       qualification_criteria: [],
+      // The default fixture is a PAYING customer in good standing. Since
+      // migration 20260729100000 a concierge serves only while entitled_until is
+      // in the future, so omitting it would 404 every test in this file -- which
+      // is the gate working, not a bug. Tests about the unpaid case override it.
+      entitled_until: '2099-01-01T00:00:00Z',
     },
     existingConversation: null,
     newConversationAnswers: [],
@@ -1145,6 +1150,7 @@ Deno.test('a probe returns the coach language verbatim (an EN concierge answers 
       language: 'en',
       calendar_url: 'https://cal.com/acme',
       qualification_criteria: [],
+      entitled_until: '2099-01-01T00:00:00Z',
     },
   })
   const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
@@ -1225,6 +1231,7 @@ Deno.test('a probe clamps an out-of-range language column to German', async () =
       language: 'fr',
       calendar_url: 'https://cal.com/acme',
       qualification_criteria: [],
+      entitled_until: '2099-01-01T00:00:00Z',
     },
   })
   const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
@@ -1415,4 +1422,135 @@ Deno.test('limiter DB error: the per-IP limiter fails OPEN so a booking is never
   })
   assertEquals(res.status, 200)
   await res.body?.cancel()
+})
+
+// ---- Entitlement (migration 20260729100000) --------------------------------
+// is_active was never a paywall: it only recorded what the last Stripe webhook
+// said, so a webhook that never arrived — or a row created without a purchase at
+// all — served forever on the operator's model spend. entitled_until expires by
+// itself, which is the whole point.
+
+Deno.test('isEntitledToServe: a paid row serves until its date, and not past it', () => {
+  const now = new Date('2026-07-29T12:00:00Z')
+  assertEquals(isEntitledToServe({ entitled_until: '2026-08-29T00:00:00Z' }, now), true)
+  assertEquals(isEntitledToServe({ entitled_until: '2026-07-29T11:59:59Z' }, now), false)
+})
+
+Deno.test('isEntitledToServe: no entitlement means NOT entitled (fails closed)', () => {
+  const now = new Date('2026-07-29T12:00:00Z')
+  // The three shapes a row reaches this check with when nobody ever paid: the
+  // column was never written, explicitly null, or blank.
+  assertEquals(isEntitledToServe({}, now), false)
+  assertEquals(isEntitledToServe({ entitled_until: null }, now), false)
+  assertEquals(isEntitledToServe({ entitled_until: '' }, now), false)
+})
+
+Deno.test('isEntitledToServe: an unparseable date refuses service (opposite of isExpiredDemo)', () => {
+  const now = new Date('2026-07-29T12:00:00Z')
+  // Deliberately the other way round from isExpiredDemo, which treats garbage as
+  // "no expiry". A demo wrongly taken offline is invisible; unpaid service is
+  // silent revenue loss. A real customer wrongly refused complains immediately.
+  assertEquals(isEntitledToServe({ entitled_until: 'not-a-date' }, now), false)
+  assertEquals(isExpiredDemo({ demo_expires_at: 'not-a-date' }, now), false)
+})
+
+Deno.test('isEntitledToServe: a demo is entitled by its own date, not by payment', () => {
+  const now = new Date('2026-07-29T12:00:00Z')
+  // A demo has no subscription, so entitled_until is null forever. It must still
+  // serve while in date, and must stop when its own TTL passes.
+  assertEquals(isEntitledToServe({ is_demo: true, entitled_until: null }, now), true)
+  assertEquals(
+    isEntitledToServe({ is_demo: true, demo_expires_at: '2026-08-30T00:00:00Z' }, now),
+    true,
+  )
+  assertEquals(
+    isEntitledToServe({ is_demo: true, demo_expires_at: '2026-07-01T00:00:00Z' }, now),
+    false,
+  )
+})
+
+Deno.test('an unpaid concierge is 404 on the chat path, and the model is never called', async () => {
+  // The freeloader case, end to end: a row that exists and is_active = true but
+  // was never paid for. Must look exactly like an unknown link, and must cost
+  // nothing — the gate runs before the model call.
+  let modelCalls = 0
+  const c = makeCaptured({
+    conciergeRow: {
+      id: 'con-1',
+      business_name: 'Acme',
+      offer_description: 'A program.',
+      qa: '',
+      tone: 'friendly',
+      language: 'de',
+      calendar_url: 'https://cal.com/acme',
+      qualification_criteria: [],
+      entitled_until: null,
+    },
+  })
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 's1', message: 'hallo' }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: () => {
+        modelCalls++
+        return Promise.resolve('should never run')
+      },
+    },
+  )
+  assertEquals(res.status, 404)
+  assertEquals((await res.json()).error, 'not_found')
+  assertEquals(modelCalls, 0)
+})
+
+Deno.test('an unpaid concierge is 404 on the probe too (the page never opens)', async () => {
+  const c = makeCaptured({
+    conciergeRow: {
+      id: 'con-1',
+      business_name: 'Acme',
+      offer_description: 'A program.',
+      qa: '',
+      tone: 'friendly',
+      language: 'de',
+      calendar_url: 'https://cal.com/acme',
+      qualification_criteria: [],
+      entitled_until: null,
+    },
+  })
+  const res = await handleConciergeChat(postReq({ slug: 'acme', probe: true }), {
+    createAdminClient: fakeAdminClient(c) as never,
+    complete: cannedComplete('x'),
+  })
+  assertEquals(res.status, 404)
+})
+
+Deno.test('entitlement that lapsed mid-conversation stops the next turn', async () => {
+  // The subscription ended while the visitor had the chat open. The already-open
+  // tab must not keep talking to it — this is why the gate is on the chat path
+  // and not only on the probe.
+  let modelCalls = 0
+  const c = makeCaptured({
+    conciergeRow: {
+      id: 'con-1',
+      business_name: 'Acme',
+      offer_description: 'A program.',
+      qa: '',
+      tone: 'friendly',
+      language: 'de',
+      calendar_url: 'https://cal.com/acme',
+      qualification_criteria: [],
+      entitled_until: '2020-01-01T00:00:00Z',
+    },
+  })
+  const res = await handleConciergeChat(
+    postReq({ slug: 'acme', session_id: 's1', message: 'noch da?' }),
+    {
+      createAdminClient: fakeAdminClient(c) as never,
+      complete: () => {
+        modelCalls++
+        return Promise.resolve('should never run')
+      },
+    },
+  )
+  assertEquals(res.status, 404)
+  assertEquals(modelCalls, 0)
 })

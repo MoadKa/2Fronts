@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.9.0] - 2026-07-29
+
+### Security
+- **A setter now only answers while it is actually paid for.** The switch that decided whether a setter was live only ever recorded what Stripe last told us. Nothing asked, at the moment a visitor wrote in, whether the coach behind it had paid — so a cancellation message that never arrived meant the setter kept answering indefinitely, on our model spend. Worse, the switch was never the real gate: anyone who signed up for a free account could create a setter of their own and it would answer, having never bought anything. Setters now carry a paid-up-until date. It is set when the setup completes against a genuine purchase, extended each time Stripe confirms a renewal, and cleared when a subscription ends. A setter whose date has passed answers exactly like an unknown link, and it stops before the model is called, so a lapsed setter costs nothing rather than costing per message. Existing setters were given a full billing cycle of grace so nobody in good standing was interrupted.
+- **A setter can no longer be created switched on.** The previous fix stopped a coach flipping the switch back by editing their setter, but they could still delete it and make a new one, or simply make a second one, and either would come up live. Creating a setter from the browser now always produces a dormant one; only the server, having checked the purchase, turns it on. Editing the parts that are genuinely the coach's — name, offer, questions — is untouched.
+
 ## [1.15.7.0] - 2026-07-27
 
 ### Security

@@ -169,6 +169,14 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
       // grace window. Idempotent, so a later deleted event is a safe no-op.
       await deactivateSubscription(adminClient, subscription.id)
     } else if (subscription.status === 'active' || subscription.status === 'trialing') {
+      // Paid standing: extend entitlement to this period's end. This fires on
+      // creation and on every renewal, so it is the ONLY place a concierge
+      // becomes servable after setup — and the reason a lapse needs no event.
+      await syncEntitlement(
+        adminClient,
+        subscription.id,
+        (subscription as { current_period_end?: number }).current_period_end,
+      )
       // Recovery: `unpaid` is NOT terminal — if the customer pays the past-due
       // invoice Stripe transitions unpaid -> active and fires this event. Without
       // a revive path the concierge would stay dark forever (nothing else ever
@@ -213,6 +221,55 @@ function idOf(ref: unknown): string | undefined {
   return undefined
 }
 
+// How long past Stripe's current_period_end a concierge keeps serving.
+//
+// concierge-chat refuses to serve once entitled_until has passed (migration
+// 20260729100000), so this value is the only thing standing between a delayed
+// renewal webhook and a PAYING customer's bot going dark mid-conversation.
+// Stripe extends current_period_end at renewal and keeps a dunning subscription
+// active with a fresh period, so the only gap this covers is webhook lag —
+// three days is generous for that, and a freeloader gaining three extra days is
+// a far cheaper mistake than a paying coach losing three.
+const ENTITLEMENT_GRACE_MS = 3 * 24 * 60 * 60 * 1000
+
+// Resolve the concierge behind a subscription. Both entitlement and activation
+// need it, and the only link is the provision's config.concierge_id (written by
+// concierge-setup) — there is no FK column.
+async function conciergeIdForSubscription(
+  adminClient: SupabaseClient,
+  subscriptionId: string,
+): Promise<{ provisionId: string; conciergeId?: string } | null> {
+  const { data: provision } = await adminClient
+    .from('automation_provisions')
+    .select('id, config')
+    .eq('stripe_subscription_id', subscriptionId)
+    .maybeSingle()
+  if (!provision) return null
+  const config = ((provision as { config?: Record<string, unknown> }).config ?? {}) as Record<string, unknown>
+  const conciergeId = typeof config.concierge_id === 'string' ? config.concierge_id : undefined
+  return { provisionId: (provision as { id: string }).id, conciergeId }
+}
+
+// Write how long this concierge is paid up until. Called on every subscription
+// event that carries a period, so a renewal silently extends service and a
+// lapse silently ends it — no separate "turn it off" event required. That is the
+// point: is_active only ever recorded what the last webhook said, so a webhook
+// that never arrived meant free service forever. A timestamp expires by itself.
+export async function syncEntitlement(
+  adminClient: SupabaseClient,
+  subscriptionId: string,
+  currentPeriodEnd: number | null | undefined,
+): Promise<void> {
+  if (typeof currentPeriodEnd !== 'number' || !Number.isFinite(currentPeriodEnd)) return
+  const found = await conciergeIdForSubscription(adminClient, subscriptionId)
+  if (!found?.conciergeId) return
+  const entitledUntil = new Date(currentPeriodEnd * 1000 + ENTITLEMENT_GRACE_MS).toISOString()
+  await adminClient
+    .from('concierges')
+    .update({ entitled_until: entitledUntil })
+    .eq('id', found.conciergeId)
+}
+
 // Deactivate the concierge behind a cancelled subscription and mark its
 // provision cancelled. Resolves the concierge via the provision's
 // config.concierge_id (set by concierge-setup). Safe to call repeatedly.
@@ -227,9 +284,13 @@ async function deactivateSubscription(adminClient: SupabaseClient, subscriptionI
   const config = ((provision as { config?: Record<string, unknown> }).config ?? {}) as Record<string, unknown>
   const conciergeId = typeof config.concierge_id === 'string' ? config.concierge_id : undefined
   if (conciergeId) {
+    // Clear entitlement alongside is_active. Without this a cancellation would
+    // leave the concierge paid-up until the end of the period it had already
+    // been granted, so it would keep answering — and the reactivate path below
+    // could not tell "we cancelled this" from "still entitled".
     await adminClient
       .from('concierges')
-      .update({ is_active: false })
+      .update({ is_active: false, entitled_until: null })
       .eq('id', conciergeId)
   }
 
