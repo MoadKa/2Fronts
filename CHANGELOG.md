@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.12.0] - 2026-07-30
+
+### Security
+- **Ein eigenes Konto für Demo-Setter, das nichts anderes anlegen kann.** Damit ein Setter überhaupt antwortet, muss er eingeschaltet sein — und genau das darf seit der letzten Version niemand mehr selbst, weil daran die Bezahlschranke hängt. Für die Demos, die vor einem Verkaufsgespräch entstehen, gibt es jetzt eine eigene Kontoart. Sie darf Setter anlegen, die sofort antworten, aber die Datenbank setzt dabei drei Dinge selbst und überschreibt, was das Konto sendet: der Setter ist immer als Demo markiert, er bekommt immer ein Ablaufdatum von höchstens 30 Tagen, und er kann sich niemals als bezahlt ausgeben. Ein solches Konto kann also gar keinen dauerhaften oder als zahlend getarnten Setter erzeugen, selbst wenn seine Zugangsdaten in falsche Hände geraten. Zusätzlich sind höchstens 50 gleichzeitig laufende Demos erlaubt. Bewusst nicht gelöst über die Admin-Rolle: an der hängen 19 Zugriffsregeln, das wäre für diesen Zweck viel zu viel.
+
+### Fixed
+- **Kontorollen lassen sich wieder von der Serverseite setzen.** Die Regel, die verhindert, dass jemand sich selbst zum Administrator macht, blockierte auch das Deployment und die Serverfunktionen — anders als die zwei später entstandenen Sperren derselben Bauart. Und sie tat es lautlos: die Änderung sah aus, als hätte sie funktioniert, während der alte Wert stehen blieb. Aufgefallen beim Einrichten des Demo-Kontos. Der Schutz gegen Selbstbeförderung ist unverändert.
+
 ## [1.15.10.0] - 2026-07-29
 
 ### Security
