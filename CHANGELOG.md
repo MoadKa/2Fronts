@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.15.11.0] - 2026-07-30
+
+### Fixed
+- **Der Setter schreibt wieder in ganzen Sätzen statt in Sternchen.** Seine Antworten kamen teilweise als Markdown zurück, also mit Sternchen um fette Wörter und Sternchen als Aufzählungszeichen. Die Chat-Blase gibt den Text aber unverändert aus und macht daraus keine Formatierung, also sah ein Interessent genau diese Zeichen im Chat stehen. Der Grund war schlicht, dass dem Setter nie gesagt wurde, in welcher Form er antworten soll, und Sprachmodelle greifen von sich aus zu Markdown. Er ist jetzt ausdrücklich auf Fließtext festgelegt. Das passt zu dem, was ohnehin schon in seinen Regeln stand: kurz, warm, ein Gedanke pro Nachricht. Eine Nachricht, die eine Aufzählung braucht, ist für einen Chat zu lang.
+
 ## [1.15.10.0] - 2026-07-29
 
 ### Security
