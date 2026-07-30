@@ -49,6 +49,30 @@ comment on column concierges.entitled_until is
   'instead of granting service forever. NULL = never entitled (demos serve via '
   'is_demo + demo_expires_at instead).';
 
+-- Grace for rows that already exist, and it MUST run here -- before the UPDATE
+-- lock below learns about entitled_until.
+--
+-- concierge-chat starts refusing to serve a non-demo concierge whose
+-- entitled_until has passed, and every existing row has NULL until the next
+-- customer.subscription.updated arrives, which for an annual-ish cadence could
+-- be weeks away. Failing closed on those would take live, paying customers
+-- offline at deploy time, which is far worse than a freeloader keeping service
+-- for another month. So existing ACTIVE, non-demo rows get one billing cycle
+-- plus a few days; the webhook overwrites it with Stripe's real
+-- current_period_end the first time it hears anything.
+--
+-- ORDER IS LOAD-BEARING. This UPDATE sat AFTER the lock in the first version and
+-- the deploy failed on it: `supabase db push` connects as postgres with no JWT
+-- claims, so auth.role() is not 'service_role' and is_admin() is false, and the
+-- very guard this migration extends raised on the very backfill this migration
+-- needs. Running it first means the lock is still the older one, which does not
+-- know the column, so it has no opinion about it.
+update concierges
+   set entitled_until = now() + interval '35 days'
+ where is_active = true
+   and is_demo = false
+   and entitled_until is null;
+
 -- Extend the existing UPDATE lock to cover entitled_until. Same exemptions, same
 -- raise-don't-revert posture: a session that thinks it extended entitlement must
 -- fail loudly rather than report UPDATE 1 while the column kept its old value.
@@ -84,23 +108,6 @@ create trigger concierges_force_insert_defaults
   before insert on concierges
   for each row
   execute function force_concierge_insert_defaults();
-
--- Grace for rows that already exist. concierge-chat starts refusing to serve a
--- non-demo concierge whose entitled_until has passed, and every existing row has
--- NULL until the next customer.subscription.updated arrives -- which for an
--- annual-ish cadence could be weeks away. Failing closed on those would take
--- live, paying customers offline at deploy time, which is a far worse outcome
--- than a freeloader keeping service for another month.
---
--- So: existing ACTIVE, non-demo rows get one billing cycle plus a few days.
--- The webhook overwrites this with the real current_period_end the first time
--- Stripe says anything about the subscription. New rows get NULL and must be
--- entitled by the server, per the INSERT trigger above.
-update concierges
-   set entitled_until = now() + interval '35 days'
- where is_active = true
-   and is_demo = false
-   and entitled_until is null;
 
 -- OPERATOR NOTE -- how to write these columns by hand.
 --
