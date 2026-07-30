@@ -306,3 +306,26 @@ Deno.test('createGeminiChatComplete disables thinking so the reply gets the whol
   const thinking = cfg.thinkingConfig as Record<string, unknown>
   assertEquals(thinking.thinkingBudget, 0)
 })
+
+// The chat bubble renders replies as plain text (ConciergePublicPage.tsx:271 is
+// `{m.content}`), and nothing in this prompt used to say anything about output
+// format. So the model reached for its default -- Markdown -- and a real demo
+// screenshot showed a prospect the literal characters:
+//
+//   * **BRAIN KICKS WEEKLY:** Ein 12-Wochen-Audio-Training...
+//
+// Rendering Markdown instead was the alternative, and it was rejected: it means
+// turning model output into HTML on a public, no-login page, which is real
+// attack surface for a cosmetic gain.
+//
+// This asserts we ASK for plain prose. It cannot assert the model complies --
+// that needs a live call, which these tests deliberately do not make. Its value
+// is as a guard: if someone trims this rule out of the prompt, the raw
+// asterisks come back and nobody would notice until a prospect saw them.
+Deno.test('buildConciergeSystemPrompt forbids Markdown, because the chat renders text verbatim', () => {
+  const prompt = buildConciergeSystemPrompt(concierge)
+  assertStringIncludes(prompt, 'Markdown')
+  // Named literally so the instruction cannot be satisfied by a vague
+  // "write nicely" that a model reads as permission to keep formatting.
+  assertStringIncludes(prompt, '**')
+})
