@@ -11,6 +11,10 @@ four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
 ### Fixed
 - **Kontorollen lassen sich wieder von der Serverseite setzen.** Die Regel, die verhindert, dass jemand sich selbst zum Administrator macht, blockierte auch das Deployment und die Serverfunktionen — anders als die zwei später entstandenen Sperren derselben Bauart. Und sie tat es lautlos: die Änderung sah aus, als hätte sie funktioniert, während der alte Wert stehen blieb. Aufgefallen beim Einrichten des Demo-Kontos. Der Schutz gegen Selbstbeförderung ist unverändert.
+## [1.15.11.0] - 2026-07-30
+
+### Fixed
+- **Der Setter schreibt wieder in ganzen Sätzen statt in Sternchen.** Seine Antworten kamen teilweise als Markdown zurück, also mit Sternchen um fette Wörter und Sternchen als Aufzählungszeichen. Die Chat-Blase gibt den Text aber unverändert aus und macht daraus keine Formatierung, also sah ein Interessent genau diese Zeichen im Chat stehen. Der Grund war schlicht, dass dem Setter nie gesagt wurde, in welcher Form er antworten soll, und Sprachmodelle greifen von sich aus zu Markdown. Er ist jetzt ausdrücklich auf Fließtext festgelegt. Das passt zu dem, was ohnehin schon in seinen Regeln stand: kurz, warm, ein Gedanke pro Nachricht. Eine Nachricht, die eine Aufzählung braucht, ist für einen Chat zu lang.
 
 ## [1.15.10.0] - 2026-07-29
 

@@ -138,6 +138,12 @@ export function buildConciergeSystemPrompt(
     '  visitor said, then move things forward with ONE next step: a guiding question,',
     '  or (when they are ready or it fits) the booking link above. Never end flat or',
     '  passive, and never just ask "what would you like to know?".',
+    '- Write PLAIN PROSE. The chat bubble shows your reply verbatim and renders no',
+    '  formatting, so Markdown does not become bold or a list — it reaches the',
+    '  visitor as literal characters. Never use **, *, _, `, #, or "-" and "1." as',
+    '  bullets. If you need to name several things, put them in a sentence or',
+    '  across short sentences. This is also why replies stay to one idea at a',
+    '  time: a chat message that needs a bulleted list is too long for a chat.',
     ...(pendingCriterion
       ? [
           '- IMPORTANT: ask the visitor this ONE qualifying question on this turn. After',
