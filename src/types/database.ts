@@ -11,7 +11,12 @@ export interface Wish {
   created_at: string
 }
 
-export type UserRole = 'customer' | 'admin'
+// Mirrors the profiles_role_check constraint. 'demo' arrived with
+// 20260730120000_demo_role.sql: it is a customer for every UI purpose (no admin
+// nav, no admin routes) and is distinguished only in the database, where the
+// concierge triggers coerce what it may insert. Listing it here keeps the type
+// honest about what can actually come back from the API.
+export type UserRole = 'customer' | 'admin' | 'demo'
 
 export interface Profile {
   id: string
