@@ -1,13 +1,16 @@
-/* Quiet gray footer, Apple-style: recedes, organizes, never competes. */
+/* The footer recedes by standing one tone above the floor and drawing a line,
+   and it aligns to the same 1240 column as the nav and the page above it, so
+   the chrome sits on one measure from top to bottom. */
 .app-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-lg);
-  padding: var(--space-xl);
-  background: var(--color-surface-alt);
-  border-top: 1px solid var(--color-hairline);
+  padding-block: var(--space-xl);
+  padding-inline: max(var(--space-xl), calc(50vw - 620px));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
 }
 
 .app-footer-brand {
@@ -16,7 +19,7 @@
   gap: var(--space-sm);
   font-family: var(--heading);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--dg-fs-body);
   color: var(--color-primary);
   text-decoration: none;
 }
@@ -27,6 +30,15 @@
   gap: var(--space-lg);
 }
 
+/* One band of chrome, one size. Links, the support line and the rights line
+   used to run at 0.85, 0.9 and 0.8rem — three steps for text that reads as a
+   single row, and two of them off the ramp entirely. */
+.app-footer-links a,
+.app-footer-support,
+.app-footer-rights {
+  font-size: var(--dg-fs-meta);
+}
+
 .app-footer-links a {
   position: relative;
   display: inline-flex;
@@ -35,7 +47,6 @@
   color: var(--color-text-muted);
   text-decoration: none;
   font-weight: 500;
-  font-size: 0.85rem;
   transition: color var(--dur-fast) var(--ease-out);
 }
 
@@ -46,7 +57,7 @@
   right: 0;
   bottom: 8px;
   height: 2px;
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--color-primary);
   transform: scaleX(0);
   transform-origin: left center;
@@ -65,7 +76,6 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-sm);
-  font-size: 0.9rem;
 }
 
 .app-footer-support-label {
@@ -79,12 +89,8 @@
   min-height: 44px;
   color: var(--color-primary);
   font-weight: 600;
-  text-decoration: none;
-  transition: text-decoration var(--dur-fast) var(--ease-out);
-}
-
-.app-footer-support a:hover {
   text-decoration: underline;
+  text-underline-offset: 0.22em;
 }
 
 .app-footer-meta {
@@ -95,15 +101,15 @@
 }
 
 .app-footer-rights {
-  font-size: 0.8rem;
-  color: var(--color-text);
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 768px) {
   .app-footer {
     flex-direction: column;
     align-items: flex-start;
-    padding: var(--space-lg) var(--space-md);
+    padding-block: var(--space-lg);
+    padding-inline: var(--space-md);
   }
 }
 

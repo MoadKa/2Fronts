@@ -18,7 +18,7 @@
 
 .concierge-embed-intro {
   color: var(--color-text);
-  font-size: 0.9rem;
+  font-size: var(--dg-fs-small);
   margin-bottom: var(--space-md);
 }
 
@@ -37,10 +37,14 @@
   display: block;
   padding: var(--space-sm) var(--space-md);
   background: var(--color-muted);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  /* The one monospace in the app, and it is not a costume: this is a script
+     tag the coach copies into their own site, where character-for-character
+     legibility and a stable column are the whole job. Recorded in DESIGN.md
+     as a deliberate addition rather than left as drift. */
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.82rem;
+  font-size: var(--dg-fs-meta);
   line-height: 1.5;
   white-space: nowrap;
   overflow-x: auto;
@@ -101,5 +105,5 @@
 .concierge-embed-platform p {
   margin: var(--space-sm) 0 0;
   color: var(--color-text);
-  font-size: 0.9rem;
+  font-size: var(--dg-fs-small);
 }

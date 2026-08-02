@@ -14,7 +14,7 @@
 
 .concierge-links-hint {
   color: var(--color-text);
-  font-size: 0.9rem;
+  font-size: var(--dg-fs-small);
   margin-bottom: var(--space-md);
 }
 
@@ -40,7 +40,7 @@
 }
 
 .concierge-link-url {
-  font-size: 0.9rem;
+  font-size: var(--dg-fs-small);
   word-break: break-all;
 }
 
@@ -130,7 +130,7 @@
 }
 
 .concierge-chat-time {
-  font-size: 0.8rem;
+  font-size: var(--dg-fs-meta);
   color: var(--color-text);
 }
 

@@ -6,33 +6,50 @@
   text-align: left;
 }
 
+/* Labels sit in full ink, not muted. A field's name is not secondary
+   information — the person filling it in is reading it to know what to type. */
 .input-field label {
-  font-size: 0.85rem;
+  font-family: var(--sans);
+  font-size: var(--dg-fs-small);
   font-weight: 600;
   color: var(--color-foreground);
 }
 
+/* Plaster fill inside a raised-plaster pane: nesting goes one tone DOWN toward
+   the floor, rather than one shadow up. */
 .input-field input,
-.input-field select {
+.input-field select,
+.input-field textarea {
+  min-height: 48px;
   padding: 0.65rem 0.9rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  font-size: 1rem;
+  border-radius: 0;
+  background: var(--dg-plaster);
+  font-size: var(--dg-fs-body);
   font-family: var(--sans);
   color: var(--color-text);
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
-.input-field input:focus,
-.input-field select:focus {
-  border-color: var(--color-primary);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+.input-field input::placeholder,
+.input-field textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* The world's own focus treatment: a drawn rectangle, not a coloured glow. The
+   inherited halo box-shadow is cleared explicitly — it belonged to the retired
+   orange palette and survived every earlier pass. */
+.input-field input:focus-visible,
+.input-field select:focus-visible,
+.input-field textarea:focus-visible {
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .input-error {
-  color: var(--color-destructive);
-  font-size: 0.85rem;
-  font-weight: 500;
+  color: var(--dg-loss-ink);
+  font-size: var(--dg-fs-meta);
+  font-weight: 600;
 }

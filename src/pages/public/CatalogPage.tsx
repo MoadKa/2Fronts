@@ -3,15 +3,19 @@ import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { listActiveAutomations } from '../../services/AutomationService'
 import { localizeAutomation, localizeCategory } from '../../lib/localizeAutomation'
-import { Card } from '../../components/ui/Card'
-import { Badge } from '../../components/ui/Badge'
-import { Reveal } from '../../components/ui/Reveal'
-import { DemoVideo } from '../../components/ui/DemoVideo'
-import { HeroNightChat } from './HeroNightChat'
+import { LiveSetter, type LiveSetterStatus } from './LiveSetter'
 import { CatalogRequestSection } from './CatalogRequestSection'
 import { useDocumentMeta } from '../../hooks/useDocumentMeta'
 import type { Automation } from '../../types/database'
 import './CatalogPage.css'
+
+// The home page is a walk through a small exhibition. Three Rousseau paintings
+// hang on an oxblood wall; between them the visitor steps onto a linen floor
+// where the product's own business is done. The paintings are real, public
+// domain, and downloaded into public/art — nothing here is a stock render.
+//
+// The rhythm is wall, floor, wall, floor: look at something, then read
+// something. That alternation IS the pacing; do not collapse it into cards.
 
 const SITE = 'https://2fronts.de'
 // The three URLs that render this component. /automations is a legacy alias
@@ -22,70 +26,17 @@ const SITE = 'https://2fronts.de'
 // English content at all, since language was a client-side-only toggle).
 const DE_TITLE = '2Fronts — AI Appointment Setter für Coaches & Berater'
 const DE_DESCRIPTION =
-  'Dein KI-Appointment-Setter für 200 €/Monat: berät deine Interessenten 24/7 aus deinen eigenen Inhalten und bucht qualifizierte Erstgespräche direkt in deinen Kalender.'
+  'Dein KI-Appointment-Setter für 200 €/Monat: beantwortet Anfragen auf deiner Seite aus deinen eigenen Inhalten und bucht qualifizierte Erstgespräche direkt in deinen Kalender.'
 
 function formatPrice(cents: number, currency: string): string {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: currency.toUpperCase() }).format(cents / 100)
 }
 
+// React 18 passes an unknown camelCase `fetchPriority` straight to the DOM and
+// warns; the attribute itself is lowercase in HTML. Spread it instead.
+const HERO_PRIORITY = { fetchpriority: 'high' } as Record<string, string>
+
 type IconProps = SVGProps<SVGSVGElement>
-
-function ShieldCheckIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M12 3l7 3v5c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-3z" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  )
-}
-
-function LockIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="5" y="11" width="14" height="9" rx="2" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-      <circle cx="12" cy="15.5" r="1.25" />
-    </svg>
-  )
-}
-
-function SparkleIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M12 3l1.6 4.9L18.5 9.5l-4.9 1.6L12 16l-1.6-4.9-4.9-1.6 4.9-1.6L12 3z" />
-      <path d="M19 16l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1z" />
-    </svg>
-  )
-}
-
-function SearchIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="M20 20l-4.5-4.5" />
-    </svg>
-  )
-}
-
-function CardIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <rect x="3" y="6" width="18" height="13" rx="2" />
-      <path d="M3 10h18" />
-      <path d="M7 14.5h4" />
-    </svg>
-  )
-}
-
-function RocketIcon(props: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M12 3c2.5 1.2 4 4 4 8 0 2-1 4-1 4H9s-1-2-1-4c0-4 1.5-6.8 4-8z" />
-      <path d="M9 15l-2.5 2.5M15 15l2.5 2.5M9.5 19h5" />
-      <circle cx="12" cy="9" r="1.25" />
-    </svg>
-  )
-}
 
 function ArrowRightIcon(props: IconProps) {
   return (
@@ -104,6 +55,116 @@ function CheckIcon(props: IconProps) {
   )
 }
 
+// One hung work with its wall label. The label carries the real catalogue facts
+// first (artist, title, year, medium, collection, rights) and only then our own
+// reading of it — the order a museum uses, and the order that keeps our line
+// from posing as part of the artwork's record.
+// How a work is hung. A gallery does not centre everything at one size forever:
+//   split        — full-bleed half image, half text, edge to edge
+//   facing       — canvas and wall text side by side inside the room
+//   split-mirror — the same split, flipped, so the walk never repeats itself
+type Hang = 'split' | 'facing' | 'split-mirror'
+
+function Work({
+  src,
+  alt,
+  title,
+  meta,
+  note,
+  width,
+  height,
+  hang,
+  eager,
+}: {
+  src: string
+  alt: string
+  title: string
+  meta: string
+  note: string
+  width: number
+  height: number
+  hang: Hang
+  eager?: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <figure className={`dg-work dg-work--${hang}`}>
+      <img
+        className="dg-canvas"
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        loading={eager ? 'eager' : 'lazy'}
+        decoding="async"
+      />
+      <figcaption className="dg-label">
+        <span className="dg-label-artist">{t('home.artist')}</span>
+        <span className="dg-label-title">{title}</span>
+        <span className="dg-label-meta">
+          {meta} · {t('home.publicDomain')}
+        </span>
+        <p className="dg-label-note">{note}</p>
+      </figcaption>
+    </figure>
+  )
+}
+
+// The exhibit in the display case: the night as it actually happened, on the
+// device it actually happened on. Built in CSS and SVG rather than a photo or a
+// mockup image — it stays sharp at any density, weighs nothing, and the content
+// is real text a crawler and a screen reader can read.
+//
+// Rounded corners are the one deliberate exception to this world's zero-radius
+// rule. A phone is a physical object in a vitrine, like a painting in a frame;
+// the rule governs the interface, not the artefacts it displays.
+function PhoneThread() {
+  const { t } = useTranslation()
+  return (
+    <div className="dg-phone">
+      <div className="dg-phone-screen">
+        <span className="dg-phone-island" aria-hidden="true" />
+        <div className="dg-phone-status" aria-hidden="true">
+          <span className="dg-time">{t('home.clock')}</span>
+          <span className="dg-phone-icons">
+            <svg viewBox="0 0 24 12" width="26" height="13" fill="currentColor" aria-hidden="true">
+              <rect x="0" y="4" width="3" height="8" rx="1" />
+              <rect x="5" y="2" width="3" height="10" rx="1" />
+              <rect x="10" y="0" width="3" height="12" rx="1" />
+              <rect x="16" y="1" width="7" height="11" rx="2" opacity="0.55" />
+            </svg>
+          </span>
+        </div>
+
+        <div className="dg-phone-head">
+          <span className="dg-phone-title">{t('home.threadTitle')}</span>
+          <span className="dg-phone-sub">{t('home.threadFrom')}</span>
+        </div>
+
+        <div className="dg-phone-thread">
+          <div className="dg-bubble dg-bubble--in">
+            <p>{t('home.msgBody')}</p>
+            <span className="dg-bubble-time dg-time">{t('home.clock')}</span>
+          </div>
+
+          <div className="dg-bubble dg-bubble--out">
+            <p>{t('home.reply')}</p>
+            <span className="dg-bubble-time dg-time">{t('home.replyTime')}</span>
+          </div>
+
+          <div className="dg-phone-booked">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12.5l4.5 4.5L19 7" />
+            </svg>
+            <span>{t('home.bookedLabel')}</span>
+            <span className="dg-time">{t('home.bookedWhen')}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function CatalogPage() {
   const { t, i18n } = useTranslation()
   const location = useLocation()
@@ -112,6 +173,7 @@ export function CatalogPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [activeCategory, setActiveCategory] = useState('')
+  const [setterStatus, setSetterStatus] = useState<LiveSetterStatus>('probing')
 
   // /en is a dedicated English entry point regardless of the visitor's stored
   // language preference — that's the whole point of it being a stable,
@@ -122,8 +184,8 @@ export function CatalogPage() {
   }, [isEnglishRoute, i18n])
 
   useDocumentMeta({
-    title: isEnglishRoute ? `${t('catalog.heroTitle')} — 2Fronts` : DE_TITLE,
-    description: isEnglishRoute ? t('catalog.heroSub') : DE_DESCRIPTION,
+    title: isEnglishRoute ? `${t('home.head')} — 2Fronts` : DE_TITLE,
+    description: isEnglishRoute ? t('home.sub') : DE_DESCRIPTION,
     canonical: isEnglishRoute ? `${SITE}/en` : `${SITE}/`,
     hreflang: [
       { lang: 'de', href: `${SITE}/` },
@@ -142,333 +204,394 @@ export function CatalogPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  const primary = automations.length > 0 ? automations[0]! : null
+
+  // The offer room already shows `primary` with its real price. The catalog
+  // room lists what else the marketplace holds, and those prices are not
+  // decided yet. Leaving `primary` in the list would print "Preis noch offen"
+  // for the one product whose price the page states two rooms earlier.
+  const rest = useMemo(
+    () => (primary ? automations.filter((automation) => automation.id !== primary.id) : automations),
+    [automations, primary],
+  )
+
   const categories = useMemo(() => {
-    const unique = new Set(automations.map((automation) => automation.category))
+    const unique = new Set(rest.map((automation) => automation.category))
     return Array.from(unique).sort((a, b) => a.localeCompare(b))
-  }, [automations])
+  }, [rest])
 
   const filteredAutomations = useMemo(() => {
-    if (!activeCategory) return automations
-    return automations.filter((automation) => automation.category === activeCategory)
-  }, [automations, activeCategory])
+    if (!activeCategory) return rest
+    return rest.filter((automation) => automation.category === activeCategory)
+  }, [rest, activeCategory])
+
+  const buyHref = primary ? `/automations/${primary.id}` : '#angebot'
 
   return (
-    <div className="landing landing-nachttisch">
-      <section className="night-hero bleed">
-        <div className="night-glow" aria-hidden="true" />
-        <div className="night-inner night-inner-solo">
-          <div className="night-copy rise-stagger">
-            <span className="night-kicker">{t('silentPain.kicker')}</span>
-            <h1>{t('silentPain.title')}</h1>
-            <p className="night-sub">{t('silentPain.sub')}</p>
-            <p className="night-resolve">{t('silentPain.resolve')}</p>
-            <div className="hero-actions night-actions">
-              <a href="#demo" className="btn btn-primary hero-cta">
-                {t('silentPain.cta')}
-                <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
-              </a>
-              <a href="#catalog" className="hero-link night-link">
-                {t('catalog.discoverAutomations')}
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="dg-page dg-museum">
+      {/* ── Entrance. The panel by the door: what the show is, and the ticket. */}
+      <section className="dg-entrance">
+        {/* The whole hero is one painting. It fills the opening the way a mural
+            does, so it is cropped to the viewport: an environment you walk
+            into, not an exhibit. The works in the rooms below are never
+            cropped, they are hung whole with their labels. */}
+        {/* The mural is the LCP image. A phone was downloading the full 1.2MB
+            plate to cover a 390px-wide viewport; the 960px variant is 311KB. */}
+        <img
+          className="dg-hero-image"
+          src="/art/rousseau-surprised.jpg"
+          srcSet="/art/rousseau-surprised-900.jpg 960w, /art/rousseau-surprised.jpg 1920w"
+          sizes="100vw"
+          alt={t('home.work0Alt')}
+          width={1920}
+          height={1534}
+          {...HERO_PRIORITY}
+        />
+        {/* Type over a painting is unreadable without one. The scrim is heavy
+            where the words are and clears completely on the far side. */}
+        <div className="dg-hero-scrim" aria-hidden="true" />
 
-      <div className="dawn bleed" aria-hidden="true" />
-
-      <div className="day-stage bleed">
-
-      <section className="calendar-pain">
-        <div className="pain-inner">
-          <Reveal>
-            <div>
-              <span className="pain-kicker">{t('calendarPain.kicker')}</span>
-              <h2>{t('calendarPain.title')}</h2>
-              <p className="pain-sub">{t('calendarPain.sub')}</p>
-              <p className="pain-resolve">{t('calendarPain.resolve')}</p>
-            </div>
-          </Reveal>
-          <Reveal delay={100}>
-            <div className="pain-cal">
-              <div className="pain-cal-head">
-                <b>{t('calendarPain.calTitle')}</b>
-                <span>{t('calendarPain.calVia')}</span>
-              </div>
-              {[1, 2, 3].map((n) => (
-                <div className="pain-slot" key={n}>
-                  <span className="pain-time">{n === 1 ? '10:00' : n === 2 ? '13:00' : '15:30'}</span>
-                  <div className="pain-what">
-                    <b>{t(`calendarPain.slot${n}Name`)}</b>
-                    <span className="pain-tag">{t(`calendarPain.slot${n}Tag`)}</span>
-                  </div>
-                </div>
-              ))}
-              <div className="pain-cal-foot">
-                <span>{t('calendarPain.stat1')}</span>
-                <span>{t('calendarPain.stat2')}</span>
-              </div>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      <section className="silent-pain">
-        <div className="silent-inner">
-          <Reveal>
-            <div>
-              <span className="silent-kicker">{t('nightStory.kicker')}</span>
-              <h2>{t('nightStory.title')}</h2>
-              <p className="silent-sub">{t('nightStory.sub')}</p>
-              <p className="silent-resolve">{t('nightStory.resolve')}</p>
-            </div>
-          </Reveal>
-          <Reveal delay={100}>
-            <HeroNightChat />
-          </Reveal>
-        </div>
-      </section>
-
-      <Reveal>
-        <section id="demo" className="demo-section">
-          <span className="demo-eyebrow">{t('demo.eyebrow')}</span>
-          <h2>{t('demo.title')}</h2>
-          <p className="demo-section-sub">{t('demo.sub')}</p>
-          <div className="demo-section-frame">
-            <DemoVideo />
-          </div>
-        </section>
-      </Reveal>
-
-      <Reveal>
-        <section className="trust-strip">
-          <div className="trust-item">
-            <span className="trust-icon">
-              <ShieldCheckIcon />
-            </span>
-            <h3>{t('catalog.trust1Title')}</h3>
-            <p>{t('catalog.trust1Body')}</p>
-          </div>
-          <div className="trust-item">
-            <span className="trust-icon">
-              <LockIcon />
-            </span>
-            <h3>{t('catalog.trust2Title')}</h3>
-            <p>{t('catalog.trust2Body')}</p>
-          </div>
-          <div className="trust-item">
-            <span className="trust-icon">
-              <SparkleIcon />
-            </span>
-            <h3>{t('catalog.trust3Title')}</h3>
-            <p>{t('catalog.trust3Body')}</p>
-          </div>
-        </section>
-      </Reveal>
-
-      <section id="how-it-works" className="steps-section">
-        <Reveal>
-          <h2>{t('catalog.howItWorks')}</h2>
-        </Reveal>
-        <div className="steps-grid">
-          <Reveal delay={0}>
-            <div className="step-card">
-              <span className="step-number">1</span>
-              <span className="trust-icon">
-                <SearchIcon />
-              </span>
-              <h3>{t('catalog.step1Title')}</h3>
-              <p>{t('catalog.step1Body')}</p>
-            </div>
-          </Reveal>
-          <Reveal delay={80}>
-            <div className="step-card">
-              <span className="step-number">2</span>
-              <span className="trust-icon">
-                <CardIcon />
-              </span>
-              <h3>{t('catalog.step2Title')}</h3>
-              <p>{t('catalog.step2Body')}</p>
-            </div>
-          </Reveal>
-          <Reveal delay={160}>
-            <div className="step-card">
-              <span className="step-number">3</span>
-              <span className="trust-icon">
-                <RocketIcon />
-              </span>
-              <h3>{t('catalog.step3Title')}</h3>
-              <p>{t('catalog.step3Body')}</p>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* The pricing spotlight: for one beat the night returns mid-page and a
-          warm cone of light falls on the offer card. The card itself is
-          unchanged — the stage around it makes the visitor stop. */}
-      <section id="catalog" className="catalog-section catalog-spotlight">
-        <div className="page-header catalog-header">
-          <h2>{t('catalog.catalogSectionTitle')}</h2>
-          <p>{t('catalog.catalogSectionSub')}</p>
-        </div>
-
-        {categories.length >= 2 && (
-          <div className="category-chips">
-            <button
-              type="button"
-              className={activeCategory === '' ? 'chip chip-active' : 'chip'}
-              onClick={() => setActiveCategory('')}
-            >
-              {t('catalog.filterAll')}
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={activeCategory === category ? 'chip chip-active' : 'chip'}
-                onClick={() => setActiveCategory(category)}
-              >
-                {localizeCategory(category, t)}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {loading && <p>{t('catalog.loadingCatalog')}</p>}
-        {!loading && loadError && (
-          <div className="empty-state">
-            <p>{t('catalog.loadError')}</p>
-          </div>
-        )}
-        {!loading && !loadError && automations.length === 0 && (
-          <div className="empty-state">
-            <p>{t('catalog.emptyCatalog')}</p>
-          </div>
-        )}
-
-        {/* With exactly one product, a shop grid reads as an empty shelf.
-            Render it as one wide offer card instead; the grid returns
-            automatically once a second automation goes live. */}
-        {!loading && !loadError && automations.length === 1 && (
-          <Reveal>
-            <Link to={`/automations/${automations[0]!.id}`} className="offer-card-link">
-              {(() => {
-                const a = automations[0]!
-                const loc = localizeAutomation(a, i18n.language)
-                return (
-                  <div className="offer-card">
-                    <div className="offer-main">
-                      <Badge>{localizeCategory(a.category, t)}</Badge>
-                      <h3>{loc.name}</h3>
-                      <p className="offer-summary">{loc.summary}</p>
-                      <ul className="offer-bullets">
-                        {[1, 2, 3].map((n) => (
-                          <li key={n}>
-                            <CheckIcon className="offer-check" aria-hidden="true" />
-                            {t(`offer.bullet${n}`)}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="offer-buy">
-                      <span className="offer-price">
-                        {formatPrice(a.price_cents, a.currency)}
-                        {a.pricing_model === 'subscription' && (
-                          <span className="offer-per"> {t('catalog.perMonth')}</span>
-                        )}
-                      </span>
-                      {a.pricing_model === 'subscription' && (
-                        <>
-                          <span className="offer-scarcity">{t('automationDetail.scarcityNote')}</span>
-                          <span className="offer-trial">{t('automationDetail.trialNote')}</span>
-                        </>
-                      )}
-                      <span className="offer-note">{t('offer.note')}</span>
-                      <span className="btn btn-primary offer-cta">
-                        {t('offer.cta')}
-                        <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
-                      </span>
-                    </div>
-                  </div>
-                )
-              })()}
-            </Link>
-          </Reveal>
-        )}
-
-        {!loading && !loadError && automations.length > 1 && (
-          <>
-            {filteredAutomations.length === 0 ? (
-              <div className="catalog-grid">
-                <p>{t('catalog.emptyCategory')}</p>
-              </div>
-            ) : (
-              <div className="catalog-grid">
-                {filteredAutomations.map((automation, index) => {
-                  const loc = localizeAutomation(automation, i18n.language)
-                  return (
-                  <Reveal key={automation.id} delay={index * 40}>
-                    <Link to={`/automations/${automation.id}`} className="catalog-card-link">
-                      <Card>
-                        <Badge>{localizeCategory(automation.category, t)}</Badge>
-                        <h3>{loc.name}</h3>
-                        <p>{loc.summary}</p>
-                        <strong>
-                          {formatPrice(automation.price_cents, automation.currency)}
-                          {automation.pricing_model === 'subscription' && ` ${t('catalog.perMonth')}`}
-                        </strong>
-                      </Card>
-                    </Link>
-                  </Reveal>
-                  )
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </section>
-
-      <Reveal>
-        <CatalogRequestSection />
-      </Reveal>
-
-      </div>
-
-      <div className="dusk bleed" aria-hidden="true" />
-
-      {/* Night finale — the bookend. The page opens at 23:12 with the lost
-          inquiry; it closes at 23:12 with the same moment going right. */}
-      <section className="night-finale bleed">
-        <div className="finale-glow" aria-hidden="true" />
-        <div className="finale-inner">
-          <Reveal>
-            <span className="night-kicker">{t('nightFinale.kicker')}</span>
-            <h2>{t('nightFinale.title')}</h2>
-            <p className="finale-sub">{t('nightFinale.sub')}</p>
-          </Reveal>
-          <Reveal delay={120}>
-            <div className="finale-booked">
-              <b>
-                <CheckIcon className="finale-check" aria-hidden="true" />
-                {t('nightFinale.bookedTitle')}
-              </b>
-              <span>{t('nightFinale.bookedText')}</span>
-            </div>
-          </Reveal>
-          <Reveal delay={200}>
-            {automations.length === 1 ? (
-              <Link to={`/automations/${automations[0]!.id}`} className="btn btn-primary hero-cta finale-cta">
-                {t('nightFinale.cta')}
-                <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
+        <div className="dg-entrance-inner">
+          <div className="dg-entrance-copy">
+            <h1>{t('home.head')}</h1>
+            {/* The five-second answer. The headline is a hook, not a
+                description; a cold visitor still has to learn what this is. */}
+            <p className="dg-entrance-sub">{t('home.heroWhat')}</p>
+            <div className="dg-cta-block">
+              <Link to={buyHref} className="dg-cta">
+                {t('home.ctaTrial')}
+                <ArrowRightIcon className="dg-cta-icon" aria-hidden="true" />
               </Link>
-            ) : (
-              <a href="#catalog" className="btn btn-primary hero-cta finale-cta">
-                {t('nightFinale.cta')}
-                <ArrowRightIcon className="hero-cta-icon" aria-hidden="true" />
-              </a>
-            )}
-          </Reveal>
+              <span className="dg-cta-note">{t('home.ctaNote')}</span>
+            </div>
+            {/* The page's only external evidence. It was welded to the payment
+                terms in one muted block, which read as legal small print; a
+                borrowed figure has to be legible to be worth borrowing. */}
+            <p className="dg-hero-evidence">
+              {t('home.heroEvidence')}
+              <span className="dg-hero-evidence-source">{t('home.heroEvidenceSource')}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Still credited, even where the painting is being used as a wall
+            rather than shown as a work. */}
+        <p className="dg-hero-credit">
+          {t('home.artist')}, <i>{t('home.work0Title')}</i> · {t('home.work0Meta')} ·{' '}
+          {t('home.publicDomain')}
+        </p>
+      </section>
+
+      {/* ── Room I. A diptych in a black room: the painting on the left, the
+             condition report on the right. She sleeps, the lion does nothing,
+             and beside it the same night is measured in hours. The painting
+             carries the feeling, the measure carries the proof; neither works
+             alone, which is why the bare timeline read as weak. */}
+      <section className="dg-room dg-room--black dg-room--gap">
+        <span className="dg-room-no" aria-hidden="true">I</span>
+        <div className="dg-shell dg-diptych">
+          <figure className="dg-night-work">
+            <img
+              className="dg-canvas"
+              src="/art/rousseau-sleeping-gypsy.jpg"
+              alt={t('home.work1Alt')}
+              width={1920}
+              height={1227}
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption className="dg-label">
+              <span className="dg-label-artist">{t('home.artist')}</span>
+              <span className="dg-label-title">{t('home.work1Title')}</span>
+              <span className="dg-label-meta">
+                {t('home.work1Meta')} · {t('home.publicDomain')}
+              </span>
+              <p className="dg-label-note">{t('home.work1Note')}</p>
+            </figcaption>
+          </figure>
+
+          <div className="dg-report">
+            <h2>{t('home.gapTitle')}</h2>
+            <p className="dg-gap-body">{t('home.gapBody')}</p>
+
+            {/* A vertical scale, read top to bottom like the night itself. */}
+            <div className="dg-gap" role="img" aria-label={t('home.gapAria')}>
+              <div className="dg-gap-point">
+                <span className="dg-time">{t('home.clock')}</span>
+                <span className="dg-gap-mark-label">{t('home.gapStart')}</span>
+              </div>
+              <div className="dg-gap-run">
+                <span className="dg-gap-span">{t('home.gapSpan')}</span>
+              </div>
+              <div className="dg-gap-point">
+                <span className="dg-time">08:34</span>
+                <span className="dg-gap-mark-label">{t('home.gapEnd')}</span>
+              </div>
+            </div>
+
+            <p className="dg-gap-stat">
+              {t('home.gapStat')}
+              <span className="dg-gap-source">{t('home.gapStatSource')}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── The vitrine: the same night as a document, not a painting. */}
+      <section className="dg-room dg-room--floor">
+        <span className="dg-room-no" aria-hidden="true">II</span>
+        <div className="dg-shell">
+          {/* The display case: the object on one side, its label on the other. */}
+          <div className="dg-vitrine">
+            <PhoneThread />
+            <div className="dg-vitrine-label">
+              {/* The room's own heading. A 0.95rem caption was doing a
+                  heading's job, which is why this stop read as an orphan. */}
+              <h2>{t('home.vitrineTitle')}</h2>
+              <p className="dg-vitrine-note">{t('home.phoneCaption')}</p>
+              <p className="dg-synthetic">{t('home.exampleNote')}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Room II. The one exhibit you may touch. */}
+      <section id="live" className="dg-room dg-room--floor">
+        <span className="dg-room-no" aria-hidden="true">III</span>
+        <div className="dg-shell">
+          <div className="dg-live-head">
+            <h2>{t('home.liveTitle')}</h2>
+            <p className="dg-touch">{t('home.touchLabel')}</p>
+            <p className="dg-live-sub">
+              {setterStatus === 'down' ? t('home.liveSubDown') : t('home.liveSub')}
+            </p>
+          </div>
+          <div className="dg-setter">
+            <LiveSetter onStatus={setSetterStatus} />
+            <div className="dg-setter-aside">
+              <div className="dg-fact">
+                <b>{t('home.fact1Title')}</b>
+                <span>{t('home.fact1Body')}</span>
+              </div>
+              <div className="dg-fact">
+                <b>{t('home.fact2Title')}</b>
+                <span>{t('home.fact2Body')}</span>
+              </div>
+              <div className="dg-fact">
+                <b>{t('home.fact3Title')}</b>
+                <span>{t('home.fact3Body')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Room III. What grows without you. */}
+      <section className="dg-room dg-room--wall">
+        <span className="dg-room-no" aria-hidden="true">IV</span>
+        <Work
+          src="/art/rousseau-equatorial-jungle.jpg"
+          alt={t('home.work2Alt')}
+          title={t('home.work2Title')}
+          meta={t('home.work2Meta')}
+          note={t('home.work2Note')}
+          width={1280}
+          height={1391}
+          hang="facing"
+        />
+      </section>
+
+      {/* ── The setup, in three steps, on the floor. */}
+      <section id="so-gehts" className="dg-room dg-room--floor">
+        <span className="dg-room-no" aria-hidden="true">V</span>
+        <div className="dg-shell">
+          <div className="dg-room-head">
+            <h2>{t('home.whatTitle')}</h2>
+            <p className="dg-what-sub">{t('home.whatSub')}</p>
+          </div>
+          <div className="dg-what-grid">
+            <ol className="dg-steps">
+              <li>
+                <div>
+                  <b>{t('home.step1Title')}</b>
+                  <span>{t('home.step1Body')}</span>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <b>{t('home.step2Title')}</b>
+                  <span>{t('home.step2Body')}</span>
+                </div>
+              </li>
+              <li>
+                <div>
+                  <b>{t('home.step3Title')}</b>
+                  <span>{t('home.step3Body')}</span>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* ── One price, on its plinth. */}
+      <section id="angebot" className="dg-room dg-room--floor dg-room--peak">
+        <span className="dg-room-no" aria-hidden="true">VI</span>
+        <div className="dg-shell">
+          <div className="dg-room-head">
+            <h2>{t('home.offerTitle')}</h2>
+            <p className="dg-what-sub">{t('home.offerLead')}</p>
+          </div>
+
+          {loading && <p className="dg-note">{t('catalog.loadingCatalog')}</p>}
+          {!loading && !primary && (
+            <div className="dg-note">
+              <p>{loadError ? t('catalog.loadError') : t('catalog.emptyCatalog')}</p>
+              <p>{t('home.offerUnavailable')}</p>
+            </div>
+          )}
+
+          {primary && (
+            <Link to={`/automations/${primary.id}`} className="dg-offer-card">
+              <div className="dg-offer-main">
+                <h3>{localizeAutomation(primary, i18n.language).name}</h3>
+                <p className="dg-offer-summary">{localizeAutomation(primary, i18n.language).summary}</p>
+                <ul className="dg-offer-bullets">
+                  {[1, 2, 3].map((n) => (
+                    <li key={n}>
+                      <CheckIcon className="dg-tick" aria-hidden="true" />
+                      {t(`offer.bullet${n}`)}
+                    </li>
+                  ))}
+                </ul>
+                {/* Catalogue metadata, below the work, never above the heading. */}
+                <p className="dg-offer-cat">{localizeCategory(primary.category, t)}</p>
+              </div>
+              <div className="dg-offer-buy">
+                <span className="dg-price">
+                  {formatPrice(primary.price_cents, primary.currency)}
+                  {primary.pricing_model === 'subscription' && <small> {t('catalog.perMonth')}</small>}
+                </span>
+                {/* With no customers, no testimonials and no case study, the
+                    offer's own terms are the entire trust budget of this page.
+                    The 30-day guarantee is real and documented in
+                    public/pricing.md.
+                    (The founding-price scarcity line stays off this page: it is
+                    a scarcity claim from a company with no customers, and the
+                    founder pinned 200 EUR as the one number shown here.) */}
+                {/* Gated on subscription: the trial, the monthly cancellation
+                    and the 30-day guarantee are terms of the subscription. On a
+                    one-time product they would be claims about an offer that
+                    does not exist. */}
+                {primary.pricing_model === 'subscription' && (
+                  <ul className="dg-risk">
+                    <li>{t('home.riskTrial')}</li>
+                    <li>{t('home.riskCard')}</li>
+                    <li>{t('home.riskCancel')}</li>
+                    <li>{t('home.riskGuarantee')}</li>
+                  </ul>
+                )}
+                <span className="dg-offer-note">{t('offer.note')}</span>
+                <span className="dg-cta">
+                  {t('offer.cta')}
+                  <ArrowRightIcon className="dg-cta-icon" aria-hidden="true" />
+                </span>
+              </div>
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {/* ── The rest of the collection, mentioned quietly. */}
+      <section id="katalog" className="dg-room dg-room--floor">
+        <span className="dg-room-no" aria-hidden="true">VII</span>
+        <div className="dg-shell">
+          <div className="dg-room-head">
+            <h2>{t('home.horizonTitle')}</h2>
+            <p className="dg-horizon-sub">{t('home.horizonSub')}</p>
+            <p className="dg-horizon-sub">{t('home.horizonBody')}</p>
+          </div>
+
+          {automations.length > 1 && (
+            <>
+              {categories.length >= 2 && (
+                <div className="dg-chips">
+                  <button
+                    type="button"
+                    className={activeCategory === '' ? 'dg-chip dg-chip-active' : 'dg-chip'}
+                    onClick={() => setActiveCategory('')}
+                  >
+                    {t('catalog.filterAll')}
+                  </button>
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      className={activeCategory === category ? 'dg-chip dg-chip-active' : 'dg-chip'}
+                      onClick={() => setActiveCategory(category)}
+                    >
+                      {localizeCategory(category, t)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {filteredAutomations.length === 0 ? (
+                <p className="dg-note">{t('catalog.emptyCategory')}</p>
+              ) : (
+                <div className="dg-list">
+                  {filteredAutomations.map((automation) => {
+                    const loc = localizeAutomation(automation, i18n.language)
+                    return (
+                      <Link key={automation.id} to={`/automations/${automation.id}`} className="dg-row">
+                        <span>
+                          <b>{loc.name}</b>
+                          <span>{loc.summary}</span>
+                        </span>
+                        {/* Only the setter's price is decided. Printing a
+                            formatted euro figure for an automation the founder
+                            has not priced would publish a number nobody chose. */}
+                        <span className="dg-row-price">{t('home.priceHidden')}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+          {/* The wish form belongs to this room: it is how the collection
+              grows. Left outside, the room was a heading with nothing under
+              it and the form was an unlabelled block. */}
+          <CatalogRequestSection />
+        </div>
+      </section>
+
+      {/* ── The last room, mirrored, and the way out. */}
+      <section className="dg-room dg-room--wall dg-room--split">
+        <span className="dg-room-no" aria-hidden="true">VIII</span>
+        <Work
+          src="/art/rousseau-carnival-evening.jpg"
+          alt={t('home.work3Alt')}
+          title={t('home.work3Title')}
+          meta={t('home.work3Meta')}
+          note={t('home.work3Note')}
+          width={960}
+          height={1244}
+          hang="split-mirror"
+        />
+      </section>
+
+      <section className="dg-close">
+        <div className="dg-shell">
+          <div className="dg-close-inner">
+            <h2>{t('home.closeTitle')}</h2>
+            <p>{t('home.closeBody')}</p>
+            <Link to={buyHref} className="dg-cta">
+              {t('home.ctaTrial')}
+              <ArrowRightIcon className="dg-cta-icon" aria-hidden="true" />
+            </Link>
+            <span className="dg-cta-note">{t('home.ctaNote')}</span>
+          </div>
         </div>
       </section>
     </div>

@@ -1,1063 +1,1807 @@
-.landing {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2xl);
+/* ═══════════════════════════════════════════════════════════════════════
+   "Der Rundgang" — home page world (from seed 8ad6b237, magical realism).
+
+   The page is a small exhibition. Three Rousseau paintings hang on an
+   oxblood wall; between them the visitor steps onto a linen floor where the
+   product's business is done. Wall, floor, wall, floor: look at something,
+   then read something. That alternation is the pacing.
+
+   Scoped to .dg-page. The global tokens in src/index.css still carry the
+   unmigrated app surfaces; this world does not reach them yet.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The world's tokens moved to :root in src/index.css when the app stopped
+   being two design systems. They used to be declared here on the page plus the
+   two pieces of chrome that enter this world on home routes, because those are
+   DOM siblings rather than children. Nothing needs that dance now — every
+   surface inherits the same values. */
+
+.dg-page {
+  font-family: var(--dg-text);
+  color: var(--dg-ink);
+  background: var(--dg-plaster);
 }
 
-/* ======================================================================= */
-/* "Der Nachttisch" (DESIGN.md) — the homepage tells one night:            */
-/* act 1 the lost inquiry (dark), dawn, act 2 the wrong-full calendar.     */
-/* ======================================================================= */
-
-.landing-nachttisch { gap: 0; }
-.landing-nachttisch > * + * { margin-top: 0; }
-
-/* .app-main pads the content area on every route; on the Nachttisch homepage
-   that padding shows as white strips above the night hero and below the
-   morning stage. Cancel it so the scene runs edge to edge. */
-.landing-nachttisch {
-  margin-top: calc(-1 * var(--space-2xl));
-  margin-bottom: calc(-1 * var(--space-2xl));
-}
-@media (max-width: 768px) {
-  .landing-nachttisch {
-    margin-top: calc(-1 * var(--space-xl));
-    margin-bottom: calc(-1 * var(--space-xl));
-  }
-}
-
-/* ── The morning stage ──────────────────────────────────────────────────
-   Everything after dawn lives on one warm paper surface so the page stays
-   a single scene instead of falling back into white SaaS sections. */
-.day-stage {
-  background: #f8f4ec;
-  color: #1b1712;
-  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
-  padding-bottom: var(--space-3xl);
-}
-.day-stage .demo-section,
-.day-stage .trust-strip,
-.day-stage .steps-section,
-.day-stage .catalog-section,
-.day-stage .catalog-request {
-  max-width: 1100px;
-  margin: var(--space-3xl) auto 0;
-  padding-left: var(--space-xl);
-  padding-right: var(--space-xl);
-}
-.day-stage .calendar-pain { padding-top: clamp(2.5rem, 6vh, 4rem); }
-
-/* Morning headings speak Fraunces (DESIGN.md). */
-.day-stage h2 {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  letter-spacing: -0.005em;
-  color: #1b1712;
-}
-
-/* Demo section on paper */
-.day-stage .demo-eyebrow {
-  font-family: 'Fragment Mono', monospace;
-  letter-spacing: 0.16em;
-  color: #b45309;
-  text-transform: uppercase;
-}
-.day-stage .demo-section-sub { color: #4b453b; }
-
-/* Quiet tiles become warm cards */
-.day-stage .trust-item,
-.day-stage .step-card {
-  background: #fffdf7;
-  border: 1px solid #e3dbc9;
-  box-shadow: 0 1px 2px rgba(27, 23, 18, 0.04), 0 10px 24px rgba(27, 23, 18, 0.05);
-}
-.day-stage .trust-item p,
-.day-stage .step-card p { color: #4b453b; }
-.day-stage .trust-icon { color: #b45309; }
-.day-stage .step-number {
-  font-family: 'Fragment Mono', monospace;
-  color: #b45309;
-  background: rgba(180, 83, 9, 0.08);
-}
-
-/* Catalog on paper */
-.day-stage .catalog-header p { color: #6b655b; }
-.day-stage .chip {
-  border-color: #d8cfbd;
-  color: #1b1712;
-  background: transparent;
-}
-.day-stage .chip:hover { border-color: #1b1712; }
-.day-stage .chip-active {
-  background: #1b1712;
-  color: #f8f4ec;
-  border-color: #1b1712;
-}
-.day-stage .card {
-  background: #fffdf7;
-  border-color: #e3dbc9;
-}
-.day-stage .badge {
-  background: rgba(180, 83, 9, 0.08);
-  color: #b45309;
-}
-
-/* ── The offer card: one product, one strong pitch (no empty shop shelf) ── */
-.offer-card-link { text-decoration: none; color: inherit; display: block; }
-
-.offer-card {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 2rem;
-  background: #fffdf7;
-  border: 1px solid #e3dbc9;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 2px 4px rgba(27, 23, 18, 0.05), 0 18px 40px rgba(27, 23, 18, 0.09);
-  padding: clamp(1.5rem, 3vw, 2.5rem);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-}
-.offer-card-link:hover .offer-card {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 8px rgba(27, 23, 18, 0.06), 0 26px 56px rgba(27, 23, 18, 0.13);
-}
-
-.offer-main h3 {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
-  letter-spacing: -0.005em;
-  margin: 0.7rem 0 0.4rem;
-  color: #1b1712;
-}
-.offer-summary { color: #4b453b; line-height: 1.6; max-width: 44ch; }
-
-.offer-bullets {
-  list-style: none;
-  margin: 1.1rem 0 0;
+/* The shell centres and pads every route. The exhibition owns its full width:
+   a wall that stops short of the edge is a poster, not a wall. */
+.app-main:has(.dg-page) {
+  max-width: none;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
 }
-.offer-bullets li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  color: #1b1712;
-  font-size: 0.97rem;
-  line-height: 1.5;
+
+.dg-page :focus-visible {
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 3px;
+  border-radius: 0;
 }
-.offer-check {
+
+.dg-room--wall :focus-visible,
+.dg-room--black :focus-visible,
+.dg-close :focus-visible,
+.dg-offer-buy :focus-visible {
+  outline-color: var(--dg-lamp);
+}
+
+/* The nav and footer are siblings of .dg-page, so the page's focus rule never
+   reached them and they kept the legacy orange ring with a rounded corner. */
+.app-nav-dg :focus-visible,
+.app-footer-dg :focus-visible {
+  outline: 3px solid var(--dg-lamp);
+  outline-offset: 3px;
+  border-radius: 0;
+}
+
+/* The global stylesheet paints every link in the discarded orange. */
+.dg-page a:not(.dg-cta):not(.dg-offer-card):not(.dg-row) {
+  color: var(--dg-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+}
+
+.dg-page h1,
+.dg-page h2,
+.dg-page h3 {
+  font-family: var(--dg-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.dg-page p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Times are measurement, so they are set as measurement: one width per digit,
+   tracked out, never softened into "spätabends". */
+.dg-time {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  font-size: var(--dg-fs-meta);
+}
+
+.dg-shell {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-left: var(--dg-pad);
+  padding-right: var(--dg-pad);
+}
+
+/* ── The lamp: the page's only button ─────────────────────────────────── */
+
+.dg-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 52px;
+  padding: 0.85rem 1.6rem;
+  background: var(--dg-lamp);
+  color: var(--dg-night);
+  border: 1px solid var(--dg-lamp-deep);
+  border-radius: 0;
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-lead);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  /* A lit thing spills light. Offset plus blur, never a zero-blur ledge. */
+  box-shadow: 0 10px 22px -10px var(--dg-shadow), 0 20px 44px -14px var(--dg-lamp-glow);
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dg-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px -10px var(--dg-shadow), 0 30px 60px -14px var(--dg-lamp-glow);
+}
+
+.dg-cta:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 14px -8px var(--dg-shadow), 0 14px 30px -14px var(--dg-lamp-glow);
+}
+
+.dg-cta-icon {
   width: 18px;
   height: 18px;
   flex: none;
-  margin-top: 2px;
-  color: #2e7d46;
 }
 
-.offer-buy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 0.4rem;
-  border-left: 1px dashed #e3dbc9;
-  padding-left: 2rem;
-}
-.offer-price {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  font-size: clamp(1.9rem, 3.4vw, 2.6rem);
-  color: #1b1712;
-  font-variant-numeric: tabular-nums;
-}
-.offer-per { font-size: 0.45em; font-family: 'Schibsted Grotesk', sans-serif; font-weight: 500; color: #6b655b; }
-.offer-scarcity {
+.dg-cta-note {
   display: block;
-  margin: 0.4rem 0 0.15rem;
-  font-size: 0.82rem;
-  font-weight: 500;
-  /* Warnton aus DESIGN.md („Kicker auf hell") — wie .detail-scarcity. */
-  color: #b45309;
-}
-/* Beruhigung statt Dringlichkeit — gedämpft wie .offer-per, kein Warnton. */
-.offer-trial {
-  display: block;
-  margin: 0 0 0.15rem;
-  font-size: 0.78rem;
-  color: #6b655b;
-}
-.offer-note {
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.72rem;
-  color: #6b655b;
-}
-.offer-cta { margin-top: 1rem; }
-
-@media (max-width: 800px) {
-  .offer-card { grid-template-columns: 1fr; }
-  .offer-buy { border-left: none; border-top: 1px dashed #e3dbc9; padding-left: 0; padding-top: 1.2rem; }
-}
-.day-stage .catalog-card-link .card:hover { border-color: #c9bda3; }
-
-/* Request section card */
-.day-stage .catalog-request {
-  background: #fffdf7;
-  border: 1px solid #e3dbc9;
-  border-radius: var(--radius-lg);
-  padding-top: var(--space-xl);
-  padding-bottom: var(--space-xl);
-}
-.day-stage .catalog-request-sub { color: #4b453b; }
-
-/* Escape the 1100px .app-main container for full-width stage sections. */
-.bleed {
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  margin-top: 0.8rem;
+  max-width: 52ch;
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-ink-2);
 }
 
-.night-hero {
+/* ══ Rooms ══════════════════════════════════════════════════════════════ */
+
+.dg-room {
   position: relative;
-  background: #12100e; /* warm charcoal — never blue-black (DESIGN.md) */
-  color: #e7e1d6;
-  overflow: hidden;
-  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
+  padding-top: var(--dg-room);
+  padding-bottom: var(--dg-room);
 }
 
-.night-glow {
+/* A museum numbers its rooms. The numeral sits in the margin outside the
+   content column and stays with you while you are in the room, which gives the
+   scroll a spine and tells you how far along the walk you are. Decorative to a
+   screen reader, so it is hidden from one. */
+.dg-room-no {
   position: absolute;
-  inset: -12% -18%;
-  pointer-events: none;
-  background: radial-gradient(ellipse 46% 52% at 68% 46%, rgba(255, 179, 92, 0.14), transparent 68%);
+  top: var(--dg-room);
+  left: max(1rem, calc(50vw - 620px - 3.25rem));
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-meta);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--dg-bone-2);
 }
 
-.night-inner {
+.dg-room--floor .dg-room-no {
+  /* Was --dg-plaster-line at about 1.33:1 on plaster: present in the DOM and
+     invisible on screen. */
+  color: var(--dg-ink-2);
+}
+
+/* Below this width there is no margin to sit in, so the numeral moves inline
+   above the room instead of disappearing. It is the only element that crosses
+   every room, and without it the walk reads as eight unrelated sections. */
+@media (max-width: 1360px) {
+  .dg-room-no {
+    position: static;
+    display: block;
+    margin: 0 0 clamp(0.75rem, 2vh, 1.25rem) max(var(--dg-pad), calc(50vw - 620px));
+  }
+
+  .dg-room--split .dg-room-no,
+  .dg-room--gap .dg-room-no {
+    margin-left: var(--dg-pad);
+  }
+}
+
+/* A wall is lit from above and gets darker where it meets the floor. Both of
+   those are what makes a room read as architecture instead of a coloured band,
+   and they do the work a hard 1px section border was doing badly. */
+.dg-room--wall,
+.dg-entrance {
   position: relative;
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 3rem;
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: clamp(3rem, 7vh, 5rem) var(--space-xl) clamp(3rem, 7vh, 5rem);
+  background:
+    radial-gradient(ellipse 62% 46% at 50% 32%, rgba(242, 227, 213, 0.09), transparent 68%),
+    var(--dg-crimson);
+  color: var(--dg-bone);
+}
+
+/* Section I is a true black room, not a warm dark one. After the mural you
+   step into the dark and the painting is the only thing with light in it. */
+.dg-room--black {
+  background: var(--dg-black);
+  color: var(--dg-night-ink);
+}
+
+.dg-room--black .dg-canvas {
+  background: var(--dg-black);
+}
+
+.dg-room--black .dg-label-artist,
+.dg-room--black .dg-label-title,
+.dg-room--black .dg-label-note {
+  color: var(--dg-night-ink);
+}
+
+.dg-room--black .dg-label-meta {
+  color: var(--dg-night-ink-2);
+}
+
+.dg-room--black .dg-label-note {
+  border-top-color: var(--dg-night-line);
+}
+
+.dg-room--black .dg-room-no {
+  color: var(--dg-night-ink-2);
+}
+
+.dg-room--black::after {
+  background: linear-gradient(to bottom, transparent, var(--dg-black));
+}
+
+/* The skirting: the shadow a wall casts on itself just above the floor. */
+.dg-room--wall::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 26px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--dg-crimson-deep));
+}
+
+.dg-room--floor {
+  background: var(--dg-plaster);
+  border-top: 1px solid var(--dg-plaster-line);
+  border-bottom: 1px solid var(--dg-plaster-line);
+}
+
+.dg-room--floor + .dg-room--floor {
+  border-top: 0;
+}
+
+/* Stepping out of a room onto the floor: the wall's shadow falls a little way
+   across it, so the join reads as a threshold rather than a colour change. */
+.dg-room--wall + .dg-room--floor,
+.dg-room--wall + .catalog-request,
+.dg-room--wall + .dg-close {
+  border-top: 0;
+  box-shadow: inset 0 16px 28px -18px var(--dg-shadow-deep);
+}
+
+/* ══ The entrance panel ═════════════════════════════════════════════════ */
+
+/* Background and colour come from the wall rule above — redeclaring them here
+   would drop the light pool. */
+.dg-entrance {
+  position: relative;
+  display: flex;
   align-items: center;
+  /* The nav is sticky, not fixed, so it occupies flow above this room and the
+     room already begins beneath it — measured at 68px on desktop, and taller
+     below 768px where the nav stacks into a column. Reserving its height here
+     as well double-counted it and cost a phone the better part of a CTA's
+     worth of dead space at the top of the first screen. */
+  min-height: min(84vh, 800px);
+  padding: clamp(1.5rem, 4vh, 3rem) 0 clamp(2.5rem, 6vh, 4rem);
 }
 
-.night-kicker {
-  display: block;
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.8rem;
-  letter-spacing: 0.16em;
-  color: #ffb35c;
-  margin-bottom: 1.1rem;
+.dg-entrance h1,
+.dg-entrance .dg-entrance-sub {
+  text-shadow: 0 2px 18px rgba(10, 7, 5, 0.55);
 }
 
-.night-copy h1 {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  font-size: clamp(2.2rem, 4.6vw, 3.9rem);
-  line-height: 1.05;
-  letter-spacing: -0.005em;
-  color: #e7e1d6;
-  max-width: 16ch;
-}
-
-.night-sub {
-  margin: 1.3rem 0 0.9rem;
-  font-size: 1.05rem;
-  line-height: 1.65;
-  color: rgba(231, 225, 214, 0.75);
-  max-width: 46ch;
-}
-
-.night-resolve {
-  margin: 0 0 1.7rem;
-  font-size: 1.05rem;
-  line-height: 1.6;
-  font-weight: 600;
-  color: #e7e1d6;
+.dg-entrance-copy {
+  /* Wide enough that the headline breaks in three lines, not five: the CTA has
+     to stay inside the first screen. */
   max-width: 44ch;
 }
 
-/* the hero with no side visual: one column, text keeps its own max-width */
-.night-inner-solo { grid-template-columns: 1fr; }
-
-.night-actions { justify-content: flex-start; }
-.night-link { color: #ffb35c; }
-.night-link:hover { color: #ffc880; }
-
-.dawn {
-  height: clamp(90px, 16vh, 170px);
-  background: linear-gradient(#12100e, #4a3a2c 55%, var(--color-background));
+.dg-entrance .dg-cta-note {
+  color: var(--dg-bone-2);
 }
 
-/* ── Act 2: the wrong-full calendar ── */
-.calendar-pain {
-  background: #f8f4ec;
-  color: #1b1712;
-  padding: clamp(3rem, 8vh, 5rem) var(--space-xl);
-  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
-}
-
-.pain-inner {
-  max-width: 1240px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 0.95fr 1.05fr;
-  gap: 3.5rem;
-  align-items: center;
-}
-
-.pain-kicker {
-  display: block;
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.8rem;
-  letter-spacing: 0.16em;
-  color: #b45309;
-  margin-bottom: 1rem;
-}
-
-.calendar-pain h2 {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  font-size: clamp(1.9rem, 3.8vw, 3rem);
-  line-height: 1.08;
-  letter-spacing: -0.005em;
-  color: #1b1712;
-}
-
-.pain-sub {
-  margin: 1.2rem 0 1.5rem;
-  font-size: 1.04rem;
-  line-height: 1.65;
-  color: #4b453b;
-  max-width: 46ch;
-}
-
-.pain-resolve {
-  font-size: 1.04rem;
-  line-height: 1.65;
-  color: #1b1712;
-  max-width: 46ch;
-  font-weight: 500;
-}
-
-.pain-cal {
-  background: #fffdf7;
-  border: 1px solid #e3dbc9;
-  border-radius: 16px;
-  box-shadow: 0 2px 4px rgba(27, 23, 18, 0.05), 0 18px 40px rgba(27, 23, 18, 0.09);
-  padding: 1.2rem 1.2rem 1rem;
-  max-width: 480px;
+/* The entrance is one painting at mural scale. The image is the room. */
+.dg-entrance-inner {
+  position: relative;
+  z-index: 2;
+  /* A flex child shrink-wraps, so `margin: 0 auto` would centre the copy
+     instead of holding it against the left edge of the shell. */
   width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--dg-pad);
+}
+
+.dg-entrance-copy {
+  display: grid;
+  gap: 1.1rem;
+  justify-items: start;
+}
+
+/* The painting fills the opening edge to edge. Cropping is deliberate here and
+   only here: the hero uses the work as an environment, the rooms below exhibit
+   it whole. */
+.dg-hero-image {
+  position: absolute;
+  /* Cropping to the viewport means the interesting part must survive the crop
+     on a tall phone as well as a wide desktop. */
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 58%;
+  z-index: 0;
+}
+
+/* Heavy where the words are, gone by the far edge, so the tiger stays visible
+   and the type still clears 4.5:1. */
+.dg-hero-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+      100deg,
+      rgba(10, 7, 5, 0.92) 0%,
+      rgba(10, 7, 5, 0.78) 32%,
+      rgba(10, 7, 5, 0.34) 62%,
+      rgba(10, 7, 5, 0.08) 100%
+    ),
+    linear-gradient(to top, rgba(10, 7, 5, 0.6), transparent 38%);
+}
+
+/* The one borrowed figure in the hero, at reading size with its source under
+   it rather than buried in the payment terms. */
+.dg-hero-evidence {
+  display: grid;
+  gap: 0.3rem;
+  max-width: 46ch;
+  font-size: var(--dg-fs-body);
+  color: var(--dg-bone);
+  text-shadow: 0 2px 14px rgba(10, 7, 5, 0.6);
+}
+
+.dg-hero-evidence-source {
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-bone-2);
+}
+
+.dg-hero-credit {
+  position: absolute;
+  z-index: 2;
+  right: var(--dg-pad);
+  bottom: 0.9rem;
+  max-width: 60ch;
+  text-align: right;
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-bone-2);
+}
+
+.dg-entrance h1 {
+  color: var(--dg-bone);
+  font-size: clamp(2.2rem, 1.2rem + 3.3vw, 4rem);
+  max-width: 20ch;
+}
+
+.dg-entrance-sub {
+  font-size: clamp(1.02rem, 0.96rem + 0.3vw, 1.15rem);
+  color: var(--dg-bone);
+  max-width: 46ch;
+}
+
+.dg-entrance .dg-cta-note {
+  color: var(--dg-bone-2);
+}
+
+/* ══ A hung work and its wall label ═════════════════════════════════════ */
+
+/* fit-content, not a fixed block: a portrait canvas is much narrower than a
+   landscape one, and a fixed 1000px block left a column of dead wall beside
+   the tall works. The block hugs whichever is wider, canvas or label. */
+.dg-work {
+  width: fit-content;
+  margin: 0 auto;
+  max-width: min(1000px, 100% - 2 * var(--dg-pad));
+  display: grid;
+  justify-items: start;
+  gap: clamp(1rem, 2vh, 1.5rem);
+}
+
+/* ── The hang. Three ways of putting something on a wall, so the walk has a
+      shape instead of three identical stops. ──────────────────────────────*/
+
+/* A split room gives up the band: no padding, no centred column, the two halves
+   run to the edges of the screen. This is the composition that breaks the
+   banner-over-banner rhythm. */
+.dg-room--split {
+  padding: 0;
+}
+
+.dg-work--split-mirror {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  display: grid;
+  /* The label column is the wider one: it holds text, and an even split left
+     the work stranded in the middle of far more wall than it needed. */
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: center;
+  gap: 0;
+  /* Taller than the canvas by design: the difference is the wall above and
+     below the work, and without it the painting sat flush against both edges. */
+  min-height: min(78vh, 700px);
+}
+
+/* The painting half is a lit panel of wall, and the work hangs inside it whole.
+   `contain`, never `cover`: cropping someone's painting to fit a layout is the
+   one thing a room like this cannot do.
+
+   The height is capped rather than left to the image. A portrait canvas at half
+   the page width resolved to 989px, so the last room stood 1.4 screens tall and
+   the work could never be seen whole — the one thing hanging it is for. */
+.dg-work--split-mirror .dg-canvas {
+  /* Sized by height, not by the column: the element box then matches the
+     painting instead of being a wide box with the work letterboxed inside it. */
+  width: auto;
+  max-width: calc(100% - 2 * clamp(1rem, 2.5vw, 2.25rem));
+  height: min(64vh, 560px);
+  max-height: none;
+  object-fit: contain;
+  border: 0;
+  box-shadow: none;
   justify-self: center;
 }
 
-.pain-cal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  border-bottom: 1px solid #e3dbc9;
-  padding-bottom: 0.6rem;
-  margin-bottom: 0.4rem;
-}
-.pain-cal-head b { font-family: 'Fraunces', serif; font-size: 1.05rem; }
-.pain-cal-head span { font-family: 'Fragment Mono', monospace; font-size: 0.7rem; color: #6b655b; }
-
-.pain-slot {
-  display: flex;
-  gap: 0.8rem;
-  align-items: flex-start;
-  padding: 0.55rem 0.4rem;
-}
-.pain-slot + .pain-slot { border-top: 1px dashed #e3dbc9; }
-
-.pain-time {
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.78rem;
-  color: #6b655b;
-  min-width: 3.4rem;
-  padding-top: 0.1rem;
-  font-variant-numeric: tabular-nums;
+/* The wall the work hangs on, rather than a background on the image itself. */
+.dg-work--split-mirror {
+  background: linear-gradient(to right, transparent 0 57.5%, var(--dg-crimson-deep) 57.5% 100%);
 }
 
-.pain-what { flex: 1; }
-.pain-what b {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 700;
-  text-decoration: line-through;
-  text-decoration-color: rgba(194, 64, 42, 0.7);
-  text-decoration-thickness: 2px;
-}
-.pain-tag {
-  display: inline-block;
-  margin-top: 0.25rem;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 0.16rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(194, 64, 42, 0.1);
-  color: #c2402a;
-}
-
-.pain-cal-foot {
-  margin-top: 0.5rem;
-  padding-top: 0.7rem;
-  border-top: 1px solid #e3dbc9;
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.74rem;
-  color: #c2402a;
-  font-weight: 700;
-  display: flex;
-  justify-content: space-between;
-  font-variant-numeric: tabular-nums;
-}
-
-@media (max-width: 900px) {
-  .night-inner { grid-template-columns: 1fr; }
-  .night-inner .night-scene { order: -1; }
-  .pain-inner { grid-template-columns: 1fr; gap: 2rem; }
-}
-
-/* ── Act 2b: the quiet inbox (visitors who never wrote at all) ── */
-.silent-pain {
-  background: var(--color-background);
-  color: #1b1712;
-  padding: clamp(2.5rem, 7vh, 4.5rem) var(--space-xl);
-  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
-}
-
-.silent-inner {
-  max-width: 1240px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 3.5rem;
-  align-items: center;
-}
-
-.silent-kicker {
-  display: block;
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.8rem;
-  letter-spacing: 0.16em;
-  color: #6b655b;
-  margin-bottom: 1rem;
-}
-
-.silent-pain h2 {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  font-size: clamp(1.9rem, 3.8vw, 3rem);
-  line-height: 1.08;
-  letter-spacing: -0.005em;
-  color: #1b1712;
-}
-
-.silent-sub {
-  margin: 1.2rem 0 1.5rem;
-  font-size: 1.04rem;
-  line-height: 1.65;
-  color: #4b453b;
+.dg-work--split-mirror .dg-label {
   max-width: 46ch;
+  padding: clamp(1.75rem, 5vw, 4.5rem);
+  justify-self: center;
 }
 
-.silent-resolve {
-  font-size: 1.04rem;
-  line-height: 1.65;
-  color: #1b1712;
-  max-width: 46ch;
-  font-weight: 500;
+/* Mirrored: text first, then the work. The walk never shows you the same
+   arrangement twice in a row. */
+.dg-work--split-mirror .dg-canvas {
+  grid-column: 2;
+  grid-row: 1;
 }
 
-/* the demoted section now hosts HeroNightChat's own phone mockup, which is
-   fully self-styled (dark card, own shadow/glow) — no extra card CSS needed
-   here, .silent-inner's grid centers it the same way .night-inner used to. */
-
-@media (max-width: 900px) {
-  .silent-inner { grid-template-columns: 1fr; gap: 2rem; }
+.dg-work--split-mirror .dg-label {
+  grid-column: 1;
+  grid-row: 1;
 }
 
-/* ── Night finale: dusk back into the night, this time it goes right ── */
-.dusk {
-  height: clamp(90px, 16vh, 170px);
-  background: linear-gradient(#f8f4ec, #4a3a2c 55%, #12100e);
-}
-
-.night-finale {
-  position: relative;
-  background: #12100e;
-  color: #e7e1d6;
-  overflow: hidden;
-  font-family: 'Schibsted Grotesk', var(--font-body, sans-serif);
-  text-align: center;
-}
-
-.finale-glow {
-  position: absolute;
-  inset: -12% -18%;
-  pointer-events: none;
-  background: radial-gradient(ellipse 50% 55% at 50% 42%, rgba(255, 179, 92, 0.12), transparent 68%);
-}
-
-.finale-inner {
-  position: relative;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: clamp(3.5rem, 9vh, 6rem) var(--space-xl) clamp(4rem, 10vh, 6.5rem);
-  display: flex;
-  flex-direction: column;
+/* II. Wall text set beside the work rather than under it — the arrangement a
+      gallery uses when a tall canvas leaves a column of wall spare. The label
+      reads first on the left, the canvas hangs to its right. */
+.dg-work--facing {
+  grid-template-columns: minmax(18ch, 26ch) auto;
   align-items: center;
-  gap: 0.4rem;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  max-width: min(1120px, 100% - 2 * var(--dg-pad));
 }
 
-.night-finale h2 {
-  font-family: 'Fraunces', serif;
-  font-weight: 640;
-  font-size: clamp(2rem, 4.2vw, 3.4rem);
-  line-height: 1.08;
-  letter-spacing: -0.005em;
-  color: #e7e1d6;
-  margin-top: 0.6rem;
+.dg-work--facing .dg-canvas {
+  grid-column: 2;
+  grid-row: 1;
+  max-height: 78vh;
 }
 
-.finale-sub {
-  margin: 1.1rem auto 1.6rem;
-  font-size: 1.05rem;
-  line-height: 1.65;
-  color: rgba(231, 225, 214, 0.75);
-  max-width: 42ch;
-}
-
-/* The redemption card — the green mirror of the hero's red loss card. */
-.finale-booked {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  background: #101a12;
-  border: 1px solid rgba(46, 125, 70, 0.5);
-  border-radius: 12px;
-  padding: 0.75rem 1.1rem;
-  font-size: 0.85rem;
-  color: #d9ecd9;
-  font-variant-numeric: tabular-nums;
-  margin-bottom: 1.8rem;
-}
-.finale-booked b {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: #6fbf85;
-  font-size: 0.9rem;
-}
-.finale-check {
-  width: 17px;
-  height: 17px;
-  flex: none;
-  padding: 2px;
-  border-radius: 50%;
-  background: #2e7d46;
-  color: #fff;
-}
-.finale-booked span {
-  font-family: 'Fragment Mono', monospace;
-  font-size: 0.72rem;
-  color: rgba(217, 236, 217, 0.7);
-}
-
-.finale-cta { text-decoration: none; }
-
-/* ----------------------------------------------------------------------- */
-/* Hero — open, typography-led. No box, no blobs: the headline is the hero. */
-/* ----------------------------------------------------------------------- */
-
-.hero {
-  position: relative;
-  padding: clamp(var(--space-2xl), 8vw, 7rem) var(--space-md) clamp(var(--space-xl), 5vw, 4rem);
-  text-align: center;
-}
-
-.hero-content {
-  position: relative;
-  z-index: 1;
-  max-width: 760px;
-  margin: 0 auto;
-}
-
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: var(--color-primary);
-  font-family: var(--heading);
-  font-weight: 600;
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
-  margin-bottom: var(--space-md);
-}
-
-.hero-eyebrow-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--color-primary);
-}
-
-.hero-content h1 {
-  margin-bottom: var(--space-md);
-}
-
-.hero-sub {
-  color: var(--color-text-muted);
-  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
-  line-height: 1.5;
-  max-width: 600px;
-  margin: var(--space-md) auto var(--space-xl);
-}
-
-.hero-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--space-lg);
-  flex-wrap: wrap;
-}
-
-.hero-cta {
-  padding: 0.9rem 1.9rem;
-  font-size: 1.02rem;
-}
-
-.hero-cta-icon {
-  width: 18px;
-  height: 18px;
-  transition: transform var(--dur-base) var(--ease-spring);
-}
-
-.hero-cta:hover .hero-cta-icon {
-  transform: translateX(4px);
-}
-
-.hero-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  color: var(--color-accent);
-  font-weight: 600;
-  text-decoration: none;
-  transition: color var(--dur-base) var(--ease-out);
-  min-height: 44px;
-}
-
-.hero-link:hover {
-  color: var(--color-accent-dark);
-  text-decoration: underline;
-}
-
-/* ----------------------------------------------------------------------- */
-/* Demo section — the proof. One centered video card, nothing competing.    */
-/* ----------------------------------------------------------------------- */
-
-.demo-section {
-  text-align: center;
-  padding: 0 var(--space-md);
-  scroll-margin-top: var(--space-xl);
-}
-
-.demo-eyebrow {
-  display: inline-block;
-  color: var(--color-primary);
-  font-family: var(--heading);
-  font-weight: 600;
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
-  margin-bottom: var(--space-sm);
-}
-
-.demo-section h2 {
-  margin-bottom: var(--space-sm);
-}
-
-.demo-section-sub {
-  color: var(--color-text-muted);
-  font-size: clamp(0.98rem, 2vw, 1.1rem);
-  line-height: 1.55;
-  max-width: 560px;
-  margin: 0 auto var(--space-xl);
-}
-
-.demo-section-frame {
-  max-width: 820px;
-  margin: 0 auto;
-}
-
-/* ----------------------------------------------------------------------- */
-/* Trust strip — quiet gray tiles, icon-led, no borders or lifts fighting   */
-/* for attention.                                                           */
-/* ----------------------------------------------------------------------- */
-
-.trust-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-md);
-}
-
-.trust-item {
-  text-align: center;
-  padding: var(--space-xl) var(--space-lg);
-  background: var(--color-surface-alt);
-  border: none;
-  border-radius: var(--radius-lg);
-  transition: transform var(--dur-base) var(--ease-out);
-}
-
-.trust-item:hover {
-  transform: translateY(-2px);
-}
-
-.trust-item h3 {
-  margin-bottom: var(--space-xs);
-}
-
-.trust-item p {
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-.trust-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  margin: 0 auto var(--space-md);
-  color: var(--color-primary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-hairline);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-}
-
-.trust-icon svg {
-  width: 26px;
-  height: 26px;
-}
-
-/* ----------------------------------------------------------------------- */
-/* Steps                                                                   */
-/* ----------------------------------------------------------------------- */
-
-.steps-section {
-  text-align: center;
-}
-
-.steps-section > .reveal h2,
-.steps-section h2 {
-  margin-bottom: var(--space-xs);
-}
-
-.steps-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-md);
-  margin-top: var(--space-xl);
-  text-align: left;
-}
-
-.step-card {
-  position: relative;
-  height: 100%;
-  text-align: left;
-  background: var(--color-surface-alt);
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl) var(--space-lg) var(--space-lg);
-  transition: transform var(--dur-base) var(--ease-out);
-}
-
-.step-card:hover {
-  transform: translateY(-2px);
-}
-
-.step-number {
-  position: absolute;
-  top: calc(-1 * var(--space-md));
-  left: var(--space-lg);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--heading);
-  font-weight: 700;
-  font-size: 1.05rem;
-  border: 3px solid var(--color-background);
-  box-shadow: var(--shadow-sm);
-}
-
-.step-card .trust-icon {
-  margin: var(--space-sm) 0 var(--space-md);
-}
-
-.step-card h3 {
-  margin-bottom: var(--space-xs);
-}
-
-.step-card p {
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-/* ----------------------------------------------------------------------- */
-/* Category chips — gray pills, orange only when active.                    */
-/* ----------------------------------------------------------------------- */
-
-.catalog-header {
-  margin-bottom: var(--space-lg);
-}
-
-.category-chips {
-  display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-  margin: var(--space-md) 0 var(--space-xl);
-}
-
-.chip {
-  background: var(--color-muted);
-  border: 1px solid transparent;
-  border-radius: var(--radius-pill);
-  padding: 0.55rem 1.2rem;
-  min-height: 44px;
-  font-family: var(--heading);
-  font-weight: 500;
-  font-size: 0.88rem;
-  color: var(--color-foreground);
-  cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
-}
-
-.chip:hover {
-  background: #e8e8ed;
-}
-
-.chip-active {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-primary);
-  font-weight: 600;
-}
-
-.chip-active:hover {
-  background: var(--color-primary-dark);
-}
-
-/* ----------------------------------------------------------------------- */
-/* Catalog + final CTA                                                     */
-/* ----------------------------------------------------------------------- */
-
-.catalog-section {
-  scroll-margin-top: var(--space-xl);
-}
-
-/* "Didn't find what you're looking for?" capture at the bottom of the catalog. */
-.catalog-request {
-  position: relative;
-  overflow: hidden;
-  max-width: 600px;
-  margin: var(--space-2xl) auto;
-  text-align: center;
-  background: var(--color-surface-alt);
-  border: none;
-  border-radius: var(--radius-xl);
-  padding: clamp(var(--space-xl), 4vw, var(--space-3xl)) var(--space-xl);
-}
-
-.catalog-request h2 {
-  margin-bottom: var(--space-xs);
-}
-
-.catalog-request-sub {
-  color: var(--color-text-muted);
-  max-width: 44ch;
-  margin: 0 auto var(--space-lg);
-}
-
-.catalog-request-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-  text-align: left;
-}
-
-.catalog-request-form textarea {
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font: inherit;
-  color: var(--color-foreground);
-  background: var(--color-surface);
-  resize: vertical;
-  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-
-.catalog-request-form textarea:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
-}
-
-.catalog-request-form select {
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  min-height: 44px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font: inherit;
-  color: var(--color-foreground);
-  background: var(--color-surface);
-  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-
-.catalog-request-form select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
-}
-
-.catalog-request-consent {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  font-size: 0.9rem;
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.catalog-request-consent input {
-  margin-top: 0.2rem;
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  accent-color: var(--color-primary);
-}
-
-.catalog-request-form .btn {
-  width: 100%;
-  padding: 0.85rem 1.4rem;
-}
-
-.catalog-request-success {
-  color: var(--color-success);
-  font-weight: 600;
-  font-size: 1.05rem;
-}
-
-.catalog-request-error {
-  color: var(--color-destructive);
-}
-
-.catalog-request-privacy {
-  margin-top: var(--space-lg);
-  margin-bottom: 0;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-}
-
-/* ----------------------------------------------------------------------- */
-/* Responsive                                                              */
-/* ----------------------------------------------------------------------- */
-
-@media (max-width: 768px) {
-  .hero {
-    padding: var(--space-2xl) var(--space-md) var(--space-xl);
-  }
-
-  .hero-actions {
-    gap: var(--space-md);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .trust-item,
-  .step-card,
-  .hero-cta-icon {
-    transition: none;
-  }
-}
-
-/* ── Pricing spotlight ──────────────────────────────────────────────────
-   For one beat the night returns mid-page: a full-bleed dark band with a
-   warm light cone from above, and the paper offer card sitting in it like
-   the one lit object in the room. The card styles are untouched — the
-   stage does the work of making the visitor stop. */
-.day-stage .catalog-spotlight {
+.dg-work--facing .dg-label {
+  grid-column: 1;
+  grid-row: 1;
   max-width: none;
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
-  margin-top: var(--space-3xl);
-  padding: clamp(3.5rem, 8vh, 5.5rem) var(--space-xl) clamp(4rem, 9vh, 6rem);
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(ellipse 60% 50% at 50% 8%, rgba(255, 179, 92, 0.17), transparent 62%),
-    radial-gradient(ellipse 45% 35% at 50% 96%, rgba(255, 179, 92, 0.05), transparent 70%),
-    #12100e;
 }
 
-/* Light cone: a soft beam narrowing from the top edge toward the card. */
-.catalog-spotlight::before {
+
+
+/* The frame is plain and dark, the way a modern gallery hangs a small Rousseau:
+   a hard edge, then the wall. The shadow is the work standing off the wall.
+   Sized by its own proportions — width AND height auto with both caps — so a
+   tall canvas stays tall instead of being letterboxed inside a wide mount. */
+.dg-canvas {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 66vh;
+  border: 10px solid var(--dg-night);
+  box-shadow: 0 18px 40px -18px var(--dg-shadow-deep);
+}
+
+.dg-label {
+  display: grid;
+  gap: 0.35rem;
+  max-width: 52ch;
+}
+
+.dg-label-artist {
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-small);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--dg-bone);
+}
+
+.dg-label-title {
+  font-style: italic;
+  font-size: var(--dg-fs-lead);
+  color: var(--dg-bone);
+}
+
+.dg-label-meta {
+  font-size: var(--dg-fs-meta);
+  letter-spacing: 0.02em;
+  color: var(--dg-bone-2);
+}
+
+.dg-label-note {
+  margin-top: 0.7rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(242, 227, 213, 0.28);
+  color: var(--dg-bone);
+}
+
+/* ══ The vitrine: the same night as a document ══════════════════════════ */
+
+/* The display case: the object on one side, its label on the other, the way a
+   vitrine is actually laid out. */
+.dg-vitrine {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(1.5rem, 5vw, 4.5rem);
+  align-items: center;
+}
+
+/* The label sat against the far edge with a dead third beside it. */
+.dg-vitrine-label {
+  justify-self: start;
+}
+
+.dg-vitrine-label h2 {
+  font-size: clamp(1.9rem, 1.3rem + 2vw, 3rem);
+}
+
+.dg-vitrine-label {
+  display: grid;
+  gap: 0.8rem;
+  max-width: 46ch;
+  align-content: center;
+}
+
+.dg-vitrine-note {
+  font-size: var(--dg-fs-lead);
+  color: var(--dg-ink-2);
+}
+
+/* ══ The phone in the case ══════════════════════════════════════════════
+   Built from CSS and SVG, not a mockup image: sharp at any density, near
+   zero weight, and the words inside are real text.
+
+   The radius here is the one deliberate exception to the world's hard-edge
+   rule. A phone is an object on display, like a painting in its frame; the
+   rule governs the interface, not the artefacts the interface shows. */
+
+/* Drawn, not photographed. Apple's housing is design-protected and this page
+   sells a product commercially, so a product shot is a licence question rather
+   than a design one — and a stock photograph would be the only unauthored
+   object on a page of authored surfaces. What it does owe is the real
+   proportion: 19.5:9. At 9/17.5 it read squat, which is the tell. */
+.dg-phone {
+  position: relative;
+  width: min(310px, 74vw);
+  aspect-ratio: 9 / 19.5;
+  padding: 9px;
+  background: linear-gradient(158deg, #4a4034 0 6%, #2b241d 22%, var(--dg-night) 52%, #241e18 78%, #43392e);
+  border-radius: 42px;
+  box-shadow:
+    0 0 0 1px var(--dg-night-line),
+    0 34px 68px -26px var(--dg-shadow-deep);
+}
+
+/* The rail catches the room's light along one edge, the way a metal band does. */
+.dg-phone::before {
   content: '';
   position: absolute;
-  top: 0;
+  inset: 1px;
+  border-radius: 41px;
+  background: linear-gradient(158deg, rgba(242, 227, 213, 0.28), transparent 14%, transparent 86%, rgba(242, 227, 213, 0.16));
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* The wake button on the right rail. One silhouette, drawn where the eye
+   expects it; at this scale a full button set is noise, not fidelity. */
+.dg-phone::after {
+  content: '';
+  position: absolute;
+  top: 26%;
+  right: -2px;
+  width: 2px;
+  height: 8%;
+  border-radius: 0 2px 2px 0;
+  background: #4a4034;
+  pointer-events: none;
+}
+
+.dg-phone-screen {
+  position: relative;
+  height: 100%;
+  /* The body radius less the bezel, so the two curves stay concentric. A screen
+     corner that is not inset from the housing is what makes a drawn phone read
+     as a rounded rectangle instead of a device. */
+  border-radius: 33px;
+  overflow: hidden;
+  background: var(--dg-night);
+  color: var(--dg-night-ink);
+  display: flex;
+  flex-direction: column;
+}
+
+.dg-phone-island {
+  position: absolute;
+  top: 9px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(680px, 80vw);
-  height: 100%;
-  pointer-events: none;
-  background: linear-gradient(rgba(255, 179, 92, 0.10), rgba(255, 179, 92, 0.02) 55%, transparent 80%);
-  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+  width: 74px;
+  height: 21px;
+  border-radius: 999px;
+  background: var(--dg-black);
+  z-index: 2;
 }
 
-.catalog-spotlight .catalog-header {
-  max-width: 760px;
-  margin-left: auto;
-  margin-right: auto;
+/* The gesture bar. Every current phone screen ends with one, and its absence
+   is read before it is noticed. */
+.dg-phone-screen::after {
+  content: '';
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(242, 227, 213, 0.34);
+  z-index: 2;
 }
-.catalog-spotlight .catalog-header h2 { color: #e7e1d6; }
-.catalog-spotlight .catalog-header p { color: rgba(231, 225, 214, 0.65); }
-.catalog-spotlight > p,
-.catalog-spotlight .empty-state p { color: rgba(231, 225, 214, 0.65); }
 
-.catalog-spotlight .offer-card-link {
+.dg-phone-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.2rem 0.3rem;
+  color: var(--dg-night-ink);
+}
+
+.dg-phone-icons {
+  display: inline-flex;
+  color: var(--dg-night-ink);
+}
+
+.dg-phone-head {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.5rem 1.1rem 0.75rem;
+  border-bottom: 1px solid var(--dg-night-line);
+}
+
+.dg-phone-title {
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-small);
+  font-weight: 700;
+}
+
+.dg-phone-sub {
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-night-ink-2);
+}
+
+/* Messages stack up from the bottom of the screen, the way every messenger
+   behaves. Anchoring them to the top left a dead panel under the thread. */
+.dg-phone-thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.9rem 0.85rem 1.4rem;
+  overflow: hidden;
+}
+
+/* Messenger convention: the speaker's own corner is tightened. The only
+   place in this world where a radius carries meaning rather than style. */
+.dg-bubble {
+  max-width: 86%;
+  padding: 0.6rem 0.75rem;
+  border-radius: 16px;
+  font-size: var(--dg-fs-meta);
+  line-height: 1.45;
+}
+
+.dg-bubble p {
+  margin: 0;
+}
+
+.dg-bubble--in {
+  align-self: flex-start;
+  border-bottom-left-radius: 5px;
+  background: var(--dg-night-2);
+  color: var(--dg-night-ink);
+}
+
+.dg-bubble--out {
+  align-self: flex-end;
+  border-bottom-right-radius: 5px;
+  background: var(--dg-crimson);
+  color: var(--dg-bone);
+}
+
+.dg-bubble-time {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  opacity: 0.72;
+}
+
+/* Grid, not a flex row: at this width the label and the time each need their
+   own line, and forcing them side by side wrapped both into each other. The
+   check keeps its own column, aligned to the label's first line. */
+.dg-phone-booked {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  column-gap: 0.5rem;
+  row-gap: 0.1rem;
+  margin-top: 0.2rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--dg-lamp);
+  color: var(--dg-night);
+  border-radius: 12px;
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-meta);
+  font-weight: 700;
+}
+
+.dg-phone-booked svg {
+  grid-row: 1;
+  margin-top: 0.12rem;
+}
+
+.dg-phone-booked .dg-time {
+  grid-column: 2;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.dg-pane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--dg-plaster-line);
+}
+
+.dg-pane-label {
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-small);
+  font-weight: 600;
+  color: var(--dg-ink);
+}
+
+.dg-msg {
+  border: 1px solid var(--dg-plaster-line);
+  background: var(--dg-plaster);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dg-msg-from {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: var(--dg-fs-meta);
+  font-weight: 600;
+  color: var(--dg-ink);
+}
+
+.dg-msg-body {
+  font-size: var(--dg-fs-body);
+  color: var(--dg-ink-2);
+}
+
+.dg-state {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 0.4rem 0.7rem;
+  font-size: var(--dg-fs-meta);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--dg-loss-ink);
+  background: var(--dg-loss-tint);
+  border: 1px solid var(--dg-loss);
+}
+
+.dg-booked {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--dg-ink);
+  background: var(--dg-plaster);
+  padding: 0.9rem 1.1rem;
+  font-weight: 600;
+  color: var(--dg-ink);
+}
+
+/* Authored demonstration content says so, in the page's own ink — a truth
+   obligation is never the faintest thing in view. */
+.dg-synthetic {
+  margin-top: 1.2rem;
+  font-size: var(--dg-fs-meta);
+  letter-spacing: 0.04em;
+  color: var(--dg-ink);
+}
+
+/* ══ The touchable exhibit ══════════════════════════════════════════════ */
+
+.dg-live-head {
+  display: grid;
+  gap: 0.7rem;
+  max-width: 62ch;
+  margin-bottom: clamp(1.25rem, 2.5vh, 2rem);
+}
+
+.dg-room h2,
+.dg-close h2 {
+  font-size: clamp(1.9rem, 1.3rem + 2vw, 3rem);
+}
+
+/* One room is allowed to be loud. The price is the page's peak, so its heading
+   takes the entrance's display step verbatim rather than inventing a third
+   size — the system's own type at full strength, which is what bold means here.
+
+   It has to sit after `.dg-room h2`: both selectors weigh the same, so for the
+   whole life of this page the generic rule won on source order and the peak
+   room was never actually louder than any other. */
+.dg-room--peak h2 {
+  font-size: clamp(2.2rem, 1.2rem + 3.3vw, 4rem);
+}
+
+.dg-touch {
+  font-style: italic;
+  color: var(--dg-ink-2);
+}
+
+.dg-live-sub,
+.dg-what-sub,
+.dg-horizon-sub {
+  font-size: var(--dg-fs-lead);
+  color: var(--dg-ink-2);
+  max-width: 62ch;
+}
+
+.dg-setter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
+  gap: clamp(1.5rem, 3vw, 3rem);
+  align-items: start;
+}
+
+.dg-setter-frame {
+  border: 1px solid var(--dg-ink);
+  background: var(--dg-plaster-2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dg-setter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  background: var(--dg-ink);
+  color: var(--dg-night-ink);
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-small);
+  font-weight: 600;
+}
+
+.dg-setter-frame iframe {
+  width: 100%;
+  border: 0;
+  height: 30rem;
+  background: var(--dg-plaster-2);
+  display: block;
+}
+
+/* No concierge configured, or the function is unreachable: say so plainly.
+   A page arguing "it answers" must never stage a conversation it cannot have. */
+.dg-setter-down {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: clamp(2rem, 5vw, 3.5rem) clamp(1.25rem, 3vw, 2rem);
+  min-height: 18rem;
+  justify-content: center;
+  color: var(--dg-ink-2);
+}
+
+.dg-setter-down b {
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-emph);
+  color: var(--dg-ink);
+}
+
+.dg-setter-aside {
+  display: grid;
+  gap: 1.1rem;
+  align-content: start;
+}
+
+.dg-fact {
+  display: grid;
+  gap: 0.35rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--dg-plaster-line);
+}
+
+.dg-fact:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.dg-fact b {
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-lead);
+  color: var(--dg-ink);
+}
+
+.dg-fact span {
+  color: var(--dg-ink-2);
+}
+
+/* ══ Setup, in three steps ══════════════════════════════════════════════ */
+
+/* The left column holds two lines against three steps; an even split left a
+   hole under the intro. The steps take the larger share. */
+/* Every room opens the same way: heading, then one line under it, both on the
+   left margin. The intro used to sit in its own column beside the content,
+   which left it floating in a hole. */
+.dg-room-head {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 62ch;
+  margin-bottom: clamp(1.25rem, 3vh, 2.25rem);
+}
+
+/* The three steps get the full width as a row, so they read as a sequence
+   rather than a list squeezed into half the room. */
+.dg-what-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.25rem, 3vw, 3rem);
+  align-items: start;
+}
+
+.dg-what-grid .dg-steps {
+  display: contents;
+}
+
+.dg-steps {
+  display: grid;
+  gap: 1.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: dgstep;
+}
+
+.dg-steps li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.dg-steps li::before {
+  counter-increment: dgstep;
+  content: counter(dgstep);
+  font-family: var(--dg-display);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--dg-fs-small);
+  font-weight: 700;
+  color: var(--dg-crimson);
+}
+
+.dg-steps b {
+  display: block;
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-lead);
+  color: var(--dg-ink);
+  margin-bottom: 0.25rem;
+}
+
+.dg-steps span {
+  color: var(--dg-ink-2);
+}
+
+/* ══ The offer on its plinth ════════════════════════════════════════════ */
+
+.dg-offer-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  border: 1px solid var(--dg-ink);
+  margin-top: clamp(1rem, 2vh, 1.75rem);
+  background: var(--dg-plaster-2);
+  text-decoration: none;
+  color: inherit;
+}
+
+.dg-offer-main {
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.dg-offer-main h3 {
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.1rem);
+}
+
+/* Catalogue metadata, dressed as metadata: text face, no tracking. */
+.dg-offer-cat {
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-ink-2);
+  padding-top: 1rem;
+  border-top: 1px solid var(--dg-plaster-line);
+}
+
+.dg-offer-summary {
+  color: var(--dg-ink-2);
+}
+
+.dg-offer-bullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.dg-offer-bullets li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: baseline;
+  color: var(--dg-ink-2);
+}
+
+.dg-tick {
+  width: 16px;
+  height: 16px;
+  color: var(--dg-crimson);
+  flex: none;
+}
+
+.dg-offer-buy {
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  background: var(--dg-night);
+  color: var(--dg-night-ink-2);
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+}
+
+.dg-price {
+  font-family: var(--dg-display);
+  font-size: clamp(2.4rem, 2rem + 2vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--dg-night-ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dg-price small {
+  font-size: var(--dg-fs-body);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--dg-night-ink-2);
+}
+
+.dg-offer-buy .dg-cta {
+  margin-top: 0.6rem;
+  justify-content: center;
+}
+
+.dg-offer-note {
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-night-ink-2);
+}
+
+/* The reasons it is safe to click, stated plainly. On a page with no customers
+   this is the whole trust budget, so it is set as content, not fine print. */
+.dg-risk {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dg-risk li {
   position: relative;
-  max-width: 760px;
-  margin: 0 auto;
-}
-.catalog-spotlight .offer-card {
-  border-color: rgba(255, 179, 92, 0.3);
-  box-shadow:
-    0 0 0 1px rgba(255, 179, 92, 0.12),
-    0 30px 80px rgba(0, 0, 0, 0.55),
-    0 0 120px 12px rgba(255, 179, 92, 0.10);
-}
-.catalog-spotlight .offer-card-link:hover .offer-card {
-  box-shadow:
-    0 0 0 1px rgba(255, 179, 92, 0.22),
-    0 36px 90px rgba(0, 0, 0, 0.6),
-    0 0 150px 16px rgba(255, 179, 92, 0.16);
+  padding-left: 1.15rem;
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-night-ink);
+  line-height: 1.5;
 }
 
-/* Multi-product fallback keeps readable chips/cards on the dark stage. */
-.catalog-spotlight .chip { border-color: rgba(231, 225, 214, 0.3); color: #e7e1d6; }
-.catalog-spotlight .chip-active { background: #e7e1d6; color: #12100e; border-color: #e7e1d6; }
+.dg-risk li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 7px;
+  height: 7px;
+  background: var(--dg-lamp);
+}
 
-/* Price and unit never break apart. */
-.offer-price { display: flex; align-items: baseline; gap: 0.35rem; flex-wrap: nowrap; }
-.offer-per { white-space: nowrap; }
+/* ══ The rest of the collection ═════════════════════════════════════════ */
+
+.dg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.5rem 0 0;
+}
+
+.dg-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.9rem;
+  min-height: 44px;
+  border: 1px solid var(--dg-plaster-line);
+  background: transparent;
+  color: var(--dg-ink-2);
+  font-family: var(--dg-text);
+  font-size: var(--dg-fs-small);
+  cursor: pointer;
+}
+
+.dg-chip-active {
+  border-color: var(--dg-ink);
+  background: var(--dg-ink);
+  color: var(--dg-plaster);
+}
+
+.dg-list {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--dg-plaster-line);
+}
+
+.dg-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--dg-plaster-line);
+  text-decoration: none;
+  color: inherit;
+}
+
+.dg-row:hover {
+  background: var(--dg-plaster-2);
+}
+
+.dg-row b {
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-lead);
+  color: var(--dg-ink);
+}
+
+.dg-row span {
+  display: block;
+  color: var(--dg-ink-2);
+  font-size: var(--dg-fs-body);
+  margin-top: 0.2rem;
+}
+
+.dg-row-price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--dg-ink);
+}
+
+.dg-note {
+  display: grid;
+  gap: 0.6rem;
+  color: var(--dg-ink-2);
+  padding: 1.5rem 0;
+  max-width: 62ch;
+}
+
+/* ══ The way out ════════════════════════════════════════════════════════ */
+
+.dg-close {
+  background: var(--dg-night);
+  color: var(--dg-night-ink-2);
+  padding: var(--dg-room) 0;
+}
+
+.dg-close-inner {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 54ch;
+  justify-items: start;
+}
+
+.dg-close h2 {
+  color: var(--dg-night-ink);
+}
+
+.dg-close p {
+  font-size: var(--dg-fs-lead);
+}
+
+.dg-close .dg-cta-note {
+  color: var(--dg-night-ink-2);
+}
+
+/* ══ The wish form, brought into the world ══════════════════════════════ */
+
+/* The wish form lives inside room VII now, so it drops its own panel and its
+   own padding: a box inside a room reads as a second room. */
+.dg-page .catalog-request {
+  background: transparent;
+  border-top: 1px solid var(--dg-plaster-line);
+  padding: clamp(1.5rem, 4vh, 2.5rem) 0 0;
+  margin-top: clamp(1.5rem, 4vh, 2.5rem);
+  max-width: none;
+}
+
+/* Subordinate to the room's heading, not louder than it. It is how the
+   collection grows, not a competing section. */
+.dg-page .catalog-request h2 {
+  font-size: clamp(1.35rem, 1.1rem + 0.9vw, 1.85rem);
+}
+
+.dg-page .catalog-request-sub,
+.dg-page .catalog-request-privacy {
+  color: var(--dg-ink-2);
+  max-width: 62ch;
+  margin-top: 0.75rem;
+}
+
+.dg-page .catalog-request-privacy {
+  font-size: var(--dg-fs-meta);
+}
+
+.dg-page .catalog-request-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 34rem;
+  margin-top: 1.5rem;
+}
+
+.dg-page .catalog-request .input-field input,
+.dg-page .catalog-request .input-field select,
+.dg-page .catalog-request .input-field textarea {
+  border-radius: 0;
+  border: 1px solid var(--dg-plaster-line);
+  background: var(--dg-plaster);
+  font-family: var(--dg-text);
+  font-size: var(--dg-fs-body);
+  color: var(--dg-ink);
+  min-height: 48px;
+  padding: 0.65rem 0.9rem;
+}
+
+/* The world's own focus treatment, not a zero-offset colour halo. */
+.dg-page .catalog-request .input-field input:focus-visible,
+.dg-page .catalog-request .input-field select:focus-visible,
+.dg-page .catalog-request .input-field textarea:focus-visible {
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.dg-page .catalog-request .input-field label {
+  font-family: var(--dg-text);
+  color: var(--dg-ink);
+}
+
+.dg-page .catalog-request .btn {
+  border-radius: 0;
+  font-family: var(--dg-display);
+  background: var(--dg-ink);
+  color: var(--dg-plaster-2);
+  box-shadow: none;
+  min-height: 48px;
+}
+
+.dg-page .catalog-request .btn:hover:not(:disabled) {
+  background: var(--dg-ink-2);
+  box-shadow: none;
+}
+
+.dg-page .catalog-request-consent {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  color: var(--dg-ink-2);
+  font-size: var(--dg-fs-small);
+}
+
+.dg-page .catalog-request-success {
+  border: 1px solid var(--dg-kept);
+  background: var(--dg-kept-tint);
+  color: var(--dg-kept-ink);
+  padding: 0.9rem 1.1rem;
+  margin-top: 1.25rem;
+}
+
+.dg-page .catalog-request-error {
+  color: var(--dg-loss);
+  font-weight: 600;
+}
+
+/* ── Motion: one grammar, "arrive and settle" ─────────────────────────────
+      Everything that moves does the same thing: it rises a little and comes
+      to rest, the way a picture resolves when you stop walking toward it.
+      Transform and opacity only — no blur on the paintings, because that
+      costs a full-size repaint per frame and fights the room.
+
+      Scroll-linked motion is wrapped in @supports: where animation-timeline is
+      unsupported the block never applies and everything is simply visible, so
+      no content can be stranded at opacity 0. ─────────────────────────────*/
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The entrance is already on screen at load, so it arrives on time, not on
+     scroll. Short and staggered; nothing waits longer than a third of a second. */
+  .dg-entrance-inner > * {
+    animation: dg-arrive 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .dg-entrance-inner > *:nth-child(2) { animation-delay: 90ms; }
+  .dg-entrance-inner > *:nth-child(3) { animation-delay: 170ms; }
+
+  /* The lamp is on, so it behaves like something that is on. The glow lives on
+     a pseudo-element and only opacity animates, so it composites and never
+     repaints the button itself. */
+  .dg-cta {
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* The glow is a resting state, not a loop. A never-ending pulse on every
+     CTA is scattered motion pretending to be one idea. */
+  .dg-cta::after {
+    content: '';
+    position: absolute;
+    inset: -20px;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.34;
+    background: radial-gradient(closest-side, var(--dg-lamp-glow), transparent 72%);
+    transition: opacity 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .dg-cta:hover::after {
+    opacity: 0.62;
+  }
+
+  @supports (animation-timeline: view()) {
+    /* Walking past a hung work: it drifts against the scroll, the way a picture
+       on a wall does when you move along it. `translate` is a separate property
+       from `transform`, so this composes with the arrival above instead of
+       overwriting it — and both are composited, so neither repaints. */
+    .dg-canvas {
+      animation:
+        dg-arrive linear both,
+        dg-drift linear both;
+      animation-timeline: view(), view();
+      animation-range: entry 6% entry 58%, cover 0% cover 100%;
+    }
+
+    /* One authored moment, and only one: the works. Labels, facts, steps, the
+       offer card and the closing block all used to carry the same entrance,
+       which is scattered effects wearing one name. Nothing else animates. */
+  }
+}
+
+@keyframes dg-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Small on purpose: 40px across a whole room read, not a parallax stunt. */
+@keyframes dg-drift {
+  from {
+    translate: 0 20px;
+  }
+  to {
+    translate: 0 -20px;
+  }
+}
+
+@keyframes dg-breathe {
+  0%,
+  100% {
+    opacity: 0.34;
+  }
+  50% {
+    opacity: 0.62;
+  }
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  .dg-vitrine,
+  .dg-setter,
+  .dg-what-grid,
+  .dg-offer-card {
+    grid-template-columns: 1fr;
+  }
+
+  /* One column on a phone, so every work hangs the same way: canvas, then its
+     label under it. A split needs two halves of screen and there is only one. */
+  .dg-work--facing,
+  .dg-work--split,
+  .dg-work--split-mirror,
+  .dg-entrance-inner {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  /* The steps stack rather than sitting in three narrow columns. */
+  .dg-what-grid {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+
+  .dg-hero-work .dg-canvas {
+    max-height: 46vh;
+  }
+
+  .dg-work--facing .dg-canvas,
+  .dg-work--facing .dg-label,
+  .dg-work--split .dg-canvas,
+  .dg-work--split .dg-label,
+  .dg-work--split-mirror .dg-canvas,
+  .dg-work--split-mirror .dg-label {
+    grid-column: 1;
+  }
+
+  .dg-work--facing .dg-canvas,
+  .dg-work--split .dg-canvas,
+  .dg-work--split-mirror .dg-canvas {
+    grid-row: 1;
+    max-height: none;
+    height: auto;
+  }
+
+  .dg-work--facing .dg-label,
+  .dg-work--split .dg-label,
+  .dg-work--split-mirror .dg-label {
+    grid-row: 2;
+  }
+
+  /* The display case stacks: object first, then its label. */
+  .dg-vitrine {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .dg-setter-frame iframe {
+    height: 26rem;
+  }
+
+  .dg-canvas {
+    max-height: none;
+    border-width: 6px;
+  }
+}
+
+@media (max-width: 560px) {
+  .dg-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dg-cta {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── The shell's chrome, brought into the exhibition on home routes ───── */
+
+.app-nav-dg {
+  background: var(--dg-night);
+  border-bottom: 1px solid var(--dg-night-line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.app-nav-dg .app-logo,
+.app-nav-dg .app-nav-link {
+  color: var(--dg-night-ink);
+  font-family: var(--dg-display);
+}
+
+
+.app-nav-dg .app-nav-link:hover,
+.app-nav-dg .app-nav-link.is-active {
+  color: var(--dg-lamp);
+}
+
+.app-nav-dg .app-nav-company {
+  color: var(--dg-night-ink-2);
+}
+
+.app-nav-dg .lang-switcher,
+.app-footer-dg .lang-switcher {
+  border-color: var(--dg-night-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.app-nav-dg .lang-btn,
+.app-footer-dg .lang-btn {
+  color: var(--dg-night-ink-2);
+}
+
+.app-nav-dg .lang-btn:hover,
+.app-footer-dg .lang-btn:hover {
+  color: var(--dg-night-ink);
+}
+
+.app-nav-dg .lang-btn-active,
+.app-footer-dg .lang-btn-active {
+  background: var(--dg-night-line);
+  color: var(--dg-night-ink);
+}
+
+/* One lamp per page, and it is the trial CTA. Nav actions are outlines. */
+.app-nav-dg .btn-primary,
+.app-nav-dg .btn-secondary {
+  background: transparent;
+  border: 1px solid var(--dg-night-line);
+  color: var(--dg-night-ink);
+  border-radius: 0;
+  box-shadow: none;
+  font-family: var(--dg-display);
+}
+
+.app-nav-dg .btn-primary:hover:not(:disabled),
+.app-nav-dg .btn-secondary:hover:not(:disabled) {
+  background: var(--dg-night-2);
+  border-color: var(--dg-lamp);
+  color: var(--dg-lamp);
+  box-shadow: none;
+}
+
+/* The footer is the last thing the visitor sees, so it ends in this world.
+   Aligned to the same 1240 shell every other band uses. */
+.app-footer-dg {
+  background: var(--dg-night-2);
+  border-top: 1px solid var(--dg-night-line);
+  font-family: var(--dg-text);
+  padding-inline: max(clamp(1.25rem, 4vw, 4rem), calc(50vw - 620px));
+}
+
+.app-footer-dg .app-footer-brand {
+  color: var(--dg-night-ink);
+  font-family: var(--dg-display);
+}
+
+.app-footer-dg .app-footer-links a,
+.app-footer-dg .app-footer-rights,
+.app-footer-dg .app-footer-support-label {
+  color: var(--dg-night-ink-2);
+}
+
+
+.app-footer-dg .app-footer-links a:hover {
+  color: var(--dg-lamp);
+}
+
+.app-footer-dg .app-footer-support a {
+  color: var(--dg-night-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+.app-footer-dg .app-footer-support a:hover {
+  color: var(--dg-lamp);
+}
+
+/* ══ Room I — the diptych ═══════════════════════════════════════════════
+   A black room holding two things: the painting, and the same night measured.
+   The painting is the only light source in the room, so it is given a real
+   spill rather than a frame shadow. Everything else is hairline and type. */
+
+.dg-room--gap {
+  padding-top: clamp(3.5rem, 9vh, 7rem);
+  padding-bottom: clamp(3.5rem, 9vh, 7rem);
+}
+
+.dg-diptych {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  align-items: center;
+  gap: clamp(2rem, 6vw, 5.5rem);
+}
+
+.dg-night-work {
+  margin: 0;
+  display: grid;
+  gap: clamp(1rem, 2.5vh, 1.75rem);
+}
+
+/* The work is the light in the room: a warm spill, not a drop shadow. */
+.dg-night-work .dg-canvas {
+  width: 100%;
+  height: auto;
+  max-height: 62vh;
+  object-fit: contain;
+  border: 10px solid #0b0908;
+  box-shadow:
+    0 0 0 1px var(--dg-night-line),
+    0 40px 90px -30px rgba(210, 162, 68, 0.28),
+    0 30px 70px -30px rgba(0, 0, 0, 0.9);
+}
+
+.dg-night-work .dg-label-artist,
+.dg-night-work .dg-label-title,
+.dg-night-work .dg-label-note {
+  color: var(--dg-night-ink);
+}
+
+.dg-night-work .dg-label-meta {
+  color: var(--dg-night-ink-2);
+}
+
+.dg-night-work .dg-label-note {
+  border-top-color: var(--dg-night-line);
+}
+
+/* ── The condition report ─────────────────────────────────────────────── */
+
+.dg-report {
+  display: grid;
+  gap: clamp(1.1rem, 2.5vh, 1.75rem);
+  max-width: 46ch;
+}
+
+.dg-report h2 {
+  color: var(--dg-night-ink);
+  font-size: clamp(1.9rem, 1.2rem + 2.4vw, 3.4rem);
+}
+
+.dg-gap-body {
+  color: var(--dg-night-ink-2);
+  font-size: var(--dg-fs-lead);
+}
+
+/* A vertical scale, read top to bottom like the night itself. The rule is the
+   duration; its length is the argument. */
+.dg-gap {
+  display: grid;
+  gap: 0;
+  margin-top: 0.5rem;
+  padding-left: 1.6rem;
+  position: relative;
+}
+
+.dg-gap::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55rem;
+  bottom: 0.55rem;
+  width: 1px;
+  background: var(--dg-night-line);
+}
+
+.dg-gap-point {
+  position: relative;
+  display: grid;
+  gap: 0.15rem;
+}
+
+/* Each reading gets a tick on the scale. */
+.dg-gap-point::before {
+  content: '';
+  position: absolute;
+  left: -1.6rem;
+  top: 0.55rem;
+  width: 0.85rem;
+  height: 1px;
+  background: var(--dg-night-ink-2);
+}
+
+.dg-gap-point .dg-time {
+  color: var(--dg-night-ink);
+  font-size: var(--dg-fs-lead);
+}
+
+.dg-gap-mark-label {
+  font-size: var(--dg-fs-meta);
+  color: var(--dg-night-ink-2);
+}
+
+/* The span between the readings: the part where nothing happens, marked in the
+   loss colour so the eye lands on the emptiness rather than on the numbers. */
+.dg-gap-run {
+  position: relative;
+  min-height: clamp(4.5rem, 11vh, 7rem);
+  display: flex;
+  align-items: center;
+}
+
+.dg-gap-run::before {
+  content: '';
+  position: absolute;
+  left: -1.6rem;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--dg-loss);
+}
+
+.dg-gap-span {
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-small);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--dg-loss-tint);
+}
+
+/* The one borrowed figure on the page, attributed on the line beneath it.
+   An unsourced statistic is exactly the claim this product promises not to
+   make. */
+.dg-gap-stat {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  padding-top: clamp(1.1rem, 2.5vh, 1.6rem);
+  border-top: 1px solid var(--dg-night-line);
+  font-family: var(--dg-display);
+  font-size: var(--dg-fs-emph);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--dg-night-ink);
+}
+
+.dg-gap-source {
+  font-family: var(--dg-text);
+  font-size: var(--dg-fs-meta);
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--dg-night-ink-2);
+}
+
+@media (max-width: 860px) {
+  .dg-diptych {
+    grid-template-columns: 1fr;
+    gap: clamp(1.75rem, 5vh, 2.75rem);
+  }
+
+  .dg-night-work .dg-canvas {
+    max-height: none;
+  }
+
+  .dg-report {
+    max-width: none;
+  }
+}

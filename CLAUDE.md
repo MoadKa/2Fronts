@@ -17,9 +17,21 @@ Key routing rules:
 - Resume context → invoke /context-restore
 - Author a backlog-ready spec/issue → invoke /spec
 
-## Design System
-Always read DESIGN.md before making any visual or UI decisions.
-All font choices, colors, spacing, and aesthetic direction are defined there
-("Der Nachttisch", approved 2026-07-04 — supersedes design-system/MASTER.md).
-Do not deviate without explicit user approval.
-In QA mode, flag any code that doesn't match DESIGN.md.
+## Design System — "Der Doppelgänger", home page migrated 2026-07-31
+`DESIGN.md` is binding again. It documents the world that actually shipped, not
+an intention: read it before any visual or UI decision.
+
+**Mind the scope line at the top of DESIGN.md.** The world is implemented on the
+home page only (`/` and `/en`, scoped to `.dg-page`), plus the global nav and
+footer via a `variant='dg'` switch on those routes. Setup, chats, my-requests,
+admin, automation detail and the public concierge page still run the old tokens
+in `src/index.css` (Space Grotesk, DM Sans, glass, pill radii). That is recorded
+debt awaiting the next migration — never cite those surfaces as precedent.
+
+- `PRODUCT.md` is binding and independent: users, positioning, pricing, claim
+  guardrails, evidence. Visual work must not contradict it.
+- Superseded directions, kept as material only:
+  `design-system/DIRECTION-nachttisch-2026-07-04.md` and
+  `design-system/MASTER.md`. Do not resurrect either.
+- In QA mode, flag home-page code that breaks DESIGN.md, and flag unmigrated
+  surfaces as debt rather than as violations.

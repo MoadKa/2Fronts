@@ -12,7 +12,7 @@
 }
 
 .legal-header h1 {
-  font-size: clamp(1.9rem, 4.5vw, 2.6rem);
+  font-size: var(--dg-fs-headline);
   margin-bottom: var(--space-sm);
 }
 
@@ -45,24 +45,21 @@
   scroll-margin-top: var(--space-xl);
 }
 
-.legal-section h2 {
-  font-size: 1.3rem;
+/* A legal document is Read mode: the hierarchy is the type, not a coloured tab
+   down the left of every heading. The 4px bars are gone — a section announces
+   itself the way the exhibition's rooms do, by the heading and the space above
+   it, with more room above than below so the break belongs to what follows. */
+.legal-section h2,
+.legal-body > section h2 {
+  font-size: var(--op-h3);
+  margin-top: var(--space-xl);
   margin-bottom: var(--space-sm);
-  padding-left: var(--space-md);
-  border-left: 4px solid var(--color-primary);
 }
 
 .legal-section p {
   color: var(--color-text);
   line-height: 1.75;
   margin: 0;
-}
-
-.legal-body > section h2 {
-  font-size: 1.3rem;
-  margin-bottom: var(--space-sm);
-  padding-left: var(--space-md);
-  border-left: 4px solid var(--color-primary);
 }
 
 .legal-body > section p {
@@ -75,12 +72,14 @@
   font-weight: 600;
 }
 
+/* A quote is a block set one tone down with a drawn edge, like every other
+   nested block in this world. */
 .legal-body blockquote {
   margin: var(--space-sm) 0 0;
   padding: var(--space-md) var(--space-lg);
-  background: var(--color-muted);
-  border-left: 4px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
   color: var(--color-foreground);
   font-style: italic;
   line-height: 1.7;

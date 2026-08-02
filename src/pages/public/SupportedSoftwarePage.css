@@ -9,7 +9,7 @@
 }
 
 .software-header h1 {
-  font-size: clamp(2rem, 5vw, 2.8rem);
+  font-size: var(--dg-fs-headline);
 }
 
 .software-page .page-header p {
@@ -66,7 +66,7 @@
   justify-content: center;
   font-family: var(--heading);
   font-weight: 700;
-  font-size: 1.2rem;
+  font-size: var(--dg-fs-emph);
   color: var(--color-primary-dark);
   margin-bottom: var(--space-md);
   box-shadow: var(--shadow-sm);
@@ -95,7 +95,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 0.74rem;
+  font-size: var(--dg-fs-meta);
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -108,13 +108,16 @@
   color: var(--color-success);
 }
 
+/* A square mark in the kept green, with no halo. The dot was a circle with a
+   glow around it — two shapes this world does not have, and a literal green
+   that belonged to no ramp. */
 .pill-live::before {
   content: '';
   width: 7px;
   height: 7px;
-  border-radius: 50%;
-  background: var(--color-success);
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+  border-radius: 0;
+  background: var(--dg-kept);
+  box-shadow: none;
 }
 
 .pill-soon {

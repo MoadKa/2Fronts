@@ -1,7 +1,10 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import './Button.css'
 
-type Variant = 'primary' | 'secondary' | 'danger'
+/* `primary` is the lamp — the one lit control in a view. `ink` is a form's own
+   solid submit, for the surfaces where a second lamp would be the second one.
+   `secondary` is the outline every other action wears. */
+type Variant = 'primary' | 'secondary' | 'ink' | 'danger'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant

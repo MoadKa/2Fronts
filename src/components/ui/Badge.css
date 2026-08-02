@@ -1,15 +1,37 @@
+/* Square, drawn, tinted from the world's own status ramps. Status colour never
+   arrives as a literal at the call site — a warm world drifts cool one badge
+   at a time. */
 .badge {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: var(--radius-pill);
+  padding: 0.25rem 0.6rem;
+  border-radius: 0;
   border: 1px solid transparent;
-  font-size: 0.8rem;
+  font-size: var(--dg-fs-meta);
   font-weight: 700;
   font-family: var(--heading);
   letter-spacing: 0.01em;
 }
 
-.badge-neutral { background: var(--color-muted); color: var(--color-foreground); border-color: var(--color-border); }
-.badge-success { background: var(--color-success-bg); color: var(--color-success); }
-.badge-warning { background: var(--color-warning-bg); color: var(--color-warning); }
-.badge-danger { background: var(--color-destructive-bg); color: var(--color-destructive); }
+.badge-neutral {
+  background: var(--dg-plaster);
+  color: var(--dg-ink-2);
+  border-color: var(--color-border);
+}
+
+.badge-success {
+  background: var(--dg-kept-tint);
+  color: var(--dg-kept-ink);
+  border-color: var(--dg-kept);
+}
+
+.badge-warning {
+  background: var(--dg-lamp-tint);
+  color: var(--dg-lamp-ink);
+  border-color: var(--dg-lamp-deep);
+}
+
+.badge-danger {
+  background: var(--dg-loss-tint);
+  color: var(--dg-loss-ink);
+  border-color: var(--dg-loss);
+}

@@ -1,65 +1,106 @@
+/* Three buttons, and the world decides which is which: the lamp is the one lit
+   thing in a view, the outline is every other action, ink is a form's own
+   submit. Hard rectangles throughout — nothing here is a pill. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
+  min-height: 48px;
   padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   border: 1px solid transparent;
   font-family: var(--heading);
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--dg-fs-small);
+  font-weight: 700;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  transition: background-color 160ms var(--ease-spring), color 160ms var(--ease-spring),
+    border-color 160ms var(--ease-spring), box-shadow 160ms var(--ease-spring),
+    transform 160ms var(--ease-spring);
 }
 
+/* The lamp. One per view, on the action the visitor came to take. A second
+   filled button in the same frame means one of the two is wrong. */
 .btn-primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  box-shadow: var(--shadow-sm);
+  min-height: 52px;
+  padding: 0.85rem 1.6rem;
+  font-size: 1.05rem;
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+  border-color: var(--color-cta-edge);
+  box-shadow: var(--shadow-lamp);
 }
 
+/* A lit thing spills more light as it comes closer, and less under a finger. */
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-primary-dark);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lamp-hover);
 }
 
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-lamp-press);
+}
+
+/* Outline: the default action shape. Transparent, drawn edge, ink text. */
 .btn-secondary {
-  background: var(--color-muted);
+  background: transparent;
   color: var(--color-foreground);
-  border-color: transparent;
+  border-color: var(--color-border);
+  box-shadow: none;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #e8e8ed;
+  background: var(--color-surface);
+  border-color: var(--color-foreground);
+}
+
+/* Ink: a form's own submit, solid on raised plaster. */
+.btn-ink {
+  background: var(--dg-ink);
+  color: var(--dg-plaster-2);
+  border-color: var(--dg-ink);
+  box-shadow: none;
+}
+
+.btn-ink:hover:not(:disabled) {
+  background: var(--dg-ink-2);
+  border-color: var(--dg-ink-2);
 }
 
 .btn-danger {
-  background: var(--color-destructive);
-  color: #fff;
+  background: var(--dg-loss);
+  color: var(--dg-plaster-2);
+  border-color: var(--dg-loss);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #b91c1c;
-}
-
-/* Press feedback: a breath of scale, no layout shift. */
-.btn:active:not(:disabled) {
-  transform: scale(0.97);
+  background: var(--dg-loss-ink);
+  border-color: var(--dg-loss-ink);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+/* Below 560px the lamp takes the full column and centres, the way it does in
+   the exhibition's closing room. */
+@media (max-width: 560px) {
+  .btn-primary {
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .btn {
     transition: none;
   }
-  .btn:active:not(:disabled) {
+  .btn-primary:hover:not(:disabled),
+  .btn-primary:active:not(:disabled) {
     transform: none;
   }
 }

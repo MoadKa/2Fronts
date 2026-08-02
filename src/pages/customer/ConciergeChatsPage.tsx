@@ -200,7 +200,16 @@ export function ConciergeChatsPage() {
         </div>
       )}
 
-      <Modal isOpen={!!selected} onClose={() => setSelected(null)}>
+      <Modal
+        isOpen={!!selected}
+        onClose={() => setSelected(null)}
+        label={
+          selected
+            ? selected.visitor_name ||
+              `${t('conciergeChats.visitor')} ${selected.visitor_session_id.slice(0, 8)}`
+            : undefined
+        }
+      >
         {selected && (
           <div className="concierge-chat-detail">
             <h2>

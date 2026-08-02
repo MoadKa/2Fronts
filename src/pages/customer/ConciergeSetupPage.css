@@ -24,9 +24,10 @@
 
 .concierge-setup-form textarea:focus,
 .concierge-setup-form select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .input-hint {
@@ -74,9 +75,10 @@
 }
 
 .wizard-card textarea:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .wizard-nav {
@@ -172,9 +174,10 @@
 }
 
 .wizard-accelerator-row input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 .wizard-scrape-ok {
@@ -286,9 +289,10 @@
 
 .wizard-qualify-body input[type='text']:focus,
 .wizard-qualify-option input[type='text']:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.15);
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 /* One answer-option row: label input + "qualifies" toggle + remove. */
@@ -419,7 +423,7 @@ ol.wizard-qualify {
   background: color-mix(in srgb, var(--color-primary) 12%, transparent);
   color: var(--color-primary-dark);
   font-family: var(--heading);
-  font-size: 0.8rem;
+  font-size: var(--dg-fs-meta);
   font-weight: 700;
 }
 
@@ -554,14 +558,17 @@ ol.wizard-qualify {
   color: var(--color-primary);
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
 }
+/* The badge marks a state change — the wizard is finished — so it is allowed to
+   arrive. It used to arrive by scaling up from 0.6, which is a flourish rather
+   than a report; this world says the same thing by simply appearing. */
 .wizard-done-badge {
-  color: var(--color-on-primary);
+  color: var(--dg-plaster-2);
   background: var(--color-success);
-  animation: wizard-pop var(--dur-slow) var(--ease-spring) both;
+  animation: wizard-arrive var(--dur-base) var(--ease-out) both;
 }
-@keyframes wizard-pop {
-  from { transform: scale(0.6); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+@keyframes wizard-arrive {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Respect users who don't want motion. */
