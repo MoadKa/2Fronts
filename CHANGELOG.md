@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.16.0.0] - 2026-08-02
+
+### Changed
+- **Die ganze Anwendung sieht jetzt aus wie die Startseite.** Bisher galt das neue Erscheinungsbild nur auf der Startseite. Überall sonst — im Anmeldefenster, auf der Seite, die du deinen Interessenten schickst, in der Einrichtung, in den Gesprächen, in der Verwaltung — liefen noch die alten Schriften, abgerundete Ecken, Glaseffekte und der orange Akzent. Es waren zwei Gestaltungen nebeneinander, und welche du sahst, hing davon ab, wo du gerade warst. Das ist zusammengeführt: zwei Schriften, eine warme Farbfamilie, harte Kanten, keine Schatten. Was die Startseite als Ausstellung besonders macht (die Räume, die Bilder, die Wandtexte) bleibt dort, weil eine Arbeitsfläche wie die Einrichtung anders gelesen wird als eine Wand.
+- **Die Seite, die deine Interessenten sehen, wurde neu gebaut.** Gleiche Sprache wie der Rest, und der Hinweis auf eine vorgeführte Demo steht nicht mehr im Kleingedruckten, sondern in normaler Schrift.
+
+### Security
+- **Die Grenze von 50 gleichzeitigen Demos hielt nicht.** Sie wurde nur beim Anlegen geprüft, und dabei nur bei Demos gezählt, die schon liefen. Ein Demo-Konto konnte also beliebig viele ausgeschaltete Demos anlegen und sie anschließend alle auf einmal einschalten. Gegen eine echte Datenbank nachgestellt: 120 laufende Demos bei einer Grenze von 50. Gezählt wird jetzt in dem Moment, in dem ein Demo zu laufen beginnt, nicht wenn es angelegt wird. Wichtig, weil genau diese Grenze begrenzt, wie viel ein gestohlener Zugang an Modellkosten verursachen kann.
+
+### Fixed
+- **Die englische Startseite sagte dem Browser, sie sei deutsch.** Vorleseprogramme haben den englischen Text deutsch ausgesprochen.
+- **Das Anmeldefenster war für die Tastatur nicht bedienbar.** Es meldete sich nicht als Dialog, ließ sich nicht mit Escape schließen, und wer mit der Tabulatortaste weiterging, landete hinter dem Fenster in der Seite. Behoben.
+- **Seiten, die es nicht gibt, konnten bei Google landen.** Die 404-Seite sagte Suchmaschinen nicht, dass sie nicht aufgenommen werden soll, und trug den Titel der zuvor besuchten Seite.
+
 ## [1.15.12.0] - 2026-07-30
 
 ### Security
