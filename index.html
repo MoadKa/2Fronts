@@ -16,11 +16,18 @@
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://2fronts.de/" />
-    <meta property="og:image" content="https://2fronts.de/og-image-en.png" />
+    <meta property="og:site_name" content="2Fronts" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:image" content="https://2fronts.de/og-image.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Rousseaus Gemälde „Surprise !“ mit der Zeile: Wer zuerst antwortet, bekommt das Gespräch."
+    />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://2fronts.de/og-image-en.png" />
+    <meta name="twitter:image" content="https://2fronts.de/og-image.jpg" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -37,12 +44,36 @@
          renders fallback text immediately, avoiding invisible-text on first paint. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Familjen Grotesk sets headings, numerals, buttons and short structural
+         labels; Archivo sets everything read as a sentence. Two faces, no
+         third, no monospace outside the embed snippet. DM Sans and Space
+         Grotesk left with the app surfaces they were carrying, which now speak
+         the same world as the home page; Fraunces, Schibsted and Fragment Mono
+         left earlier with the discarded Nachttisch home page.
+         (The standalone pages under public/ still load their own fonts in
+         their own <head> and are unaffected by this line.) -->
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=Fraunces:opsz,wght@9..144,640;9..144,680&family=Schibsted+Grotesk:wght@400;500;700&family=Fragment+Mono&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600&display=swap"
     />
   </head>
   <body>
+    <!--
+      THESIS: One room, one instant, shown twice: 23:12 unanswered and the same
+      moment already handled. Refuses the AI-SaaS hero (gradient, tilted
+      screenshot, feature-card trio) and its cream-and-serif opposite.
+      OWN-WORLD: Night #14181e against plaster #d8d6cf, a noon sky #7fa8d4
+      owning whole regions, lamp yellow #f5d76b as the only lit thing and the
+      only button. Familjen Grotesk over Archivo. Hard edges, no glass, no pills.
+      STORY: A coach sees the impossible half answer at 23:12, types into it
+      himself, reads one price, starts the 14-day trial.
+      FIRST VIEWPORT: One headline split down the middle by the seam, set twice
+      and clipped so it changes ink mid-sentence, wherever the line crosses.
+      Under it two panes of the same thread: left unread at 23:12, right
+      answered with a call at 14:00. The lit half ends on the primary action.
+      FORM: Doubled ordinary, candidate 6 of the grounded list, seed 8ad6b237.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

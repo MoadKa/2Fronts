@@ -3,12 +3,15 @@ import { useTranslation } from 'react-i18next'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import './Footer.css'
 
-export function Footer() {
+// `variant` lets a committed page bring the footer into its own world. The nav
+// takes the same switch from AppLayout: a global component is not exempt from
+// the world it is standing in, and the footer is the last thing a visitor sees.
+export function Footer({ variant }: { variant?: 'dg' } = {}) {
   const { t } = useTranslation()
   const year = new Date().getFullYear()
 
   return (
-    <footer className="app-footer">
+    <footer className={variant === 'dg' ? 'app-footer app-footer-dg' : 'app-footer'}>
       <Link to="/" className="app-footer-brand">
         <span>2Fronts</span>
       </Link>

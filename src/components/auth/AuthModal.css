@@ -1,28 +1,26 @@
-/* Sign-in / sign-up modal (v1.3). The glass card + overlay come from Modal.css;
-   this lays out the header, the fields, and the actions, and adds a smooth
-   entrance for the dialog content. */
+/* The pane, its edge and the scrim come from Modal.css; this lays out the
+   header, the fields and the actions. The entrance animation the dialog used
+   to perform is gone with the rest of the world's entry motion — a sign-in box
+   should be ready to type into, not arriving. */
 .auth-modal {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
-  animation: auth-modal-in var(--dur-base) var(--ease-out) both;
-}
-
-@keyframes auth-modal-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.985); }
-  to { opacity: 1; transform: none; }
 }
 
 .auth-modal-head {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-md);
 }
 
 .auth-modal-head h2 {
   margin: 0;
+  font-size: var(--op-h2);
 }
 
+/* The mark is a drawn square in ink, not a rounded tile with a shadow. It
+   carries the dialog's one piece of ornament and nothing else does. */
 .auth-modal-mark {
   display: inline-flex;
   align-items: center;
@@ -30,10 +28,10 @@
   width: 44px;
   height: 44px;
   flex-shrink: 0;
-  border-radius: var(--radius-md);
-  color: var(--color-on-primary);
-  background: var(--color-primary);
-  box-shadow: var(--shadow-sm);
+  border-radius: 0;
+  color: var(--dg-plaster-2);
+  background: var(--dg-ink);
+  box-shadow: none;
 }
 
 .auth-modal-fields {
@@ -42,18 +40,33 @@
   gap: var(--space-md);
 }
 
+/* The fields carry their own bottom margin from Input.css; inside a stacked
+   column that doubles the gap. */
+.auth-modal-fields .input-field {
+  margin-bottom: 0;
+}
+
 .auth-modal-actions {
   gap: var(--space-sm);
 }
 
 .auth-modal-confirm-text {
   margin: 0;
-  line-height: 1.5;
-  color: var(--color-text-muted, inherit);
+  line-height: 1.6;
+  color: var(--color-text-muted);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .auth-modal {
-    animation: none;
-  }
+/* The mode switch is a link in prose, not a second button competing with the
+   dialog's one filled action. */
+.auth-modal-switch {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: var(--sans);
+  font-size: var(--dg-fs-small);
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+  cursor: pointer;
 }

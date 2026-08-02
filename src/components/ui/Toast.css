@@ -8,17 +8,30 @@
   z-index: 1100;
 }
 
+/* Solid, square, drawn. A toast lands over whatever surface is underneath, so
+   it carries its own ground rather than a tint that would fight the page. */
 .toast {
   padding: 0.85rem 1.25rem;
-  border-radius: var(--radius-sm);
-  color: #fff;
+  border-radius: 0;
+  border: 1px solid transparent;
+  color: var(--dg-plaster-2);
+  font-family: var(--sans);
   font-weight: 600;
-  box-shadow: var(--shadow-md);
-  animation: toast-in 200ms ease-out;
+  box-shadow: none;
+  /* The arrival IS the state change, which is the one thing motion is for
+     here. Short enough not to make anyone wait to read it. */
+  animation: toast-in 160ms var(--ease-out);
 }
 
-.toast-success { background: var(--color-success); }
-.toast-error { background: var(--color-destructive); }
+.toast-success {
+  background: var(--dg-kept-ink);
+  border-color: var(--dg-kept);
+}
+
+.toast-error {
+  background: var(--dg-loss-ink);
+  border-color: var(--dg-loss);
+}
 
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px); }

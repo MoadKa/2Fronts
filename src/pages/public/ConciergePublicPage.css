@@ -1,7 +1,11 @@
-/* Public concierge chat (#23, v1.3 delight pass). The flagship public surface —
-   a coach shares this link with prospects. Warm claymorphism, calm and centered,
-   mobile-first (375px). Uses the shared tokens from src/index.css and the shared
-   .rise entrance utility (reduced-motion-guarded there). */
+/* Public concierge chat — the flagship public surface: a coach shares this link
+   with their own prospects, and 2Fronts stays out of the way on it.
+
+   The clay world it was built in is gone. This is the same exhibition the rest
+   of the app now lives in: plaster ground, drawn edges, square corners, two
+   inks per ground. A conversation is the one place where the world's message
+   blocks (the vitrine) already had a vocabulary, so this reuses it rather than
+   inventing a chat look. */
 
 .concierge-wrap {
   max-width: 640px;
@@ -10,6 +14,7 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  background: var(--color-background);
 }
 
 /* Embed mode (?embed=1): the page fills the ~400x600 widget iframe rendered by
@@ -25,7 +30,7 @@
    link back to 2fronts.de — the visitors there are exactly the audience. */
 .concierge-powered {
   align-self: center;
-  font-size: 0.75rem;
+  font-size: var(--dg-fs-meta);
   color: var(--color-text-muted);
   text-decoration: none;
 }
@@ -33,20 +38,23 @@
 .concierge-powered:hover,
 .concierge-powered:focus-visible {
   text-decoration: underline;
+  text-underline-offset: 0.22em;
 }
 
 /* Demo disclosure: this concierge was built BY 2Fronts as a sales demo, not by
-   the business it speaks for. Quiet by design — it has to be readable and
-   honest, not a warning banner that wrecks the impression the demo exists to
-   make. Muted ink per DESIGN.md, same size as the powered-by credit. */
+   the business it speaks for. It used to sit muted at 0.75rem — small print,
+   which is exactly what the world forbids for an authored-demonstration
+   disclosure. Primary ink, meta size, tracked out: readable and honest, and
+   still quiet enough not to wreck the impression the demo exists to make. */
 .concierge-demo-note {
   align-self: center;
   margin: 0;
-  max-width: 34rem;
-  font-size: 0.75rem;
-  line-height: 1.4;
+  max-width: 52ch;
+  font-size: var(--dg-fs-meta);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
   text-align: center;
-  color: var(--color-text-muted);
+  color: var(--color-text);
 }
 
 .concierge-chat {
@@ -64,7 +72,7 @@
   padding: var(--space-xs) 0 var(--space-sm);
 }
 
-/* A message row: avatar + bubble for the assistant, bubble alone for the visitor. */
+/* A message row: mark + block for the assistant, block alone for the visitor. */
 .concierge-row {
   display: flex;
   align-items: flex-end;
@@ -81,44 +89,49 @@
   justify-content: flex-end;
 }
 
-/* Small clay avatar marking the assistant's voice. */
+/* Square, drawn, plaster: the assistant's mark is a small plaque, not a bubble
+   avatar. Nothing in this world is a circle. */
 .concierge-avatar {
   flex: 0 0 auto;
   width: 30px;
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 0;
+  border: 1px solid var(--dg-ink);
   background: var(--color-surface);
-  color: var(--color-primary);
-  box-shadow: var(--shadow-sm);
+  color: var(--dg-ink);
+  box-shadow: none;
   margin-bottom: 2px;
 }
 
 .concierge-bubble {
   padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  line-height: 1.5;
+  border-radius: 0;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 1rem;
+  font-size: var(--dg-fs-body);
 }
 
 .concierge-bubble-assistant {
   background: var(--color-surface);
   color: var(--color-foreground);
-  border-bottom-left-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
 }
 
+/* The visitor's own words come back set in ink — whose turn it is reads as a
+   change of ground, the way every other distinction in this world does. */
 .concierge-bubble-user {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  border-bottom-right-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
+  background: var(--dg-ink);
+  color: var(--dg-plaster-2);
+  border: 1px solid var(--dg-ink);
+  box-shadow: none;
 }
 
-/* Typing indicator: three softly bouncing dots. */
+/* Typing indicator. Motion here reports state — someone is composing — which is
+   the one thing this world spends motion on. */
 .concierge-typing {
   display: inline-flex;
   align-items: center;
@@ -131,12 +144,14 @@
   padding: 3px 0;
 }
 
+/* The dots pulse rather than hop. A bouncing dot is the tic of a chat widget
+   from a different world; this one just says someone is composing. */
 .concierge-dots span {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-secondary);
-  animation: concierge-bounce 1.2s var(--ease-out) infinite;
+  width: 6px;
+  height: 6px;
+  border-radius: 0;
+  background: var(--dg-ink-2);
+  animation: concierge-composing 1.2s var(--ease-out) infinite;
 }
 
 .concierge-dots span:nth-child(2) {
@@ -147,16 +162,21 @@
   animation-delay: 0.3s;
 }
 
-@keyframes concierge-bounce {
+@keyframes concierge-composing {
   0%,
   60%,
   100% {
-    transform: translateY(0);
-    opacity: 0.5;
+    opacity: 0.35;
   }
   30% {
-    transform: translateY(-5px);
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .concierge-dots span {
+    animation: none;
+    opacity: 0.7;
   }
 }
 
@@ -173,7 +193,9 @@
   border: 0;
 }
 
-/* Booking CTA: prominent but tasteful, centered. */
+/* Booking is the whole point of this page, so booking is the lamp — the one
+   lit control here. The composer's send button stays ink for the same reason
+   it stays ink everywhere: it moves the conversation, it isn't the decision. */
 .concierge-booking {
   display: flex;
   justify-content: center;
@@ -185,144 +207,121 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
-  min-height: 48px;
-  padding: var(--space-sm) var(--space-xl);
-  border-radius: var(--radius-md);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-weight: 600;
+  min-height: 52px;
+  padding: 0.85rem 1.6rem;
+  border: 1px solid var(--color-cta-edge);
+  border-radius: 0;
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+  font-family: var(--heading);
+  font-weight: 700;
   font-size: 1.05rem;
   text-decoration: none;
-  box-shadow: var(--shadow-md);
-  transition: transform var(--dur-fast) var(--ease-spring),
-    box-shadow var(--dur-fast) var(--ease-out);
+  box-shadow: var(--shadow-lamp);
+  transition: transform 160ms var(--ease-spring), box-shadow 160ms var(--ease-spring);
 }
 
 .concierge-book-cta:hover {
   transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lamp-hover);
 }
 
 .concierge-book-cta:active {
   transform: translateY(1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-lamp-press);
 }
 
-.concierge-book-cta:focus-visible {
-  outline: 3px solid var(--color-ring);
-  outline-offset: 2px;
+@media (prefers-reduced-motion: reduce) {
+  .concierge-book-cta {
+    transition: none;
+  }
+  .concierge-book-cta:hover,
+  .concierge-book-cta:active {
+    transform: none;
+  }
 }
 
-/* Contact capture: name + email + continue, swapped in where the composer sits
-   when the server gates the booking behind contact. Same clay card look. */
-.concierge-contact {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
+/* Contact capture and the composer are the same object: a drawn bar that sits
+   at the bottom of the conversation. The ink edge marks them as the two
+   containers here that carry a commitment. */
+.concierge-contact,
+.concierge-input {
   padding: var(--space-sm);
   background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--dg-ink);
+  border-radius: 0;
+  box-shadow: none;
   position: sticky;
   bottom: var(--space-sm);
 }
 
-.concierge-contact input {
+.concierge-contact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.concierge-input {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.concierge-contact input,
+.concierge-input input {
   min-height: 44px;
   padding: var(--space-sm) var(--space-md);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
   font: inherit;
   color: var(--color-foreground);
-  background: var(--color-muted);
-  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  background: var(--dg-plaster);
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
-.concierge-contact input::placeholder {
-  color: var(--color-text);
-  opacity: 0.7;
+.concierge-input input {
+  flex: 1;
 }
 
-.concierge-contact input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  background: var(--color-surface);
+/* Full-strength muted ink rather than body ink at 0.7 opacity, which landed
+   under the contrast floor on plaster. */
+.concierge-contact input::placeholder,
+.concierge-input input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.concierge-contact input:focus-visible,
+.concierge-input input:focus-visible {
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
 }
 
 .concierge-contact-submit {
   min-height: 48px;
   padding: var(--space-sm) var(--space-xl);
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  border: 1px solid var(--dg-ink);
+  border-radius: 0;
+  background: var(--dg-ink);
+  color: var(--dg-plaster-2);
   font-family: var(--heading);
-  font-weight: 600;
-  font-size: 1.02rem;
+  font-weight: 700;
+  font-size: var(--dg-fs-body);
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+  box-shadow: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .concierge-contact-submit:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  background: var(--dg-ink-2);
+  border-color: var(--dg-ink-2);
 }
 
-.concierge-contact-submit:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.concierge-contact-submit:disabled {
-  opacity: 0.55;
+.concierge-contact-submit:disabled,
+.concierge-send:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .concierge-contact-submit {
-    transition: box-shadow var(--dur-base) var(--ease-out);
-  }
-  .concierge-contact-submit:hover:not(:disabled),
-  .concierge-contact-submit:active:not(:disabled) {
-    transform: none;
-  }
-}
-
-/* Composer: input + send pinned at the bottom, comfortable tap targets. */
-.concierge-input {
-  display: flex;
-  gap: var(--space-sm);
-  align-items: center;
-  padding: var(--space-sm);
-  background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  position: sticky;
-  bottom: var(--space-sm);
-}
-
-.concierge-input input {
-  flex: 1;
-  min-height: 44px;
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  font: inherit;
-  color: var(--color-foreground);
-  background: var(--color-muted);
-  transition: border-color var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
-}
-
-.concierge-input input::placeholder {
-  color: var(--color-text);
-  opacity: 0.7;
-}
-
-.concierge-input input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  background: var(--color-background);
 }
 
 .concierge-send {
@@ -331,42 +330,27 @@
   place-items: center;
   width: 48px;
   height: 48px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  border: 1px solid var(--dg-ink);
+  border-radius: 0;
+  background: var(--dg-ink);
+  color: var(--dg-plaster-2);
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--dur-fast) var(--ease-spring),
-    box-shadow var(--dur-fast) var(--ease-out),
-    background var(--dur-fast) var(--ease-out);
+  box-shadow: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .concierge-send:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  background: var(--dg-ink-2);
+  border-color: var(--dg-ink-2);
 }
 
-.concierge-send:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.concierge-send:focus-visible {
-  outline: 3px solid var(--color-ring);
-  outline-offset: 2px;
-}
-
-.concierge-send:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Quick-reply options: inviting clay pills under the assistant's question. */
+/* Quick replies are the world's chips: square, drawn, transparent, ink-muted.
+   Selection would be a change of ground, but these fire immediately, so the
+   only state they need is the edge answering the pointer. */
 .concierge-quick-replies {
   align-self: flex-start;
   max-width: 88%;
-  margin-left: calc(30px + var(--space-sm)); /* align under the avatar-offset bubble */
+  margin-left: calc(30px + var(--space-sm)); /* align under the mark-offset block */
 }
 
 .concierge-quick-options {
@@ -379,41 +363,31 @@
   min-height: 44px;
   padding: var(--space-sm) var(--space-lg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  color: var(--color-foreground);
-  font: inherit;
-  font-size: 0.95rem;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--sans);
+  font-size: var(--dg-fs-small);
   font-weight: 500;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--dur-fast) var(--ease-spring),
-    box-shadow var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    color var(--dur-fast) var(--ease-out);
+  box-shadow: none;
+  transition: border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
 }
 
 .concierge-quick-option:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-primary);
-  color: var(--color-primary-dark);
-  box-shadow: var(--shadow-md);
+  background: var(--color-surface);
+  border-color: var(--dg-ink);
+  color: var(--dg-ink);
 }
 
-.concierge-quick-option:active {
-  transform: translateY(1px);
-  box-shadow: var(--shadow-sm);
-}
-
-.concierge-quick-option:focus-visible {
-  outline: 3px solid var(--color-ring);
-  outline-offset: 2px;
-}
-
+/* Plain words at full weight. A dead link says so immediately and says it in
+   prose, not in a smaller, greyer apology. */
 .concierge-unavailable {
   text-align: center;
   padding: var(--space-2xl) var(--space-lg);
   margin: auto;
+  max-width: 52ch;
 }
 
 .concierge-unavailable h1 {
@@ -422,6 +396,7 @@
 
 .concierge-unavailable p {
   color: var(--color-text);
+  font-size: var(--dg-fs-lead);
 }
 
 @media (max-width: 480px) {

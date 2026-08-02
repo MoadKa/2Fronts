@@ -4,35 +4,54 @@
   min-height: 100vh;
 }
 
+/* Present in the tab order from the first keystroke, but out of sight until it
+   holds focus. `clip` rather than `display: none`, which would take it out of
+   the tab order and defeat the purpose. */
+.app-skip-link {
+  /* Fixed, not absolute: absolute anchors it to the document, so a visitor who
+     tabs in after scrolling would focus a link sitting above the viewport. */
+  position: fixed;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 100;
+  padding: 0.65rem 1rem;
+  background: var(--color-foreground);
+  color: var(--color-on-primary);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+
+/* `:focus`, not `:focus-visible`: this link exists for whoever reaches it, and
+   focus-visible's heuristics do not fire for programmatic or assistive focus. */
+.app-skip-link:focus {
+  transform: translateY(0);
+  outline: 3px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* Raised plaster with a drawn bottom edge. The glass and its blur went with the
+   retired palette: this world separates the bar from the page by standing it a
+   tone above the floor and drawing a line, never by frosting it. */
 .app-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
   padding: 0.7rem 2rem;
-  background: var(--glass-bg-strong);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--glass-border);
+  background: var(--color-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-/* -- Night nav (homepage / Nachttisch hero, DESIGN.md) --
-   Warm charcoal glass instead of white; stays dark over the whole scroll,
-   which reads deliberate against both the night hero and the paper sections. */
-.app-nav-night {
-  background: rgba(18, 16, 14, 0.72);
-  border-bottom: 1px solid rgba(231, 225, 214, 0.12);
-}
-.app-nav-night .app-nav-link { color: #e7e1d6; }
-.app-nav-night .app-nav-link:hover { color: #ffb35c; }
-.app-nav-night .app-nav-link.is-active { color: #ffb35c; }
-.app-nav-night .app-nav-company { color: rgba(231, 225, 214, 0.6); }
-.app-nav-night .lang-btn { color: rgba(231, 225, 214, 0.7); }
-.app-nav-night .lang-btn:hover { color: #e7e1d6; }
-.app-nav-night .lang-switcher { border-color: rgba(231, 225, 214, 0.25); background: transparent; }
+/* The Nachttisch night-nav lived here and was deleted with that world. The home
+   page's dark nav is now `.app-nav-dg`, styled from the exhibition's own tokens
+   in CatalogPage.css. Nothing referenced these rules any more, and a dead
+   variant is how a retired era survives into the next one. */
 
 .app-logo {
   display: inline-flex;
@@ -69,7 +88,7 @@
   color: var(--color-foreground);
   text-decoration: none;
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: var(--dg-fs-small);
   transition: color var(--dur-fast) var(--ease-out);
 }
 
@@ -81,7 +100,7 @@
   right: 0;
   bottom: 6px;
   height: 2px;
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--color-primary);
   transform: scaleX(0);
   transform-origin: left center;
@@ -102,15 +121,19 @@
 }
 
 .app-nav-company {
-  font-size: 0.85rem;
-  color: var(--color-text);
+  font-size: var(--dg-fs-meta);
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
+/* The same 1240 column the exhibition's rooms and the footer align to. It used
+   to be 1100, which put the page's content on a different measure from the
+   chrome above and below it — visible as a step wherever a full-width footer
+   sat under a narrower page. */
 .app-main {
   flex: 1;
   width: 100%;
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: var(--space-2xl) var(--space-xl);
 }

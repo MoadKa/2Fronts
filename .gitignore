@@ -49,7 +49,16 @@ founder.jpg
 /public/demo-*.html
 /public/__mockup2.html
 
+# Internal product brief. Binding for the work (CLAUDE.md points at it), but it
+# records commercial standing — pricing strategy, and the 2026-07-30 note that
+# there are no paying customers and no registered entity yet. This repo is
+# public, and git history keeps what it is given, so this one stays local.
+/PRODUCT.md
+
 # Local agent/editor scratch.
 .claude/
+.impeccable/
 /out/
 /scripts/repro*.mjs
+/test-results/
+/playwright-report/

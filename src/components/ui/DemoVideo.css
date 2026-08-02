@@ -1,17 +1,21 @@
 /* DemoVideo — click-to-play Loom facade.
    Poster is pure CSS (chat vignette + play button): no third-party requests
-   until the visitor clicks, and the poster itself previews the product. */
+   until the visitor clicks, and the poster itself previews the product.
+
+   NOTE: nothing in the app renders <DemoVideo> today. It is carried through
+   this migration rather than left in the retired palette, so that whoever
+   reaches for it next gets the current world instead of an orange fossil. */
 
 .demo-video {
   position: relative;
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   overflow: hidden;
-  border: 1px solid var(--color-hairline);
+  border: 1px solid var(--dg-ink);
   background: var(--color-surface);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04), 0 16px 40px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
 }
 
 .demo-video-live iframe {
@@ -29,25 +33,20 @@
   padding: 0;
   text-align: left;
   font: inherit;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition: border-color 180ms var(--ease-out);
 }
 
 .demo-video-poster:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05), 0 24px 56px rgba(0, 0, 0, 0.12);
+  border-color: var(--dg-crimson);
 }
 
-.demo-video-poster:focus-visible {
-  outline: 2px solid var(--color-ring);
-  outline-offset: 3px;
-}
-
+/* A wall behind the vignette: the poster reads as something hung, and the
+   two orange bloom gradients that used to sit here belonged to the retired
+   palette. */
 .demo-poster-glow {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 70% 55% at 75% 20%, rgba(249, 115, 22, 0.10), transparent 70%),
-    radial-gradient(ellipse 60% 50% at 15% 90%, rgba(249, 115, 22, 0.06), transparent 70%);
+  background: var(--dg-plaster);
 }
 
 /* Chat vignette — a quiet product preview behind the play button. */
@@ -67,22 +66,22 @@
   width: fit-content;
   max-width: 100%;
   padding: 0.55rem 0.9rem;
-  border-radius: 14px;
-  font-size: clamp(0.72rem, 1.6vw, 0.92rem);
+  border-radius: 0;
+  font-size: var(--dg-fs-meta);
   line-height: 1.45;
   color: var(--color-text);
 }
 
 .demo-bubble-prospect {
-  background: var(--color-surface-alt);
-  border: 1px solid var(--color-hairline);
-  border-bottom-left-radius: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
+/* The setter's turn is the one set in ink, matching the live concierge. */
 .demo-bubble-setter {
-  background: #fff7ed;
-  border: 1px solid rgba(234, 88, 12, 0.18);
-  border-bottom-left-radius: 4px;
+  background: var(--dg-ink);
+  border: 1px solid var(--dg-ink);
+  color: var(--dg-plaster-2);
   margin-left: 1.4rem;
 }
 
@@ -93,10 +92,11 @@
   width: fit-content;
   margin-left: 1.4rem;
   padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  background: var(--color-success-bg);
-  color: var(--color-success);
-  font-size: clamp(0.68rem, 1.4vw, 0.82rem);
+  border-radius: 0;
+  background: var(--dg-kept-tint);
+  border: 1px solid var(--dg-kept);
+  color: var(--dg-kept-ink);
+  font-size: var(--dg-fs-meta);
   font-weight: 600;
 }
 
@@ -105,7 +105,7 @@
   height: 0.85em;
 }
 
-/* Play affordance */
+/* Play affordance. The scrim is the room dimming, not a white frosting. */
 .demo-play-wrap {
   position: absolute;
   inset: 0;
@@ -114,26 +114,29 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.42));
-  backdrop-filter: blur(1.5px);
+  background: rgba(23, 19, 15, 0.28);
+  backdrop-filter: none;
 }
 
+/* Play is the one action on the poster, so play is the lamp — square, like
+   everything else that can be pressed here. */
 .demo-play-button {
   display: flex;
   align-items: center;
   justify-content: center;
   width: clamp(56px, 9vw, 72px);
   height: clamp(56px, 9vw, 72px);
-  border-radius: 50%;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  box-shadow: 0 8px 24px rgba(234, 88, 12, 0.35);
-  transition: transform 180ms ease, background 180ms ease;
+  border-radius: 0;
+  border: 1px solid var(--color-cta-edge);
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+  box-shadow: var(--shadow-lamp);
+  transition: box-shadow 160ms var(--ease-spring), transform 160ms var(--ease-spring);
 }
 
 .demo-video-poster:hover .demo-play-button {
-  transform: scale(1.07);
-  background: var(--color-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lamp-hover);
 }
 
 .demo-play-icon {
@@ -142,12 +145,24 @@
   margin-left: 6%;
 }
 
+/* A duration is a measurement. */
 .demo-duration-chip {
   padding: 0.3rem 0.8rem;
-  border-radius: 999px;
-  background: rgba(29, 29, 31, 0.82);
-  color: #fff;
-  font-size: 0.8rem;
+  border-radius: 0;
+  background: var(--dg-night);
+  color: var(--dg-night-ink);
+  font-size: var(--dg-fs-meta);
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .demo-video-poster,
+  .demo-play-button {
+    transition: none;
+  }
+  .demo-video-poster:hover .demo-play-button {
+    transform: none;
+  }
 }

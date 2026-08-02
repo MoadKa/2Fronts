@@ -1,8 +1,10 @@
+/* The scrim is the room going dark around one lit pane. Night at 72%, not a
+   neutral black wash — the world has no pure black outside the first wall and
+   the drawn phone's glass, and a grey scrim over plaster reads as dust. */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(23, 19, 15, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -10,16 +12,20 @@
   z-index: 1000;
 }
 
+/* A pane, like every other pane: raised plaster, one drawn edge, square, flat.
+   The edge is ink rather than plaster-line because a dialog is a container
+   that carries a commitment — the same rule that gives the offer card and the
+   setter frame their heavier line. */
 .modal-content {
-  background: var(--glass-bg-strong);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
+  background: var(--color-surface);
+  border: 1px solid var(--dg-ink);
+  border-radius: 0;
+  padding: clamp(1.5rem, 3vw, 2.25rem);
   min-width: 320px;
   max-width: 440px;
   width: 90vw;
-  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  max-height: calc(100svh - 2 * var(--space-md));
+  overflow-y: auto;
+  box-shadow: none;
   text-align: left;
 }

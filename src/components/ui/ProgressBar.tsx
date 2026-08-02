@@ -14,7 +14,9 @@ interface ProgressBarProps {
 // the repo, so this is the first. Purely presentational: the wizard computes the
 // ratio/label and passes them in.
 export function ProgressBar({ ratio, label, current, total }: ProgressBarProps) {
-  const pct = Math.max(0, Math.min(1, ratio)) * 100
+  // Scale, not width: the fill is drawn full-width and squeezed, so the step
+  // change animates on the compositor instead of re-laying-out the track.
+  const filled = Math.max(0, Math.min(1, ratio))
   return (
     <div className="progress">
       {label && <div className="progress-label">{label}</div>}
@@ -26,7 +28,7 @@ export function ProgressBar({ ratio, label, current, total }: ProgressBarProps) 
         aria-valuemax={total}
         aria-label={label}
       >
-        <div className="progress-fill" style={{ width: `${pct}%` }} />
+        <div className="progress-fill" style={{ transform: `scaleX(${filled})` }} />
       </div>
     </div>
   )

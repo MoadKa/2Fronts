@@ -1,8 +1,11 @@
+/* A squared segmented group with a drawn edge. The active segment fills with
+   ink and prints plaster — selection is a change of ground, which is how this
+   world says "this one" everywhere else too. */
 .lang-switcher {
   display: inline-flex;
   gap: 0;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   overflow: hidden;
 }
 
@@ -10,19 +13,23 @@
   appearance: none;
   border: none;
   background: transparent;
-  color: var(--color-text, var(--color-foreground));
+  color: var(--color-text);
+  font-family: var(--heading);
   font-weight: 600;
-  font-size: 0.8rem;
-  padding: 0.25rem 0.6rem;
+  font-size: var(--dg-fs-meta);
+  padding: 0.35rem 0.7rem;
   cursor: pointer;
   line-height: 1.2;
+  transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
 .lang-btn:hover {
-  color: var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-foreground);
 }
 
-.lang-btn-active {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+.lang-btn-active,
+.lang-btn-active:hover {
+  background: var(--dg-ink);
+  color: var(--dg-plaster-2);
 }

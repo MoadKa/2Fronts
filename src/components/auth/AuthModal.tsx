@@ -50,7 +50,7 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
   if (confirmationSent) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose}>
+      <Modal isOpen={isOpen} onClose={onClose} label={t('auth.confirmEmailTitle', { defaultValue: 'Bestätige deine E-Mail' })}>
         <div className="auth-modal" role="status">
           <header className="auth-modal-head">
             <span className="auth-modal-mark" aria-hidden="true">
@@ -78,7 +78,7 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose}>
+    <Modal isOpen={isOpen} onClose={onClose} label={mode === 'signIn' ? t('auth.signIn') : t('auth.register')}>
       <form className="auth-modal" onSubmit={handleFormSubmit}>
         <header className="auth-modal-head">
           <span className="auth-modal-mark" aria-hidden="true">
@@ -99,9 +99,16 @@ export function AuthModal({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
         <div className="page-stack auth-modal-actions">
           <Button type="submit">{mode === 'signIn' ? t('auth.signIn') : t('auth.register')}</Button>
-          <Button type="button" variant="secondary" onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}>
+          {/* Switching mode is a change of mind, not a second action competing
+              with the one the dialog is asking for. Two stacked buttons made
+              them look like a choice between equals. */}
+          <button
+            type="button"
+            className="auth-modal-switch"
+            onClick={() => setMode(mode === 'signIn' ? 'signUp' : 'signIn')}
+          >
             {mode === 'signIn' ? t('auth.noAccountRegister') : t('auth.haveAccountSignIn')}
-          </Button>
+          </button>
         </div>
       </form>
     </Modal>

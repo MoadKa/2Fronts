@@ -1,37 +1,167 @@
 /* Fonts load via <link rel="preconnect"> + stylesheet in index.html, NOT an
    @import here. An @import chains the font-CSS fetch behind this stylesheet
    (download app CSS → discover font CSS → fetch fonts), blocking first paint. */
-/* Design language: "Apple in Orange" — neutral white/#f5f5f7 surfaces, near-black
-   ink, one restrained orange accent doing the job Apple gives their blue.
-   Orange is spent, not sprayed: CTAs, links, the single highlight per screen. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   "Der Rundgang", app-wide.
+
+   These tokens lived on `.dg-page, .app-nav-dg, .app-footer-dg` in
+   CatalogPage.css while the home page was the only surface speaking this
+   language. Every surface speaks it now, so they are declared at :root and
+   the page-scoped block is gone.
+
+   Below the world sits a REMAP block: the app's older token names
+   (--color-*, --radius-*, --shadow-*, --glass-*, --sans/--heading) resolve to
+   this world instead of to the retired "Apple in Orange" palette. That is
+   deliberate. Those names are read from roughly two dozen stylesheets, and
+   pointing them at the world moves every one of those surfaces together
+   instead of leaving the app half-migrated between two systems for as long as
+   the per-surface passes take.
+
+   DESIGN.md is the authority for what these values mean. The comments here are
+   the ones that travelled with the values.
+   ═══════════════════════════════════════════════════════════════════════ */
 :root {
-  --color-primary: #ea580c;
-  --color-primary-dark: #c2410c;
-  --color-on-primary: #ffffff;
-  --color-secondary: #f97316;
-  --color-accent: #c2410c;
-  --color-accent-dark: #9a3412;
-  --color-background: #ffffff;
-  --color-surface: #ffffff;
-  /* Alternate section surface (Apple's #f5f5f7 rhythm). */
-  --color-surface-alt: #f5f5f7;
-  --color-foreground: #1d1d1f;
-  --color-text: #3a3a3c;
-  --color-muted: #f5f5f7;
-  --color-border: #d2d2d7;
-  /* Hairline for card edges — softer than --color-border dividers. */
-  --color-hairline: rgba(0, 0, 0, 0.08);
-  --color-success: #16a34a;
-  --color-success-bg: #dcfce7;
-  --color-warning: #b45309;
-  --color-warning-bg: #fef3c7;
-  --color-destructive: #dc2626;
-  --color-destructive-bg: #fee2e2;
-  --color-ring: #ea580c;
-  /* Muted text. Used by AppHomePage, AuthModal, ProgressBar, ConciergeSetup —
-     previously undefined, so those references fell back to inherited color. */
-  --color-text-muted: #6e6e73;
+  /* One warm family. Oxblood is a warm earth red; a cool grey beside it reads
+     as dirt rather than contrast, so every neutral here is warm. */
+  --dg-night: #17130f;
+  --dg-night-2: #201a15;
+  --dg-night-line: #332a22;
+  --dg-night-ink: #f2ece2;
+  --dg-night-ink-2: #a89b8a;
+
+  /* Limestone, not concrete. The old value drifted grey on cool screens and
+     went muddy next to oxblood; this is lighter and further from neutral, so
+     it reads as a gallery floor rather than a dirty wall. */
+  --dg-plaster: #e7dfd0;
+  --dg-plaster-2: #f3ede1;
+  --dg-plaster-line: #cec2ad;
+
+  /* The hanging wall. */
+  --dg-crimson: #6e1f24;
+  --dg-crimson-deep: #5a171c;
+  --dg-bone: #f2e3d5;
+  --dg-bone-2: #d6bfae;
+
+  --dg-ink: #17130f;
+  --dg-ink-2: #56503f;
+
+  /* Gilt, not lemon. An oxblood wall wants a gold frame; a butter yellow next
+     to it is the one colour on the page from a different world. Still the only
+     lit thing, so still the only filled button. */
+  --dg-lamp: #d2a244;
+  --dg-lamp-deep: #9c7420;
+  --dg-lamp-glow: rgba(210, 162, 68, 0.5);
+
+  /* Status lives in the family too. An off-palette status colour is the way a
+     warm world starts drifting cool one badge at a time. */
+  --dg-loss: #b8412e;
+  --dg-loss-tint: #edc9c1;
+  --dg-loss-ink: #5c1a11;
+  --dg-kept: #3f6b4d;
+  --dg-kept-tint: #bcd9c4;
+  --dg-kept-ink: #10331e;
+  /* Notice/warning, added when the world moved into the app: the exhibition
+     never had to warn anyone, the setup wizard and the admin queue do. Taken
+     from the lamp ramp rather than invented, so a caution still belongs to the
+     same family. */
+  --dg-lamp-tint: #efdfba;
+  --dg-lamp-ink: #5c4310;
+
+  /* True black. Only the first wall and the phone's own glass use it: it is
+     the one colour in the world that is not warm, and it is doing a literal
+     job (a black gallery wall, a switched-off screen bezel). */
+  --dg-black: #000;
+
+  /* The one shadow colour: the room's own dark, never a neutral black. */
+  --dg-shadow: rgba(23, 19, 15, 0.5);
+  --dg-shadow-deep: rgba(23, 19, 15, 0.65);
+
+  --dg-display: 'Familjen Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --dg-text: 'Archivo', 'Segoe UI', system-ui, sans-serif;
+
+  /* Five steps, and nothing between them. Every heading and price is a clamp
+     of its own; everything else picks one of these. A page that invents
+     0.92rem once has started keeping two type systems. */
+  --dg-fs-meta: 0.85rem;
+  --dg-fs-small: 0.95rem;
+  --dg-fs-body: 1rem;
+  --dg-fs-lead: 1.08rem;
+  --dg-fs-emph: 1.2rem;
+
+  /* The two display steps DESIGN.md documents by value. They were being
+     re-typed as hand-rolled clamps on every public page, each one drifting a
+     little (2.6rem here, 2.8rem there), which is how a ramp stops being a ramp. */
+  --dg-fs-headline: clamp(1.9rem, 1.3rem + 2vw, 3rem);
+  --dg-fs-title: clamp(1.5rem, 1.2rem + 1vw, 2.1rem);
+
+  --dg-pad: clamp(1.25rem, 4vw, 4rem);
+  /* Rooms breathe more than sections do, but a gallery is not an empty hall.
+     Tightened from 4.5–9rem, which left the works swimming. */
+  --dg-room: clamp(2.75rem, 6vh, 5rem);
+
+  /* ── The work scale ───────────────────────────────────────────────────
+     The exhibition sizes its headings with clamps because a wall is read at
+     arm's length and its lettering should grow with the wall. A wizard step,
+     a chat list and an admin table are read at a fixed desk distance inside a
+     column that does not grow — there a fluid heading only wobbles between
+     breakpoints. Same two faces, same five body steps, fixed headings, and a
+     tighter 1.2 ratio because these screens carry far more type elements than
+     a room does. */
+  --op-h1: 1.75rem;
+  --op-h2: 1.45rem;
+  --op-h3: 1.2rem;
+  --op-pane-pad: clamp(1.1rem, 2.5vw, 1.75rem);
+
+  /* The two shadows the world allows. Everything else is flat; separation
+     comes from a change of ground and a 1px line. */
+  --shadow-lamp: 0 10px 22px -10px var(--dg-shadow), 0 20px 44px -14px var(--dg-lamp-glow);
+  --shadow-lamp-hover: 0 14px 28px -10px var(--dg-shadow), 0 30px 60px -14px var(--dg-lamp-glow);
+  --shadow-lamp-press: 0 6px 14px -8px var(--dg-shadow), 0 14px 30px -14px var(--dg-lamp-glow);
+  --shadow-hung: 0 18px 40px -18px var(--dg-shadow-deep);
+
+  /* ── REMAP: the older names, pointed at the world ────────────────────
+     Kept as names, not as values. Call sites keep reading --color-surface;
+     what they get is plaster. */
+
+  /* The accent that can sit in text: oxblood. NOT the lamp — gilt on plaster
+     is a 1.9:1 contrast and unreadable as a link or a label. The lamp is a
+     fill, and it gets its own name below so nobody reaches for the wrong one. */
+  --color-primary: var(--dg-crimson);
+  --color-primary-dark: var(--dg-crimson-deep);
+  --color-on-primary: var(--dg-bone);
+  --color-secondary: var(--dg-crimson);
+  --color-accent: var(--dg-crimson);
+  --color-accent-dark: var(--dg-crimson-deep);
+
+  /* The one lit control. One per view, on the primary action, never on a
+     second button in the same frame. */
+  --color-cta: var(--dg-lamp);
+  --color-cta-edge: var(--dg-lamp-deep);
+  --color-on-cta: var(--dg-night);
+
+  --color-background: var(--dg-plaster);
+  /* Raised plaster: panes sit one tone UP from the floor, and anything nested
+     inside a pane goes back down to the floor tone. Nesting reads as a tone
+     change, never as a second shadow. */
+  --color-surface: var(--dg-plaster-2);
+  --color-surface-alt: var(--dg-plaster);
+  --color-foreground: var(--dg-ink);
+  --color-text: var(--dg-ink);
+  /* Each ground gets exactly two inks. This is the second one. */
+  --color-text-muted: var(--dg-ink-2);
   --color-muted-foreground: var(--color-text-muted);
+  --color-muted: var(--dg-plaster);
+  --color-border: var(--dg-plaster-line);
+  --color-hairline: var(--dg-plaster-line);
+
+  --color-success: var(--dg-kept-ink);
+  --color-success-bg: var(--dg-kept-tint);
+  --color-warning: var(--dg-lamp-ink);
+  --color-warning-bg: var(--dg-lamp-tint);
+  --color-destructive: var(--dg-loss-ink);
+  --color-destructive-bg: var(--dg-loss-tint);
+  --color-ring: var(--dg-crimson-deep);
 
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
@@ -41,46 +171,55 @@
   --space-2xl: 3rem;
   --space-3xl: 4rem;
 
-  /* --font-size-sm was referenced by AppHomePage with no definition, so the
-     eyebrow/note text rendered at the inherited size. */
-  --font-size-sm: 0.875rem;
+  --font-size-sm: var(--dg-fs-meta);
 
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
-  --radius-pill: 980px;
+  /* Radius is zero, everywhere, without exception. The names survive because
+     two dozen stylesheets read them; the values do not. Corners are cut, not
+     softened, and nothing is a pill. */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-pill: 0;
 
-  /* Whisper shadows: neutral, layered, no visible offset ledge. The old clay
-     names are kept as aliases so existing consumers keep working. */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.04), 0 12px 24px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.04), 0 24px 48px rgba(0, 0, 0, 0.1);
-  --shadow-clay-sm: var(--shadow-sm);
-  --shadow-clay-md: var(--shadow-md);
-  --shadow-clay-lg: var(--shadow-lg);
+  /* Flat by conviction. A surface that needs to separate changes its ground or
+     draws a hairline; it does not grow a shadow. The only two real shadows in
+     the world are --shadow-lamp (a lit button spilling light) and --shadow-hung
+     (a painting standing off a wall), and both are asked for by name. */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-clay-sm: none;
+  --shadow-clay-md: none;
+  --shadow-clay-lg: none;
 
-  /* Glass layer, Apple-nav calibration: high blur + saturation, near-opaque
-     white, neutral hairline instead of a colored rim. Panels only, never inputs. */
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-bg-strong: rgba(251, 251, 253, 0.8);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-blur: blur(20px) saturate(180%);
-  --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-  --glass-shadow-hover: 0 16px 40px rgba(0, 0, 0, 0.1);
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  /* The glass layer is retired. The names resolve to plain raised plaster with
+     a drawn edge so the surfaces that still ask for glass get the world's
+     answer instead of a blur. */
+  --glass-bg: var(--dg-plaster-2);
+  --glass-bg-strong: var(--dg-plaster-2);
+  --glass-border: var(--dg-plaster-line);
+  --glass-blur: none;
+  --glass-shadow: none;
+  --glass-shadow-hover: none;
+  --glass-highlight: none;
 
-  /* Motion system (v1.3 UI overhaul). Shared easing + durations so every surface
-     animates with one rhythm. Enter from below = ease-out; springy for delight. */
+  /* Motion system. The exhibition spends its whole budget on the lamp's 160ms
+     pointer response; work surfaces additionally use these for state changes
+     (a value updating, a panel opening), which is what a transition is for. */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Previously an overshoot curve whose second control point rose above 1, so
+     cards and buttons sprang past their resting size and settled back. Real
+     objects decelerate, they do not rebound. Kept as its own token because five
+     call sites read it and they mean "the emphatic one", not "the bouncy one". */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-fast: 140ms;
   --dur-base: 240ms;
   --dur-slow: 400ms;
 
-  --sans: 'DM Sans', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: 'Space Grotesk', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --sans: var(--dg-text);
+  --heading: var(--dg-display);
 
   font: 16px/1.6 var(--sans);
   color-scheme: light;
@@ -112,60 +251,40 @@ body {
   background: var(--color-background);
 }
 
-/* One whisper of warmth at the very top of the page — enough for the glass nav
-   to have something to refract, faint enough that the page still reads white.
-   Fixed pseudo-element (static GPU layer) instead of background-attachment:
-   fixed, which janks during scroll combined with backdrop-filter panels. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 80% 40% at 50% -8%, rgba(249, 115, 22, 0.07), transparent 70%);
-}
-
-/* If backdrop-filter is unsupported, the translucent glass fills would let
-   content bleed through and drop text contrast. Fall back to near-opaque. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root {
-    --glass-bg: rgba(255, 255, 255, 0.92);
-    --glass-bg-strong: rgba(255, 255, 255, 0.97);
-  }
-}
-
 #root {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
 }
 
-/* Display type: big, tight, confident. Fluid sizes so headlines stay imposing
-   on desktop without breaking 375px. */
+/* Headings on work surfaces: the display face, fixed steps, cut tracking. The
+   exhibition overrides all three inside .dg-page with its own clamps — a wall
+   grows with the viewport, a settings panel does not. */
 h1, h2, h3, h4 {
   font-family: var(--heading);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-foreground);
   line-height: 1.15;
+  letter-spacing: -0.03em;
   margin: 0 0 var(--space-sm);
+  text-wrap: balance;
 }
 
 h1 {
-  font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3.5rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-size: var(--op-h1);
   line-height: 1.08;
 }
 
 h2 {
-  font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.25rem);
-  letter-spacing: -0.02em;
+  font-size: var(--op-h2);
 }
 
 h3 {
-  font-size: 1.25rem;
-  letter-spacing: -0.01em;
+  font-size: var(--op-h3);
+}
+
+h4 {
+  font-size: var(--dg-fs-lead);
 }
 
 p {
@@ -174,17 +293,20 @@ p {
 
 a {
   color: var(--color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
 }
 
 ::selection {
-  background: var(--color-secondary);
-  color: #ffffff;
+  background: var(--dg-lamp);
+  color: var(--dg-night);
 }
 
+/* Focus is a drawn rectangle, matching the shape it surrounds. */
 :focus-visible {
   outline: 3px solid var(--color-ring);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
+  outline-offset: 3px;
+  border-radius: 0;
 }
 
 .catalog-card-link { text-decoration: none; display: block; color: inherit; }
@@ -208,7 +330,7 @@ a {
 }
 
 .page-header p {
-  color: var(--color-text);
+  color: var(--color-text-muted);
 }
 
 .empty-state {
@@ -217,48 +339,31 @@ a {
   color: var(--color-text);
 }
 
-/* Shared entrance utility (v1.3): rise + fade in. Add `.rise` to a section/card;
-   `.rise-stagger > *` cascades children. Respects reduced-motion below. */
-@keyframes rise-in {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
-}
-
-.rise {
-  animation: rise-in var(--dur-base) var(--ease-out) both;
-}
-
+/* The entrance utilities are kept as names and neutered as behaviour. This
+   world does not animate on entry — the exhibition spends its motion on the
+   lamp, and a work surface loads into a task rather than performing its own
+   arrival. Roughly twenty components still carry the class; leaving the hooks
+   inert is cheaper and safer than stripping them from every JSX file, and it
+   means nothing re-animates if one is re-added by habit. */
+.rise,
 .rise-stagger > * {
-  animation: rise-in var(--dur-base) var(--ease-out) both;
+  animation: none;
 }
-.rise-stagger > *:nth-child(2) { animation-delay: 40ms; }
-.rise-stagger > *:nth-child(3) { animation-delay: 80ms; }
-.rise-stagger > *:nth-child(4) { animation-delay: 120ms; }
-.rise-stagger > *:nth-child(5) { animation-delay: 160ms; }
-.rise-stagger > *:nth-child(6) { animation-delay: 200ms; }
-
-@media (prefers-reduced-motion: reduce) {
-  .rise,
-  .rise-stagger > * {
-    animation: none;
-  }
-}
-
 
 /* ── Scrollbars ─────────────────────────────────────────────────────────
-   Slim, rounded, translucent — the fat OS-default bars fight every surface
-   on the page (and read like Windows XP). Firefox + WebKit variants. */
+   Slim and square, drawn from the ink ramp. The fat OS-default bars fight
+   every surface on the page. Firefox + WebKit variants. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(107, 101, 91, 0.45) transparent;
+  scrollbar-color: var(--dg-plaster-line) transparent;
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(107, 101, 91, 0.45);
-  border-radius: 999px;
+  background: var(--dg-plaster-line);
+  border-radius: 0;
   border: 3px solid transparent;
   background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background-color: rgba(107, 101, 91, 0.7); }
+::-webkit-scrollbar-thumb:hover { background-color: var(--dg-ink-2); }
 ::-webkit-scrollbar-corner { background: transparent; }
