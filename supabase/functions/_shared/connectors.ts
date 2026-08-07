@@ -1,5 +1,5 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import { attemptProvision, type AttemptProvisionResult, type ProvisionAutomation } from './provisioning.ts'
+import { type AttemptProvisionResult } from './provisioning.ts'
 import { appendRow, readHeaderRow, type SheetsFetcher } from './sheetsClient.ts'
 import {
   type ColumnMappingDeps,
@@ -20,8 +20,9 @@ import { slackConnector, type SlackFetcher } from './slackConnector.ts'
 // They are optional so a connector implements only the verbs it supports.
 
 // The provision row as connectors receive it. connector_type selects the
-// connector; the Twilio columns remain for the missed-call connector; config
-// carries connector-specific settings (e.g. spreadsheet id + confirmed map).
+// connector; config carries connector-specific settings (e.g. spreadsheet id +
+// confirmed map). The twilio_* columns still exist on the table but no
+// connector writes them since the SMS product was removed (2026-08-07).
 export interface ProvisionRow {
   id: string
   connector_type?: string | null
@@ -32,12 +33,11 @@ export interface ProvisionRow {
 }
 
 // Dependencies the orchestrator injects. Kept connector-agnostic: each
-// connector reads what it needs. provisionAutomation is the Twilio number
-// purchaser; the google_sheets connector reads getAccessToken (per-customer
-// OAuth token, supplied by the OAuth lane) + sheetsFetcher/complete (injectable
-// for tests). All optional so a connector only requires what it uses.
+// connector reads what it needs. The google_sheets connector reads
+// getAccessToken (per-customer OAuth token, supplied by the OAuth lane) +
+// sheetsFetcher/complete (injectable for tests). All optional so a connector
+// only requires what it uses.
 export interface ConnectorDeps {
-  provisionAutomation?: ProvisionAutomation
   // Resolve a usable Google access token for the customer who owns this
   // provision. OAuth storage/refresh lives in another lane (T3); we just ask.
   getAccessToken?: (ctx: { customerId?: string | null; row: ProvisionRow }) => Promise<string>
@@ -95,31 +95,21 @@ export interface Connector {
   connectorType: string
   provision(ctx: ProvisionContext): Promise<AttemptProvisionResult>
   // First-connect mapping proposal + per-lead filing. Optional so a connector
-  // implements only the verbs it supports (twilio has neither).
+  // implements only the verbs it supports.
   configure?(ctx: ConfigureContext): Promise<ConfigureResult>
   run?(ctx: RunContext): Promise<RunResult>
   // connect?, deprovision? -- added by later tasks (OAuth lane).
 }
 
-// The missed-call connector. Its one-time provision = buy the Twilio number,
-// which the existing claim-first attemptProvision engine already does
-// idempotently. Reusing it keeps the proven Twilio path byte-for-byte.
-export const twilioMissedCallConnector: Connector = {
-  connectorType: 'twilio_missed_call',
-  // async so a missing-dep guard surfaces as a rejected promise, not a
-  // synchronous throw -- callers handle every failure mode the same way.
-  async provision({ adminClient, row, fromStatus, deps }) {
-    if (!deps.provisionAutomation) {
-      throw new Error('twilio_missed_call connector requires the provisionAutomation dependency')
-    }
-    return await attemptProvision(
-      adminClient,
-      row as { id: string; business_name: string },
-      fromStatus,
-      deps.provisionAutomation,
-    )
-  },
-}
+// The Twilio missed-call connector was removed on 2026-08-07 together with the
+// SMS product: German prospects do not use SMS, so the automation was delisted
+// (see 20260807160000_delist_twilio_missed_call.sql). Its rows in
+// automation_provisions were deliberately kept, so getConnector() below still
+// has to answer for connector_type 'twilio_missed_call' -- it now refuses
+// loudly instead of silently trying to buy a phone number.
+// Typed as readonly string[] rather than a const tuple so callers can test an
+// arbitrary connector_type read from the database without casting.
+export const RETIRED_CONNECTOR_TYPES: readonly string[] = ['twilio_missed_call']
 
 // The shape of the confirmed config a google_sheets provision carries once a
 // human has approved the proposed mapping. spreadsheetId is the target sheet;
@@ -277,23 +267,34 @@ export const bookingConciergeConnector: Connector = {
 }
 
 const defaultRegistry: Record<string, Connector> = {
-  [twilioMissedCallConnector.connectorType]: twilioMissedCallConnector,
   [googleSheetsConnector.connectorType]: googleSheetsConnector,
   [slackConnector.connectorType]: slackConnector,
   [bookingConciergeConnector.connectorType]: bookingConciergeConnector,
 }
 
-// Dispatch by connector_type. A null/undefined type (legacy rows written before
-// the column existed, and pre-pipeline tests) defaults to the missed-call
-// connector, matching the automation_provisions.connector_type column default.
+// Dispatch by connector_type.
+//
+// A null/undefined type used to default to the missed-call connector, matching
+// the automation_provisions.connector_type column default. That connector is
+// retired, so both a null type and an explicitly retired one now throw a named
+// error rather than falling through to "No connector registered" -- a legacy
+// row surfacing years later should say why it cannot run, not look like a
+// registry bug.
 export function getConnector(
   connectorType: string | undefined | null,
   registry: Record<string, Connector> = defaultRegistry,
 ): Connector {
-  const type = connectorType ?? twilioMissedCallConnector.connectorType
-  const connector = registry[type]
+  if (connectorType == null) {
+    throw new Error(
+      'Provision has no connector_type. The implicit twilio_missed_call default was removed with the SMS product; set an explicit connector_type.',
+    )
+  }
+  if (RETIRED_CONNECTOR_TYPES.includes(connectorType)) {
+    throw new Error(`Connector type ${connectorType} is retired and can no longer provision.`)
+  }
+  const connector = registry[connectorType]
   if (!connector) {
-    throw new Error(`No connector registered for type: ${type}`)
+    throw new Error(`No connector registered for type: ${connectorType}`)
   }
   return connector
 }
