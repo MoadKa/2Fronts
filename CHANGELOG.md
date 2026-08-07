@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.16.1.0] - 2026-08-07
+
+### Removed
+- **Die Missed-Call-Automatisierung ist raus.** Sie hat verpasste Anrufe mit einer SMS beantwortet. In Deutschland antwortet auf SMS praktisch niemand, also war das ein Produkt, das im Katalog stand und keinem geholfen hat. Es ist nicht mehr buchbar, und alles was dazugehörte (die beiden Telefon-Schnittstellen, der Nummernkauf) ist gelöscht. Bestehende Einträge und ihre Daten bleiben erhalten, nur können sie nicht mehr eingerichtet werden.
+
+### Fixed
+- **Eine Bestellung kann nicht mehr für etwas bezahlt werden, das es nicht mehr gibt.** Wer vor der Abschaltung eine Anfrage für die Missed-Call-Automatisierung gestartet und noch nicht bezahlt hatte, wäre bei der Kasse durchgelaufen und hätte für ein Produkt gezahlt, das sich danach nicht einrichten lässt. Die Kasse lehnt das jetzt ab, und offene Anfragen dieser Art wurden geschlossen.
+- **Eine Einrichtung wird nicht mehr zweimal ausgeführt.** Wenn der Zahlungsdienstleister dieselbe Meldung mehrfach zustellt (was er tut, wenn er keine Antwort bekommt), lief die Einrichtung bisher jedes Mal erneut. Sie wird jetzt einmal beansprucht und danach nicht mehr angefasst.
+- **Der Status einer Einrichtung stimmt wieder.** Ein erfolgreicher zweiter Versuch meldete „aktiv", ließ den Eintrag aber auf „fehlgeschlagen" stehen. Ergebnis und Anzeige laufen wieder zusammen.
+- **Ein abgeschaltetes Produkt blockiert den Zahlungseingang nicht mehr.** Ein alter Eintrag, der sich nicht mehr einrichten lässt, wird als fehlgeschlagen vermerkt und gemeldet, statt die Meldung des Zahlungsdienstleisters scheitern zu lassen — der hätte sie sonst endlos erneut zugestellt.
+
 ## [1.16.0.0] - 2026-08-02
 
 ### Changed

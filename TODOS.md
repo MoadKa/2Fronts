@@ -4,7 +4,48 @@ Reorganized 2026-07-12 by `/ship` into the gstack canonical format (component
 groupings, P0-P4 priority, dedicated Completed section). Content preserved
 verbatim from the original captures — only structure changed.
 
-## Missed-Call Recovery (Twilio)
+## Missed-Call Recovery (Twilio) — RETIRED 2026-08-07
+
+> The product was withdrawn on 2026-08-07 (German prospects do not use SMS). The
+> connector, both webhooks and the number-purchasing helper were deleted; the
+> automation is delisted and its rows marked cancelled. Tables and columns were
+> kept. The items below are what the retirement left open.
+
+### Release the purchased Twilio numbers and close the account
+
+**What:** Any phone number bought through the old missed-call flow is still owned and billed at Twilio, and now points at webhook URLs that 404. There is no deprovision path left in code — `twilioProvision.ts` was deleted with the product.
+
+**Why:** Recurring cost for a dead product, and a live number answering nothing is worse than no number.
+
+**Context:** `automation_provisions.twilio_phone_number` / `twilio_phone_number_sid` still hold the SIDs needed to release them. Migration `20260807160000` marks the rows cancelled but cannot touch Twilio itself.
+
+**Effort:** S (manual, Twilio console)
+**Priority:** P2
+**Depends on:** Nothing.
+
+### Retention decision for `automation_provision_opt_outs`
+
+**What:** Decide whether to keep or delete the rows. The table is now fully orphaned: its only writer (`twilio-sms-webhook`) was deleted and RLS grants admins SELECT only, so no code can read or write it.
+
+**Why:** It stores bare phone numbers of third parties who replied STOP. Their stated purpose — suppressing SMS that can no longer be sent — no longer exists, which under DSGVO Art. 5(1)(e) is personal data retained past its purpose.
+
+**Context:** Flagged by the data-migration review during `/ship` on 2026-08-07. Kept for now as history rather than deleted silently; this is a decision, not an oversight.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** Closing the Twilio account (above) is the natural trigger.
+
+### Provisions can get stuck in `provisioning` with no recovery path
+
+**What:** If an edge function times out or crashes between `runConnectorProvision`'s claim and its outcome write, the row stays `provisioning` forever. `retry-provision` only accepts rows whose status is `failed` (returns 404 otherwise), and the claim is guarded on `fromStatus`, so neither a redelivered webhook nor an admin Retry can pick it back up. Recovery needs a manual UPDATE.
+
+**Why:** A paid customer sits with an unfulfilled automation and no self-service or admin route to fix it.
+
+**Context:** Pre-existing shape (the deleted `attemptProvision` had the same two-statement gap), surfaced by the data-migration review on 2026-08-07 when the logic was generalised to every connector. Fix is either letting retry accept stale `provisioning` rows, or a reaper that returns them to `failed`.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Nothing.
 
 ### Active failure alerting (email/Slack) on provisioning failure
 
