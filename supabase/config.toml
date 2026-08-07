@@ -430,10 +430,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
-[functions.twilio-sms-webhook]
-verify_jwt = false
-[functions.twilio-voice-webhook]
-verify_jwt = false
 [functions.marketplace-test-capture]
 verify_jwt = false
 [functions.waitlist-signup]
