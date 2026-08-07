@@ -90,11 +90,22 @@ describe('RequestService', () => {
     expect(result.delivery_notes).toBe('Done')
   })
 
-  it('creates a pending provision row with the business details for a request', async () => {
+  it('creates a pending provision row for a live connector', async () => {
     const { supabase } = await import('../lib/supabaseClient')
     const fromSpy = vi.spyOn(supabase, 'from')
-    await createProvisionDetails('req-1', 'twilio_missed_call', { businessName: 'Acme Plumbing', bookingLink: 'https://cal.com/acme' })
+    await createProvisionDetails('req-1', 'booking_concierge')
     expect(fromSpy).toHaveBeenCalledWith('automation_provisions')
+  })
+
+  // The Twilio missed-call connector was retired on 2026-08-07. A row carrying
+  // that connector_type can never be fulfilled — getConnector() throws 'retired'
+  // and fulfillment marks it failed — so refusing at creation gives the user a
+  // real error instead of a row that dies silently minutes later.
+  it('refuses to create a provision row for a retired connector', async () => {
+    const { supabase } = await import('../lib/supabaseClient')
+    const fromSpy = vi.spyOn(supabase, 'from')
+    await expect(createProvisionDetails('req-1', 'twilio_missed_call')).rejects.toThrow(/retired/)
+    expect(fromSpy).not.toHaveBeenCalledWith('automation_provisions')
   })
 
   // Regression: PostgREST returns the to-one automation_provisions embed as a

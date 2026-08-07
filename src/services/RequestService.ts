@@ -73,29 +73,36 @@ async function notifyNewRequest(
 }
 
 // Create the provision row for a paid request. Its connector_type DERIVES from
-// the purchased automation (passed in) instead of defaulting to the Twilio
-// missed-call product — that is what makes Sheets, Slack, and Twilio all
-// purchasable. The Twilio-only business details (name / booking link) are only
-// written for the missed-call connector; other connectors carry their settings
-// in `config`, populated later at connect/confirm time.
+// the purchased automation (passed in) — that is what makes Sheets, Slack, and
+// the booking concierge all purchasable. Connectors carry their settings in
+// `config`, populated later at connect/confirm time.
+//
+// The `details` parameter fed business_name / booking_link / business_hours for
+// the Twilio missed-call connector, which was retired on 2026-08-07. It is kept
+// in the signature (unused) only so callers do not have to change in the same
+// commit; drop it once AutomationDetailPage stops passing it.
 export async function createProvisionDetails(
   requestId: string,
   connectorType: string,
-  details?: { businessName?: string; bookingLink?: string; businessHours?: string }
+  _details?: { businessName?: string; bookingLink?: string; businessHours?: string }
 ): Promise<void> {
+  if (RETIRED_CONNECTOR_TYPES.includes(connectorType)) {
+    // Refuse rather than write a row fulfillment will only ever mark failed.
+    throw new Error(`Connector type ${connectorType} is retired and can no longer be purchased.`)
+  }
   const row: Record<string, unknown> = {
     request_id: requestId,
     connector_type: connectorType,
     status: 'pending',
   }
-  if (connectorType === 'twilio_missed_call') {
-    row.business_name = details?.businessName ?? ''
-    row.booking_link = details?.bookingLink ?? ''
-    row.business_hours = details?.businessHours ?? null
-  }
   const { error } = await supabase.from('automation_provisions').insert(row)
   if (error) throw error
 }
+
+// Mirrors RETIRED_CONNECTOR_TYPES in supabase/functions/_shared/connectors.ts.
+// The server is the real gate; this is the client-side courtesy check so the
+// user gets a clear error instead of a row that silently fails later.
+const RETIRED_CONNECTOR_TYPES: readonly string[] = ['twilio_missed_call']
 
 export async function createCheckoutSession(requestId: string): Promise<{ url: string }> {
   const { data, error } = await supabase.functions.invoke('create-checkout-session', {
