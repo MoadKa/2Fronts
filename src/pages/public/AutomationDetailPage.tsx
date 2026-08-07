@@ -10,7 +10,6 @@ import { useToast } from '../../components/ui/Toast'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
 import type { Automation } from '../../types/database'
 import './AutomationDetailPage.css'
 
@@ -55,9 +54,6 @@ export function AutomationDetailPage() {
   const [automation, setAutomation] = useState<Automation | null>(null)
   const [loading, setLoading] = useState(true)
   const [requesting, setRequesting] = useState(false)
-  const [businessName, setBusinessName] = useState('')
-  const [bookingLink, setBookingLink] = useState('')
-  const [bookingLinkError, setBookingLinkError] = useState('')
 
   useEffect(() => {
     if (!id) return
@@ -79,25 +75,25 @@ export function AutomationDetailPage() {
 
   async function handleRequest() {
     if (!automation) return
-    // The business-name + booking-link fields are Twilio-missed-call only. Other
-    // provisioned connectors configure elsewhere: the booking concierge sets its
-    // calendar link in the setup wizard, Sheets/Slack via OAuth at /connect. So
-    // only require the booking link for the Twilio connector — otherwise a coach
-    // would have to enter their Calendly here AND again in the wizard.
-    if (automation.connector_type === 'twilio_missed_call' && !bookingLink.trim()) {
-      setBookingLinkError(t('automationDetail.bookingLinkRequired'))
-      return
-    }
-    setBookingLinkError('')
+    // No connector collects settings on this page any more. The booking concierge
+    // sets its calendar link in the setup wizard, Sheets and Slack connect via
+    // OAuth at /connect. The business-name + booking-link fields that used to sit
+    // here belonged to the Twilio missed-call connector, retired 2026-08-07.
     setRequesting(true)
     try {
+      // A delisted automation is still reachable by direct link: getAutomationById
+      // does not filter is_active, only the catalog listing does. Refuse here
+      // rather than let the buy flow run to createProvisionDetails, which would
+      // surface a raw English server message in a toast.
+      if (automation.is_active === false) {
+        showToast(t('automationDetail.unavailable'), 'error')
+        setRequesting(false)
+        return
+      }
       const request = await createRequest(automation.id)
       // Always create the provision so its connector_type derives from the
-      // automation; the Twilio booking details only apply to that connector.
-      await createProvisionDetails(request.id, automation.connector_type, {
-        businessName,
-        bookingLink,
-      })
+      // automation.
+      await createProvisionDetails(request.id, automation.connector_type)
       const { url } = await createCheckoutSession(request.id)
       window.location.href = url
     } catch (err) {
@@ -155,21 +151,6 @@ export function AutomationDetailPage() {
 
           {user ? (
             <>
-              {automation.connector_type === 'twilio_missed_call' && (
-                <div className="detail-fields">
-                  <Input
-                    label={t('automationDetail.businessName')}
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                  />
-                  <Input
-                    label={t('automationDetail.bookingLink')}
-                    value={bookingLink}
-                    onChange={(e) => setBookingLink(e.target.value)}
-                    error={bookingLinkError}
-                  />
-                </div>
-              )}
               <Button className="detail-cta" onClick={handleRequest} disabled={requesting}>
                 {requesting ? t('automationDetail.checkoutStarting') : t('automationDetail.requestAutomation')}
               </Button>

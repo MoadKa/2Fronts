@@ -77,14 +77,12 @@ async function notifyNewRequest(
 // the booking concierge all purchasable. Connectors carry their settings in
 // `config`, populated later at connect/confirm time.
 //
-// The `details` parameter fed business_name / booking_link / business_hours for
-// the Twilio missed-call connector, which was retired on 2026-08-07. It is kept
-// in the signature (unused) only so callers do not have to change in the same
-// commit; drop it once AutomationDetailPage stops passing it.
+// The old `details` parameter fed business_name / booking_link / business_hours
+// for the Twilio missed-call connector, retired 2026-08-07. It is gone: its only
+// caller passed values that were only ever collected for that connector.
 export async function createProvisionDetails(
   requestId: string,
   connectorType: string,
-  _details?: { businessName?: string; bookingLink?: string; businessHours?: string }
 ): Promise<void> {
   if (RETIRED_CONNECTOR_TYPES.includes(connectorType)) {
     // Refuse rather than write a row fulfillment will only ever mark failed.

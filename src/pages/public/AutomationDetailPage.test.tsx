@@ -121,29 +121,17 @@ describe('AutomationDetailPage', () => {
     await waitFor(() => expect(window.location.href).toBe('https://checkout.stripe.com/session-1'))
   })
 
-  it('shows a booking link field for automations that require provisioning', async () => {
-    vi.mocked(getAutomationById).mockResolvedValue(provisionedAutomation)
-    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
-    renderAt('auto-2')
-    await waitFor(() => expect(screen.getByLabelText('Buchungslink')).toBeInTheDocument())
-  })
-
+  // 'shows a booking link field for automations that require provisioning' and
+  // 'blocks checkout until a booking link is entered' both drove the Twilio
+  // missed-call form, removed with the SMS product on 2026-08-07. No connector
+  // collects settings on this page any more, so the field's ABSENCE is now the
+  // invariant worth pinning — which the two surviving tests below already do.
   it('does not show a booking link field for automations that do not require provisioning', async () => {
     vi.mocked(getAutomationById).mockResolvedValue(sampleAutomation)
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
     renderAt('auto-1')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Setter einrichten' })).toBeInTheDocument())
     expect(screen.queryByLabelText('Buchungslink')).not.toBeInTheDocument()
-  })
-
-  it('blocks checkout until a booking link is entered for provisioned automations', async () => {
-    vi.mocked(getAutomationById).mockResolvedValue(provisionedAutomation)
-    vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
-    renderAt('auto-2')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Setter einrichten' })).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'Setter einrichten' }))
-    expect(createRequest).not.toHaveBeenCalled()
-    await waitFor(() => expect(screen.getByText('Bitte gib einen Buchungslink an, über den dich Kunden erreichen.')).toBeInTheDocument())
   })
 
   it('does NOT ask the booking concierge for a booking link (calendar is set in the wizard, not twice)', async () => {
@@ -165,21 +153,20 @@ describe('AutomationDetailPage', () => {
     await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledWith('req-3'))
   })
 
-  it('submits provisioning details before starting checkout for provisioned automations', async () => {
-    vi.mocked(getAutomationById).mockResolvedValue(provisionedAutomation)
+  // The test that stood here drove the Twilio booking-link form: it typed a
+  // Buchungslink and asserted it reached createProvisionDetails. Both the form
+  // and the third argument were removed with the SMS product on 2026-08-07, so
+  // its subject no longer exists. What replaces it is the guard that keeps a
+  // delisted automation from starting a checkout it cannot finish.
+  it('refuses to start checkout for a delisted automation', async () => {
+    vi.mocked(getAutomationById).mockResolvedValue({ ...provisionedAutomation, is_active: false })
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'user-1' } as never, profile: null, loading: false, signUp: vi.fn(), signIn: vi.fn(), signOut: vi.fn() })
-    vi.mocked(createRequest).mockResolvedValue({
-      id: 'req-2', automation_id: 'auto-2', customer_id: 'user-1', status: 'requested',
-      stripe_checkout_session_id: null, delivery_notes: null, requested_at: '2026-06-18T00:00:00Z', paid_at: null, delivered_at: null,
-    })
-    vi.mocked(createCheckoutSession).mockResolvedValue({ url: 'https://checkout.stripe.com/session-2' })
     renderAt('auto-2')
-    await waitFor(() => expect(screen.getByLabelText('Buchungslink')).toBeInTheDocument())
-    fireEvent.change(screen.getByLabelText('Buchungslink'), { target: { value: 'https://cal.com/acme' } })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Setter einrichten' })).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Setter einrichten' }))
-    await waitFor(() =>
-      expect(createProvisionDetails).toHaveBeenCalledWith('req-2', 'twilio_missed_call', { businessName: '', bookingLink: 'https://cal.com/acme' })
-    )
-    await waitFor(() => expect(createCheckoutSession).toHaveBeenCalledWith('req-2'))
+    // getAutomationById does not filter is_active, so a direct link still renders
+    // the page. The buy flow must stop before it creates a request.
+    await waitFor(() => expect(createRequest).not.toHaveBeenCalled())
+    expect(createCheckoutSession).not.toHaveBeenCalled()
   })
 })

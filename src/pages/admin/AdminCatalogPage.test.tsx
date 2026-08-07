@@ -39,14 +39,14 @@ describe('AdminCatalogPage', () => {
     fireEvent.change(screen.getByLabelText('Preis (Cent)'), { target: { value: '49900' } })
     // Pick a non-default connector + mark it as requiring provisioning, to prove
     // these flow into the create payload (the old form couldn't set them, so every
-    // automation silently became twilio_missed_call).
-    fireEvent.change(screen.getByLabelText('Connector (Fulfillment)'), { target: { value: 'twilio_missed_call' } })
+    // automation silently took the DB default).
+    fireEvent.change(screen.getByLabelText('Connector (Fulfillment)'), { target: { value: 'slack_notifications' } })
     fireEvent.click(screen.getByLabelText('Einrichtung erforderlich (z. B. Twilio-Buchungslink)'))
     fireEvent.click(screen.getByRole('button', { name: 'Automatisierung hinzufügen' }))
     await waitFor(() =>
       expect(createAutomation).toHaveBeenCalledWith({
         name: 'Invoice Sync', summary: 'x', outcome_description: 'y', translations: {}, category: 'finance', price_cents: 49900,
-        connector_type: 'twilio_missed_call', requires_provisioning: true, is_active: true,
+        connector_type: 'slack_notifications', requires_provisioning: true, is_active: true,
         pricing_model: 'one_time', recurring_interval: null,
       })
     )

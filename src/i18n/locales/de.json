@@ -95,6 +95,7 @@
   "automationDetail": {
     "loading": "Wird geladen…",
     "notFound": "Automatisierung nicht gefunden.",
+    "unavailable": "Diese Automatisierung wird nicht mehr angeboten.",
     "backToCatalog": "← Zurück zum Katalog",
     "businessName": "Firmenname",
     "bookingLink": "Buchungslink",
