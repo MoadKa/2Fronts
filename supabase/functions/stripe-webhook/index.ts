@@ -1,12 +1,9 @@
 import Stripe from 'npm:stripe@16'
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
-import { purchaseNumber } from '../_shared/twilioProvision.ts'
-import { type ProvisionAutomation } from '../_shared/provisioning.ts'
+import { type ConnectorDeps } from '../_shared/connectors.ts'
 import { provisionIfNeeded } from '../_shared/provisionFulfillment.ts'
 import { alert, type AlertEvent } from '../_shared/alerting.ts'
-
-export type { ProvisionAutomation }
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!
@@ -14,7 +11,9 @@ const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!
 interface WebhookDeps {
   stripe: Pick<Stripe, 'webhooks'>
   createAdminClient: () => SupabaseClient
-  provisionAutomation: ProvisionAutomation
+  // Forwarded verbatim to whichever connector fulfills the provision. Empty by
+  // default; each connector reads only the deps it needs.
+  connectorDeps?: ConnectorDeps
   // Ops alerting (ALERT_WEBHOOK_URL). Injectable so payment_failed tests assert
   // the alert without a network call. Never throws (see _shared/alerting.ts).
   alert: (event: AlertEvent) => Promise<boolean>
@@ -23,7 +22,7 @@ interface WebhookDeps {
 const defaultDeps: WebhookDeps = {
   stripe,
   createAdminClient,
-  provisionAutomation: { purchaseNumber },
+  connectorDeps: {},
   alert: (event) => alert(event),
 }
 
@@ -97,8 +96,14 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
             let selfHealed = false
             try {
               // Derive connector_type from the purchased automation, as
-              // create-checkout-session's self-heal does; when absent the
-              // column's DB default applies.
+              // create-checkout-session's self-heal does.
+              //
+              // The column's DB default was dropped on 2026-08-07 (it was the
+              // now-retired 'twilio_missed_call'), so if this lookup comes back
+              // empty the insert below omits a NOT NULL column and throws. That
+              // is intentional: the throw is caught, ops gets a provision_missing
+              // alert, and Stripe still gets its 200. A silently defaulted row
+              // would have been born unfulfillable instead.
               const { data: requestRow } = await adminClient
                 .from('automation_requests')
                 .select('automations(connector_type)')
@@ -138,7 +143,7 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
 
       // Idempotent: provisionIfNeeded claims its transition with a status guard,
       // so a re-delivered completed event does not double-activate.
-      await provisionIfNeeded(adminClient, requestId, deps.provisionAutomation)
+      await provisionIfNeeded(adminClient, requestId, deps.connectorDeps ?? {})
     }
   }
 

@@ -1,13 +1,14 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import { purchaseNumber } from '../_shared/twilioProvision.ts'
-import { attemptProvision, type ProvisionAutomation } from '../_shared/provisioning.ts'
+import { getConnector, type ConnectorDeps, type ProvisionRow } from '../_shared/connectors.ts'
+import { runConnectorProvision } from '../_shared/provisioning.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-
-export type { ProvisionAutomation }
 
 interface RetryDeps {
   createUserClient: (authHeader: string) => SupabaseClient
-  provisionAutomation: ProvisionAutomation
+  // Forwarded to the connector that owns this provision. Was the Twilio number
+  // purchaser until the SMS product was removed (2026-08-07); the retry is now
+  // generic and works for whichever connector the row carries.
+  connectorDeps?: ConnectorDeps
 }
 
 function defaultCreateUserClient(authHeader: string): SupabaseClient {
@@ -18,7 +19,7 @@ function defaultCreateUserClient(authHeader: string): SupabaseClient {
 
 const defaultDeps: RetryDeps = {
   createUserClient: defaultCreateUserClient,
-  provisionAutomation: { purchaseNumber },
+  connectorDeps: {},
 }
 
 // Authorization: the caller's JWT is forwarded into a user-scoped Supabase
@@ -44,11 +45,11 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
 
   const { data: provisionRow } = await userClient
     .from('automation_provisions')
-    .select('id, business_name, status')
+    .select('id, connector_type, business_name, booking_link, config, status')
     .eq('request_id', requestId)
     .single()
 
-  const row = provisionRow as { id: string; business_name: string; status: string } | null
+  const row = provisionRow as (ProvisionRow & { status: string }) | null
   if (!row || row.status !== 'failed') {
     return new Response(JSON.stringify({ error: 'No failed provision found for this request' }), {
       status: 404,
@@ -56,7 +57,26 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
     })
   }
 
-  const result = await attemptProvision(userClient, row, 'failed', deps.provisionAutomation)
+  // A row whose connector is retired (or which predates connector_type) cannot
+  // be retried. Answer 409 rather than letting getConnector's throw surface as
+  // an opaque 500 -- the admin clicking Retry should learn it is unretryable.
+  let connector
+  try {
+    connector = getConnector(row.connector_type)
+  } catch (error) {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
+      status: 409,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const result = await runConnectorProvision(
+    userClient,
+    connector,
+    row,
+    'failed',
+    deps.connectorDeps ?? {},
+  )
 
   return new Response(JSON.stringify({ status: result }), {
     status: 200,

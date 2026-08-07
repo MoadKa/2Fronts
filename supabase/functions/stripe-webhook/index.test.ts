@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1'
-import { handleStripeWebhook, type ProvisionAutomation } from './index.ts'
+import { handleStripeWebhook } from './index.ts'
 
 // Default no-op alert for tests that don't exercise alerting. Returns false
 // (the "alerting not configured" result), matching the shared module's no-op.
@@ -51,6 +51,9 @@ function fakeAdminClient(captured: CapturedAdminCall) {
 interface ProvisionRow {
   id: string
   request_id: string
+  // Required in practice since the implicit twilio_missed_call default was
+  // removed: getConnector() rejects a null type outright.
+  connector_type?: string
   business_name: string
   booking_link: string
   status: string
@@ -140,7 +143,6 @@ Deno.test('returns 400 and does not touch the DB when the Stripe signature is in
     stripe: fakeStripe(null, true) as never,
     createAdminClient: fakeAdminClient(captured) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 400)
@@ -159,7 +161,6 @@ Deno.test('marks the request paid when checkout.session.completed arrives with a
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeAdminClient(captured) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -181,7 +182,6 @@ Deno.test('returns 200 and skips the DB update when checkout.session.completed h
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeAdminClient(captured) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -197,82 +197,34 @@ Deno.test('returns 200 and does nothing for unrelated event types', async () => 
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeAdminClient(captured) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('not used in this test')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
   assertEquals(captured.table, undefined)
 })
 
-Deno.test('provisions a Twilio number when the automation requires provisioning and the claim succeeds', async () => {
+// The three tests that used to live here drove the Twilio missed-call
+// connector: number purchased on a successful claim, no double purchase when
+// another delivery already claimed the row, and status 'failed' when the
+// purchase threw. All three exercised code deleted with the SMS product
+// (2026-08-07), so they were removed rather than retargeted -- the surviving
+// connectors have no purchase step to assert against.
+//
+// What replaces them is the behaviour that took their place: a provision whose
+// connector is retired must be terminal, never a source of infinite Stripe
+// redelivery.
+
+Deno.test('a provision whose connector is retired is marked failed and still returns 200 (no infinite Stripe redelivery)', async () => {
   const opts: FakeProvisioningAdminClientOpts = {
     requestRow: { automations: { requires_provisioning: true } },
-    provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', status: 'pending' },
-    claimSucceeds: true,
-    updates: [],
-  }
-  const event = {
-    type: 'checkout.session.completed',
-    data: { object: { id: 'cs_123', metadata: { request_id: 'req_abc' } } },
-  }
-  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
-  let purchaseCalledWith = ''
-
-  const res = await handleStripeWebhook(req, {
-    stripe: fakeStripe(event) as never,
-    createAdminClient: fakeProvisioningAdminClient(opts) as never,
-    alert: noopAlert,
-    provisionAutomation: {
-      purchaseNumber: (businessName: string) => {
-        purchaseCalledWith = businessName
-        return Promise.resolve({ phoneNumber: '+4915712345678', sid: 'PN123' })
-      },
-    } as ProvisionAutomation,
-  })
-
-  assertEquals(res.status, 200)
-  assertEquals(purchaseCalledWith, 'Acme Plumbing')
-  const provisionUpdates = opts.updates.filter((u) => u.table === 'automation_provisions')
-  assertEquals(provisionUpdates[0].matchedStatus, 'pending')
-  assertEquals((provisionUpdates[0].patch as { status: string }).status, 'provisioning')
-  assertEquals((provisionUpdates[1].patch as { status: string; twilio_phone_number: string }).status, 'active')
-  assertEquals((provisionUpdates[1].patch as { twilio_phone_number: string }).twilio_phone_number, '+4915712345678')
-})
-
-Deno.test('skips provisioning (no duplicate purchase) when the claim fails because another delivery already claimed it', async () => {
-  const opts: FakeProvisioningAdminClientOpts = {
-    requestRow: { automations: { requires_provisioning: true } },
-    provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', status: 'pending' },
-    claimSucceeds: false,
-    updates: [],
-  }
-  const event = {
-    type: 'checkout.session.completed',
-    data: { object: { id: 'cs_123', metadata: { request_id: 'req_abc' } } },
-  }
-  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
-  let purchaseWasCalled = false
-
-  const res = await handleStripeWebhook(req, {
-    stripe: fakeStripe(event) as never,
-    createAdminClient: fakeProvisioningAdminClient(opts) as never,
-    alert: noopAlert,
-    provisionAutomation: {
-      purchaseNumber: () => {
-        purchaseWasCalled = true
-        return Promise.resolve({ phoneNumber: '+4915712345678', sid: 'PN123' })
-      },
-    } as ProvisionAutomation,
-  })
-
-  assertEquals(res.status, 200)
-  assertEquals(purchaseWasCalled, false)
-})
-
-Deno.test('marks the provision failed (not stuck pending) when the Twilio purchase throws', async () => {
-  const opts: FakeProvisioningAdminClientOpts = {
-    requestRow: { automations: { requires_provisioning: true } },
-    provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Plumbing', booking_link: 'https://cal.com/acme', status: 'pending' },
+    provisionRow: {
+      id: 'prov-1',
+      request_id: 'req_abc',
+      connector_type: 'twilio_missed_call',
+      business_name: 'Acme Plumbing',
+      booking_link: 'https://cal.com/acme',
+      status: 'pending',
+    },
     claimSucceeds: true,
     updates: [],
   }
@@ -286,14 +238,14 @@ Deno.test('marks the provision failed (not stuck pending) when the Twilio purcha
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeProvisioningAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: {
-      purchaseNumber: () => Promise.reject(new Error('Twilio account suspended')),
-    } as ProvisionAutomation,
   })
 
+  // 200 is the assertion that matters: a throw here would make Stripe redeliver
+  // this event forever for a product that no longer exists.
   assertEquals(res.status, 200)
   const provisionUpdates = opts.updates.filter((u) => u.table === 'automation_provisions')
-  assertEquals((provisionUpdates[1].patch as { status: string }).status, 'failed')
+  const last = provisionUpdates[provisionUpdates.length - 1]
+  assertEquals((last.patch as { status: string }).status, 'failed')
 })
 
 Deno.test('does not attempt provisioning when the automation does not require it', async () => {
@@ -308,22 +260,19 @@ Deno.test('does not attempt provisioning when the automation does not require it
     data: { object: { id: 'cs_123', metadata: { request_id: 'req_abc' } } },
   }
   const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
-  let purchaseWasCalled = false
 
   const res = await handleStripeWebhook(req, {
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeProvisioningAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: {
-      purchaseNumber: () => {
-        purchaseWasCalled = true
-        return Promise.resolve({ phoneNumber: '+4915712345678', sid: 'PN123' })
-      },
-    } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
-  assertEquals(purchaseWasCalled, false)
+  // requires_provisioning=false means provisionIfNeeded returns before it ever
+  // reads the provision row, so no automation_provisions write may appear. This
+  // used to be asserted via a spy on the Twilio purchase; with that connector
+  // gone, the absence of the write is the observable equivalent.
+  assertEquals(opts.updates.filter((u) => u.table === 'automation_provisions').length, 0)
 })
 
 // --- Subscription lifecycle (#25) -------------------------------------------
@@ -417,7 +366,6 @@ Deno.test('checkout.session.completed (subscription) stores stripe_subscription_
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -445,7 +393,6 @@ Deno.test('a provision already carrying a DIFFERENT subscription id is not overw
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -476,7 +423,6 @@ Deno.test('re-delivery with the SAME subscription id stores it again without a c
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -504,7 +450,6 @@ Deno.test('missing provision row is self-healed with a minimal pending insert AN
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -544,7 +489,6 @@ Deno.test('self-heal insert failure (e.g. unique race) still returns 200 and ale
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200) // Stripe must get its 200 either way
@@ -561,7 +505,14 @@ Deno.test('trial-shaped checkout.session.completed (no payment yet) still marks 
   // with their card details, not money. This pins that intended behavior.
   const opts: FakeProvisioningAdminClientOpts = {
     requestRow: { automations: { requires_provisioning: true } },
-    provisionRow: { id: 'prov-1', request_id: 'req_abc', business_name: 'Acme Coaching', booking_link: 'https://cal.com/acme', status: 'pending' },
+    provisionRow: {
+      id: 'prov-1',
+      request_id: 'req_abc',
+      connector_type: 'booking_concierge',
+      business_name: 'Acme Coaching',
+      booking_link: 'https://cal.com/acme',
+      status: 'pending',
+    },
     claimSucceeds: true,
     updates: [],
   }
@@ -579,18 +530,11 @@ Deno.test('trial-shaped checkout.session.completed (no payment yet) still marks 
     },
   }
   const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
-  let purchaseCalledWith = ''
 
   const res = await handleStripeWebhook(req, {
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeProvisioningAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: {
-      purchaseNumber: (businessName: string) => {
-        purchaseCalledWith = businessName
-        return Promise.resolve({ phoneNumber: '+4915712345678', sid: 'PN123' })
-      },
-    } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -603,8 +547,14 @@ Deno.test('trial-shaped checkout.session.completed (no payment yet) still marks 
   )
   assertEquals((subStore?.patch as { stripe_subscription_id: string }).stripe_subscription_id, 'sub_trial')
   assertEquals((subStore?.patch as { stripe_customer_id: string }).stripe_customer_id, 'cus_123')
-  // Provisioning ran: the concierge goes live at trial start, not at first charge.
-  assertEquals(purchaseCalledWith, 'Acme Coaching')
+  // Provisioning ran: the concierge goes live at trial start, not at first
+  // charge. The booking_concierge connector has no external side effect to spy
+  // on, so the observable is the negative one: fulfillment did not bail out and
+  // did not mark the provision failed.
+  const failedUpdate = opts.updates.find(
+    (u) => u.table === 'automation_provisions' && (u.patch as { status?: string }).status === 'failed',
+  )
+  assertEquals(failedUpdate, undefined)
 })
 
 Deno.test('customer.subscription.deleted deactivates the linked concierge and cancels the provision', async () => {
@@ -619,7 +569,6 @@ Deno.test('customer.subscription.deleted deactivates the linked concierge and ca
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -641,7 +590,6 @@ Deno.test('customer.subscription.deleted is idempotent: re-delivery for an unkno
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -660,7 +608,6 @@ Deno.test('customer.subscription.updated to `unpaid` deactivates the concierge (
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -683,7 +630,6 @@ Deno.test('customer.subscription.updated to `canceled` (cancel-without-delete) d
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -702,7 +648,6 @@ Deno.test('customer.subscription.updated to `past_due` does NOT deactivate: acce
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -723,7 +668,6 @@ Deno.test('customer.subscription.updated to `active` REVIVES a concierge we prev
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -748,7 +692,6 @@ Deno.test('customer.subscription.updated to `active` does NOT disturb an in-flig
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: noopAlert,
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)
@@ -768,7 +711,6 @@ Deno.test('invoice.payment_failed sends an alert via the alert dependency', asyn
     stripe: fakeStripe(event) as never,
     createAdminClient: fakeLifecycleAdminClient(opts) as never,
     alert: (e) => { alerted = e as typeof alerted; return Promise.resolve(true) },
-    provisionAutomation: { purchaseNumber: () => Promise.reject(new Error('unused')) } as ProvisionAutomation,
   })
 
   assertEquals(res.status, 200)

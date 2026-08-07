@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 import { resolveAppBaseUrl } from '../_shared/appUrl.ts'
 import { provisionIfNeeded } from '../_shared/provisionFulfillment.ts'
+import { RETIRED_CONNECTOR_TYPES } from '../_shared/connectors.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 
@@ -92,6 +93,21 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
   // for the same purchase.
   if ((requestRow as { status?: string }).status === 'paid') {
     return json({ error: 'Request already completed' }, 409)
+  }
+
+  // A retired connector can never provision (getConnector throws for it), so
+  // charging for one would take real money for a product that cannot be
+  // delivered. Requests created BEFORE the automation was delisted are still
+  // sitting in the funnel and would otherwise sail through here, because this
+  // function reads the automation by id and never consults is_active.
+  {
+    const embedded = (requestRow as { automations?: unknown }).automations
+    const purchased = (Array.isArray(embedded) ? embedded[0] : embedded) as
+      | { connector_type?: string | null }
+      | null
+    if (purchased?.connector_type && RETIRED_CONNECTOR_TYPES.includes(purchased.connector_type)) {
+      return json({ error: 'This automation is no longer available' }, 409)
+    }
   }
 
   // Replay while a session is still open: a coach who abandons checkout and
@@ -274,9 +290,12 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
           .from('automation_provisions')
           .insert({
             request_id: requestId,
-            // Derive from the purchased automation (as the client does); fall
-            // back to the DB default when an older row predates the column.
-            ...(automation.connector_type ? { connector_type: automation.connector_type } : {}),
+            // Derive from the purchased automation (as the client does). Set
+            // unconditionally: the column's DB default was dropped on
+            // 2026-08-07, so omitting it is a NOT NULL violation rather than a
+            // silent fallback. automations.connector_type is itself NOT NULL,
+            // so this always has a value.
+            connector_type: automation.connector_type,
             status: 'pending',
           })
         if (provisionInsertError) throw provisionInsertError
