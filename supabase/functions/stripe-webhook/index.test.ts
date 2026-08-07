@@ -34,6 +34,13 @@ function fakeAdminClient(captured: CapturedAdminCall) {
               captured.eqCalls.push([col, val])
               return chain
             },
+            // The paid-promotion guard excludes cancelled requests and reads
+            // back the affected rows to detect a charge against one.
+            not(col: string, _op: string, val: unknown) {
+              captured.eqCalls.push([`not:${col}`, val])
+              return chain
+            },
+            select: () => Promise.resolve({ data: [{ id: 'req_abc' }], error: null }),
           }
           return chain
         },
@@ -81,7 +88,11 @@ function fakeProvisioningAdminClient(opts: FakeProvisioningAdminClientOpts) {
           },
           update(patch: unknown) {
             opts.updates.push({ table, patch })
-            const chain = { eq: () => chain }
+            const chain = {
+              eq: () => chain,
+              not: () => chain,
+              select: () => Promise.resolve({ data: [{ id: 'req_abc' }], error: null }),
+            }
             return chain
           },
         }
@@ -106,6 +117,12 @@ function fakeProvisioningAdminClient(opts: FakeProvisioningAdminClientOpts) {
             const builder = {
               eq(col: string, val: unknown) {
                 if (col === 'status') record.matchedStatus = val as string
+                return builder
+              },
+              // provisionIfNeeded guards its retired-connector failure write on
+              // a SET of statuses rather than a single one.
+              in(col: string, vals: unknown[]) {
+                if (col === 'status') record.matchedStatus = (vals as string[]).join('|')
                 return builder
               },
               select() {
@@ -339,11 +356,26 @@ function fakeLifecycleAdminClient(opts: LifecycleOpts) {
               record.eqs.push([col, val])
               return chain
             },
-            // Affected-rows check on the subscription-id store: matches the
-            // pre-read row when it exists, zero rows when it doesn't.
+            in(col: string, vals: unknown[]) {
+              record.eqs.push([col, (vals as string[]).join('|')])
+              return chain
+            },
+            // The paid-promotion guard excludes cancelled requests.
+            not(col: string, _op: string, val: unknown) {
+              record.eqs.push([`not:${col}`, val])
+              return chain
+            },
+            // Affected-rows check, used by BOTH the subscription-id store and
+            // the paid-promotion guard: matches the pre-read row when it exists,
+            // zero rows when it doesn't. automation_requests has no pre-read, so
+            // report one affected row so the guard does not spuriously alert.
             select: () =>
               Promise.resolve({
-                data: provisionByRequest ? [{ ...provisionByRequest, ...patch }] : [],
+                data: table === 'automation_requests'
+                  ? [{ id: 'req_abc', ...patch }]
+                  : provisionByRequest
+                  ? [{ ...provisionByRequest, ...patch }]
+                  : [],
                 error: null,
               }),
           }

@@ -48,7 +48,16 @@ export async function provisionIfNeeded(
       `provisionIfNeeded: provision ${row.id} cannot be fulfilled:`,
       (error as Error).message,
     )
-    await adminClient.from('automation_provisions').update({ status: 'failed' }).eq('id', row.id)
+    // Guarded on the status we read, for the same reason runConnectorProvision
+    // guards its outcome write: a concurrent cancellation (or the delisting
+    // migration) may already have moved this row to a terminal state, and
+    // pulling it back to 'failed' would put a Retry button in front of an admin
+    // that can only ever 409.
+    await adminClient
+      .from('automation_provisions')
+      .update({ status: 'failed' })
+      .eq('id', row.id)
+      .in('status', ['pending', 'provisioning'])
     return
   }
 

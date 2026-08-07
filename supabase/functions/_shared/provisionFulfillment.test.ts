@@ -52,6 +52,12 @@ function fakeAdminClient(opts: FakeOpts) {
                 if (col === 'status') record.matchedStatus = val as string
                 return builder
               },
+              // The retired-connector failure write guards on a set of statuses
+              // rather than a single one.
+              in(col: string, vals: unknown[]) {
+                if (col === 'status') record.matchedStatus = (vals as string[]).join('|')
+                return builder
+              },
               select: () => ({
                 maybeSingle: () =>
                   Promise.resolve({

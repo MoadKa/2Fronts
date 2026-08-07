@@ -20,14 +20,22 @@ export type AttemptProvisionResult = 'active' | 'failed' | 'not-claimed'
 //     this, a successful retry answered 'active' while the row stayed 'failed'.
 //
 // Both live here now, connector-agnostic, so every connector inherits them.
+// `client` may be SERVICE-ROLE (provisionIfNeeded, from the Stripe webhook) or
+// USER-SCOPED (retry-provision, built from the caller's JWT). Do not assume
+// admin rights inside a connector. On the retry path RLS is the real boundary:
+// a non-admin's claim UPDATE matches 0 rows and returns 'not-claimed' before any
+// connector runs. Today every registered connector's provision() is a no-op that
+// never touches the client, so the distinction is latent — the first connector
+// that WRITES through it will silently write nothing under RLS on the retry path
+// while this function still records 'active'.
 export async function runConnectorProvision(
-  adminClient: SupabaseClient,
+  client: SupabaseClient,
   connector: Connector,
   row: ProvisionRow,
   fromStatus: string,
   deps: ConnectorDeps = {},
 ): Promise<AttemptProvisionResult> {
-  const { data: claimed, error: claimError } = await adminClient
+  const { data: claimed, error: claimError } = await client
     .from('automation_provisions')
     .update({ status: 'provisioning' })
     .eq('status', fromStatus)
@@ -50,7 +58,9 @@ export async function runConnectorProvision(
 
   let result: AttemptProvisionResult
   try {
-    result = await connector.provision({ adminClient, row, fromStatus, deps })
+    // ProvisionContext still names the field adminClient; the connectors that
+    // read it must treat it as possibly user-scoped (see the note above).
+    result = await connector.provision({ adminClient: client, row, fromStatus, deps })
   } catch (error) {
     console.error(
       `runConnectorProvision: connector ${connector.connectorType} threw for provision ${row.id}:`,
@@ -68,7 +78,7 @@ export async function runConnectorProvision(
   // .deleted arriving mid-provision sets the row 'cancelled', and an unguarded
   // write here would resurrect it as 'active' while its concierge is switched
   // off.
-  const { data: persisted, error: persistError } = await adminClient
+  const { data: persisted, error: persistError } = await client
     .from('automation_provisions')
     .update({ status: finalStatus })
     .eq('id', row.id)

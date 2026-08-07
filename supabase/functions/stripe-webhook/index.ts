@@ -42,11 +42,30 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
     const requestId = session.metadata?.request_id
     if (requestId) {
       const adminClient = deps.createAdminClient()
-      await adminClient
+      // Guarded so a CANCELLED request cannot be promoted back to 'paid'.
+      // Delisting an automation (see 20260807160000) cancels its in-flight
+      // requests, but Checkout Sessions already open at Stripe stay live: a
+      // customer who completes one afterwards is really charged. Without this
+      // guard the cancelled request silently flips to 'paid' and fulfillment
+      // then fails, taking money for something that cannot be delivered.
+      const { data: promoted } = await adminClient
         .from('automation_requests')
         .update({ status: 'paid', paid_at: new Date().toISOString() })
         .eq('id', requestId)
         .eq('stripe_checkout_session_id', session.id)
+        .not('status', 'eq', 'cancelled')
+        .select()
+
+      if (((promoted as unknown[] | null) ?? []).length === 0) {
+        // Either a re-delivery (already paid, harmless) or a real charge against
+        // a cancelled request. The second needs a human and a refund, so alert
+        // rather than swallow it.
+        await deps.alert({
+          type: 'payment_on_cancelled_request',
+          message: `checkout.session.completed for request ${requestId} did not promote to paid; the request may be cancelled while Stripe session ${session.id} was charged`,
+          fields: { requestId, sessionId: session.id },
+        })
+      }
 
       // Subscription sessions carry the new subscription + customer. Store them
       // on the provision so customer.subscription.deleted can later find this
