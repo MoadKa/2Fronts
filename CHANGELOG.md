@@ -4,6 +4,23 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project uses a
 four-part `MAJOR.MINOR.PATCH.BUILD` version scheme.
 
+## [1.17.0.0] - 2026-08-08
+
+### Added
+- **Dein Setter darf jetzt um Erlaubnis bitten, später per E-Mail nachzufassen.** Wer im Chat seine Daten hinterlässt, kann ein Häkchen setzen. Danach kommt eine kurze Bestätigungsmail, und erst der Klick darauf macht die Einwilligung gültig. Ein gesetztes Häkchen allein reicht ausdrücklich nicht: es beweist nur, dass jemand eine Adresse getippt hat, nicht dass sie ihm gehört. Verschickt wird noch nichts außer dieser einen Bestätigungsmail, die keine Werbung enthält.
+- **Jede Einwilligung wird mit dem Wortlaut gespeichert, den der Besucher gelesen hat.** Nicht mit dem heutigen Text, sondern mit dem von damals. Bei §7 UWG trägt der Absender die Beweislast, und beweisen lässt sich nur, was man im Original zeigen kann. Der Text ist deshalb fest verdrahtet und lässt sich nicht still ändern.
+- **Du kannst deine Absenderdaten hinterlegen.** Rechtlicher Name, Anschrift, Antwortadresse und der Link zu deiner Datenschutzerklärung. Ohne diese Angaben bietet dein Setter das Häkchen gar nicht erst an, denn ein Versprechen auf eine Mail, die nicht rausgehen kann, hat auf einem Einwilligungsbildschirm nichts zu suchen.
+- **In den Chats siehst du pro Person, woran du bist.** Bestätigt heißt: du darfst schreiben. Nur angehakt heißt: wartet noch auf Bestätigung, noch nicht versandfähig. Widerrufen heißt: nie wieder. Der Export trägt die Spalte mit, weil genau diese Datei am Ende in ein Mailtool wandert.
+- **Besucher können deinen Setter nutzen, ohne ihre Adresse dazulassen.** Ein Link „Erst mal nur schauen" führt am Formular vorbei. Sie können trotzdem fragen und trotzdem buchen.
+
+### Fixed
+- **Das Impressum zeigt wieder die Telefonnummer.** Sie stand seit Monaten in der Datei und wurde nie angezeigt, die Seite nannte nur die E-Mail.
+- **Der Link zur EU-Streitschlichtung ist raus.** Die Plattform hat am 20. Juli 2025 den Betrieb eingestellt. Besucher auf einen toten Rechtsweg zu schicken ist schlechter als zu schweigen.
+
+### Security
+- **Ein eingeloggter Nutzer konnte seinen verschlüsselten Zugangsschlüssel über die Schnittstelle auslesen.** Die Schutzregel dagegen war seit einer früheren Änderung wirkungslos, ohne dass das auffiel. Jetzt wird spaltenweise freigegeben, was die einzige Form ist, die eine Spalte wirklich verbirgt.
+- **Ein bezahlter Zugang konnte fremde Setter scharfschalten.** Beim Einrichten wurde nur geprüft, ob die Bestellung einem gehört, nicht der Setter. Wer eine bezahlte Bestellung hatte, konnte damit den pausierten Setter eines anderen wieder anschalten.
+
 ## [1.16.1.0] - 2026-08-07
 
 ### Removed
