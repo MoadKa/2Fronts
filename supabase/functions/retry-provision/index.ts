@@ -45,9 +45,28 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
 
   const { data: provisionRow } = await userClient
     .from('automation_provisions')
-    .select('id, connector_type, business_name, booking_link, config, status')
+    .select('id, connector_type, config, status')
     .eq('request_id', requestId)
     .single()
+
+  // Resolve the connector from the AUTOMATION, exactly as provisionIfNeeded
+  // does. automation_provisions.connector_type carried a DB default of
+  // 'twilio_missed_call' until 20260807160000 dropped it, and both self-heal
+  // inserts relied on that default — so mislabeled rows are a live population,
+  // not a hypothesis. Dispatching on the provision column here would make the
+  // ONE human recovery path the single place that still trusts it: a
+  // booking-concierge provision self-healed before that migration would answer
+  // 409 "retired" forever, while a redelivered Stripe webhook fulfills it fine.
+  const { data: requestRow } = await userClient
+    .from('automation_requests')
+    .select('automations(connector_type)')
+    .eq('id', requestId)
+    .single()
+
+  const embedded = (requestRow as { automations?: unknown } | null)?.automations
+  const automation = (Array.isArray(embedded) ? embedded[0] : embedded) as
+    | { connector_type?: string | null }
+    | null
 
   const row = provisionRow as (ProvisionRow & { status: string }) | null
   if (!row || row.status !== 'failed') {
@@ -60,9 +79,11 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
   // A row whose connector is retired (or which predates connector_type) cannot
   // be retried. Answer 409 rather than letting getConnector's throw surface as
   // an opaque 500 -- the admin clicking Retry should learn it is unretryable.
+  const connectorType = automation?.connector_type ?? row.connector_type
+
   let connector
   try {
-    connector = getConnector(row.connector_type)
+    connector = getConnector(connectorType)
   } catch (error) {
     return new Response(JSON.stringify({ error: (error as Error).message }), {
       status: 409,
@@ -73,7 +94,7 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
   const result = await runConnectorProvision(
     userClient,
     connector,
-    row,
+    { ...row, connector_type: connectorType },
     'failed',
     deps.connectorDeps ?? {},
   )

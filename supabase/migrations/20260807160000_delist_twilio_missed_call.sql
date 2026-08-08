@@ -30,14 +30,19 @@
 -- Every statement here is idempotent, because the Supabase deploy workflow in
 -- this repo fails on rate limits often enough to be re-run routinely.
 
--- All six statements run as ONE transaction. Individually they are idempotent,
--- but a PARTIAL apply is not benign: aborting before step 4 leaves the product
--- delisted while its provisions stay active, and aborting before steps 5/6
--- leaves the 'twilio_missed_call' column defaults in place while the new code
--- ships expecting them gone, so every self-heal insert mints a fresh
--- unfulfillable row. Steps 5 and 6 also take ACCESS EXCLUSIVE locks on two hot
--- tables; a lock timeout lands exactly in that second state.
-begin;
+-- Atomicity matters here: a PARTIAL apply is not benign. Aborting before step 4
+-- leaves the product delisted while its provisions stay active, and aborting
+-- before steps 5/6 leaves the 'twilio_missed_call' column defaults in place
+-- while the new code ships expecting them gone, so every self-heal insert mints
+-- a fresh unfulfillable row. Steps 5 and 6 also take ACCESS EXCLUSIVE locks on
+-- two hot tables; a lock timeout lands exactly in that second state.
+--
+-- No explicit begin;/commit; here. `supabase db push` already applies each
+-- migration file and its schema_migrations insert as one transaction, and none
+-- of the other 38 migrations in this repo opens its own. Opening one would end
+-- the CLI's transaction early at our commit, so the version row could land
+-- outside the atomic unit. The raise below still aborts the whole file and
+-- fails the deploy job.
 
 -- Refuse to run if any row this migration would cancel belongs to a PAID
 -- request. The header assumes there are no paying customers for this product;
@@ -134,4 +139,3 @@ alter table automation_provisions
 alter table automations
   alter column connector_type drop default;
 
-commit;

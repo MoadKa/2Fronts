@@ -5,11 +5,33 @@ interface FakeUserClientOpts {
   provisionRow: { id: string; connector_type?: string; business_name: string; status: string } | null
   claimSucceeds: boolean
   updates: { patch: unknown; matchedStatus?: string }[]
+  // The AUTOMATION's connector_type, which is the dispatch source. The provision
+  // column is only a fallback: it carried a DB default of 'twilio_missed_call'
+  // until 20260807160000 dropped it, so a row born from that default is
+  // mislabeled and would 409 forever on the one human recovery path.
+  automationConnectorType?: string | null
 }
 
 function fakeUserClient(opts: FakeUserClientOpts) {
   return {
     from(table: string) {
+      if (table === 'automation_requests') {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  single: () =>
+                    Promise.resolve({
+                      data: { automations: { connector_type: opts.automationConnectorType ?? null } },
+                      error: null,
+                    }),
+                }
+              },
+            }
+          },
+        }
+      }
       if (table === 'automation_provisions') {
         return {
           select() {
@@ -76,6 +98,7 @@ Deno.test('retries a failed provision through its connector and returns the new 
       business_name: 'Acme Coaching',
       status: 'failed',
     },
+    automationConnectorType: 'booking_concierge',
     claimSucceeds: true,
     updates: [],
   }
@@ -99,6 +122,7 @@ Deno.test('returns 409, not 500, when the provision belongs to a retired connect
       business_name: 'Acme Plumbing',
       status: 'failed',
     },
+    automationConnectorType: 'twilio_missed_call',
     claimSucceeds: true,
     updates: [],
   }
@@ -111,4 +135,30 @@ Deno.test('returns 409, not 500, when the provision belongs to a retired connect
   assertEquals(res.status, 409)
   const body = await res.json()
   assertStringIncludes(body.error, 'retired')
+})
+
+// The mislabeled-column trap, on the ONE human recovery path. A provision row
+// self-healed before 20260807160000 carries the old 'twilio_missed_call' DB
+// default even though the customer bought the booking concierge. Dispatching on
+// the provision column would answer 409 "retired" forever, while a redelivered
+// Stripe webhook fulfills the same row correctly via the automation join.
+Deno.test('dispatches on the automation, so a mislabeled provision row still retries', async () => {
+  const opts: FakeUserClientOpts = {
+    provisionRow: {
+      id: 'prov-mislabeled',
+      connector_type: 'twilio_missed_call',
+      business_name: 'Acme Coaching',
+      status: 'failed',
+    },
+    automationConnectorType: 'booking_concierge',
+    claimSucceeds: true,
+    updates: [],
+  }
+  const res = await handleRetryProvision(reqWithAuth({ requestId: 'req-1' }), {
+    createUserClient: () => fakeUserClient(opts) as never,
+  })
+
+  assertEquals(res.status, 200)
+  const body = await res.json()
+  assertEquals(body.status, 'active')
 })

@@ -97,10 +97,19 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
           // create-checkout-session best-effort-expires the previous session and
           // swallows failure, so two sessions can be live at once. Paying the old
           // one lands here. This is a legitimate purchase, NOT a refund case.
+          // Two very different situations share this branch, and they need
+          // opposite responses. Pre-payment: one legitimate charge on a
+          // superseded session, reconcile the id. Post-payment: the request was
+          // ALREADY paid on a different session, so the customer completed two
+          // sessions for one purchase — a real double charge that does need a
+          // refund. Hardcoding "do NOT refund" sent ops the wrong way.
+          const settled = ['paid', 'in_progress', 'delivered'].includes(current.status ?? '')
           await deps.alert({
-            type: 'payment_on_stale_session',
-            message: `Request ${requestId} completed on session ${session.id}, but the request holds ${current.stripe_checkout_session_id}. A legitimate payment on a superseded session: the request is stuck at '${current.status}' with paid_at null. Do NOT refund; reconcile the session id.`,
-            fields: { requestId, sessionId: session.id, storedSessionId: current.stripe_checkout_session_id ?? null },
+            type: settled ? 'double_charge_suspected' : 'payment_on_stale_session',
+            message: settled
+              ? `Request ${requestId} is already '${current.status}' on session ${current.stripe_checkout_session_id}, but session ${session.id} ALSO completed. The customer was very likely charged twice for one purchase — verify both payment intents in Stripe and refund the duplicate.`
+              : `Request ${requestId} completed on session ${session.id}, but the request holds ${current.stripe_checkout_session_id}. A legitimate payment on a superseded session: the request is stuck at '${current.status}' with paid_at null. Do NOT refund; reconcile the session id.`,
+            fields: { requestId, sessionId: session.id, storedSessionId: current.stripe_checkout_session_id ?? null, currentStatus: current.status ?? null },
           })
         }
         // Nothing below may run for a request that is NOT already past payment.

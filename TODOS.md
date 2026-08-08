@@ -25,15 +25,17 @@ verbatim from the original captures — only structure changed.
 
 ### Retention decision for `automation_provision_opt_outs`
 
-**What:** Decide whether to keep or delete the rows. The table is now fully orphaned: its only writer (`twilio-sms-webhook`) was deleted and RLS grants admins SELECT only, so no code can read or write it.
+**What:** Decide whether to keep or delete the rows.
 
 **Why:** It stores bare phone numbers of third parties who replied STOP. Their stated purpose — suppressing SMS that can no longer be sent — no longer exists, which under DSGVO Art. 5(1)(e) is personal data retained past its purpose.
 
 **Context:** Flagged by the data-migration review during `/ship` on 2026-08-07. Kept for now as history rather than deleted silently; this is a decision, not an oversight.
 
+**Correction (2026-08-08):** an earlier version of this entry claimed the table was fully orphaned because its only writer was deleted from the repo. That was **wrong** and the third adversarial review caught it. `supabase functions deploy` does not prune, so the deployed `twilio-sms-webhook` keeps running its last-deployed bundle: it looks a provision up by `twilio_phone_number` with no status filter and inserts the caller's number into this table. As long as the numbers are owned and still routed to it, it is **actively writing new personal data**. Deleting the function (see the deploy note in the item above) is therefore a prerequisite for this decision, not merely related to it.
+
 **Effort:** S
 **Priority:** P2
-**Depends on:** Closing the Twilio account (above) is the natural trigger.
+**Depends on:** `supabase functions delete twilio-sms-webhook` must land first, otherwise the table refills.
 
 ### Provisions can get stuck in `provisioning` with no recovery path
 
