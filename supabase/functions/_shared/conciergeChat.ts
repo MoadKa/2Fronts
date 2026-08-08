@@ -134,13 +134,21 @@ export interface FollowUpPromptState {
 // THE SENTENCE THAT MAY BE SAID, and the only one.
 //
 // A single constant on a single array element, deliberately. buildConciergeSystemPrompt
-// joins its parts with '\n', so a phrase split across two elements would have a
+// joins its parts with '\n', so a phrase split across two ELEMENTS would have a
 // newline injected into its middle and would be literally ABSENT from the prompt
 // that a test then searches for -- the test would fail, or worse, a laxer test
-// would pass while the model read two half-sentences. Keep it one string. If it
-// needs to get longer, it gets longer as one string.
+// would pass while the model read two half-sentences.
+//
+// The line breaks below are INSIDE the constant, so the searched-for string
+// contains them and the property still holds exactly. That is the only way to
+// wrap this to the same width as the rest of the prompt. Do NOT turn these
+// concatenated pieces into separate array elements, and do not reflow them
+// without keeping them inside this one constant.
 export const FOLLOW_UP_PHRASE =
-  '- ONE follow-up email will be sent to the address this visitor already confirmed, so you MAY say that an email about this conversation is coming. Never say when it will arrive, and never promise anything in it beyond the booking link above.'
+  '- ONE follow-up email will be sent to the address this visitor already\n' +
+  '  confirmed, so you MAY say that an email about this conversation is coming.\n' +
+  '  Never say when it will arrive, and never promise anything in it beyond the\n' +
+  '  booking link above.'
 
 // State 1 (default): the flat prohibition. Byte-identical to what shipped before
 // any follow-up existed. DO NOT EDIT THESE FIVE LINES -- conciergeChat.test.ts

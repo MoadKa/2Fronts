@@ -64,10 +64,20 @@ This is deliberate. §5 DDG wants a *reachable* sender, and a coach typing an
 address into a wizard proves neither that it exists nor that they read it. A
 typo means their own customer's reply vanishes, in a mail carrying their name.
 
+**The round-trip is now built** (`_shared/replyToVerifyMail.ts`,
+`concierge-followup-verify-reply-to`, wired into `concierge-setup`). Saving the
+sender panel mails the address a content-free confirmation link; clicking it is
+the only thing that ever writes the column. The link's token binds the concierge
+id AND a keyed digest of the address, and saving a different address clears the
+stamp, so a verification cannot outlive the address it verified.
+
 - [ ] Confirm the verification mail reaches a coach's reply-to and that clicking
       it stamps the column.
 - [ ] Confirm that CHANGING the reply-to clears the stamp. A verification must
       never outlive the address it verified.
+- [ ] Confirm `https://2fronts.de/absender-bestaetigen` resolves to the function
+      and not to the SPA (`vercel.json` rewrite). A broken rewrite here means no
+      coach can ever verify, and every queued mail cancels.
 
 Until this works, the queue fills and cancels. Visibly — the reason is written
 on every row — but it cancels.
@@ -86,6 +96,7 @@ Runtime secrets (`supabase secrets set`, never in CI logs):
 | `FOLLOWUP_UNSUB_SECRET` | no unsubscribe link can be built, so nothing sends |
 | `FOLLOWUP_PUBLIC_BASE_URL` | must be `https://2fronts.de`; anything else is refused |
 | `CONSENT_CONFIRM_SECRET` | no consent can ever be confirmed |
+| `FOLLOWUP_REPLY_TO_SECRET` | no reply-to can ever be verified, so every row cancels |
 | `RESEND_WEBHOOK_SECRET` | bounces and complaints are dropped |
 
 Repo Actions secrets, for the cron tick: `FOLLOWUP_DISPATCH_URL`,
