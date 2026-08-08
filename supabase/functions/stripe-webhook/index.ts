@@ -57,14 +57,51 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
         .select()
 
       if (((promoted as unknown[] | null) ?? []).length === 0) {
-        // Either a re-delivery (already paid, harmless) or a real charge against
-        // a cancelled request. The second needs a human and a refund, so alert
-        // rather than swallow it.
-        await deps.alert({
-          type: 'payment_on_cancelled_request',
-          message: `checkout.session.completed for request ${requestId} did not promote to paid; the request may be cancelled while Stripe session ${session.id} was charged`,
-          fields: { requestId, sessionId: session.id },
-        })
+        // Zero affected rows has four distinct causes and they need different
+        // human responses, so name the actual one instead of asserting the
+        // rarest. Re-read the row to tell them apart.
+        const { data: actual } = await adminClient
+          .from('automation_requests')
+          .select('status, stripe_checkout_session_id')
+          .eq('id', requestId)
+          .maybeSingle()
+
+        const current = actual as
+          | { status?: string; stripe_checkout_session_id?: string | null }
+          | null
+
+        if (!current) {
+          await deps.alert({
+            type: 'payment_for_unknown_request',
+            message: `checkout.session.completed names request ${requestId}, which does not exist. Session ${session.id} may have been charged against a deleted request, or this is a test-mode event hitting production.`,
+            fields: { requestId, sessionId: session.id },
+          })
+        } else if (current.status === 'cancelled') {
+          await deps.alert({
+            type: 'payment_on_cancelled_request',
+            message: `Request ${requestId} is CANCELLED but Stripe session ${session.id} completed. The customer was charged for something that cannot be delivered — refund required.`,
+            fields: { requestId, sessionId: session.id },
+          })
+        } else if (current.stripe_checkout_session_id !== session.id) {
+          // create-checkout-session best-effort-expires the previous session and
+          // swallows failure, so two sessions can be live at once. Paying the old
+          // one lands here. This is a legitimate purchase, NOT a refund case.
+          await deps.alert({
+            type: 'payment_on_stale_session',
+            message: `Request ${requestId} completed on session ${session.id}, but the request holds ${current.stripe_checkout_session_id}. A legitimate payment on a superseded session: the request is stuck at '${current.status}' with paid_at null. Do NOT refund; reconcile the session id.`,
+            fields: { requestId, sessionId: session.id, storedSessionId: current.stripe_checkout_session_id ?? null },
+          })
+        }
+        // Remaining case: already 'paid' with the same session id — an ordinary
+        // Stripe re-delivery. Silent by design.
+
+        // Nothing below may run for a request we did not promote. The
+        // subscription store, the self-heal INSERT and provisionIfNeeded would
+        // otherwise deliver the product anyway: concierge live, request still
+        // reading 'cancelled', paid_at null.
+        if (current?.status !== 'paid') {
+          return new Response(JSON.stringify({ received: true }), { status: 200 })
+        }
       }
 
       // Subscription sessions carry the new subscription + customer. Store them

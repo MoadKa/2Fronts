@@ -30,6 +30,34 @@
 -- Every statement here is idempotent, because the Supabase deploy workflow in
 -- this repo fails on rate limits often enough to be re-run routinely.
 
+-- All six statements run as ONE transaction. Individually they are idempotent,
+-- but a PARTIAL apply is not benign: aborting before step 4 leaves the product
+-- delisted while its provisions stay active, and aborting before steps 5/6
+-- leaves the 'twilio_missed_call' column defaults in place while the new code
+-- ships expecting them gone, so every self-heal insert mints a fresh
+-- unfulfillable row. Steps 5 and 6 also take ACCESS EXCLUSIVE locks on two hot
+-- tables; a lock timeout lands exactly in that second state.
+begin;
+
+-- Refuse to run if any row this migration would cancel belongs to a PAID
+-- request. The header assumes there are no paying customers for this product;
+-- this turns that assumption into a check instead of a hope. If it fires,
+-- someone has to decide about refunds before the product disappears.
+do $$
+declare paid_count int;
+begin
+  select count(*) into paid_count
+  from automation_provisions p
+  join automation_requests r on r.id = p.request_id
+  join automations a on a.id = r.automation_id
+  where a.connector_type = 'twilio_missed_call'
+    and p.status in ('pending', 'provisioning', 'active')
+    and r.status in ('paid', 'delivered');
+  if paid_count > 0 then
+    raise exception 'Refusing to retire twilio_missed_call: % provision(s) belong to a paid request. Decide about refunds first.', paid_count;
+  end if;
+end $$;
+
 -- 1. Take it out of the catalog so nobody can buy it.
 update automations
 set is_active = false
@@ -100,3 +128,5 @@ alter table automation_provisions
 -- supplies the column, so nothing breaks.
 alter table automations
   alter column connector_type drop default;
+
+commit;
