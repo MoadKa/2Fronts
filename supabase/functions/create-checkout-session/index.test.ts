@@ -237,13 +237,17 @@ Deno.test('free (0-amount) automation skips Stripe, marks paid, and fulfills', a
 // cancelled one used to sail through the free path and promote it to 'paid',
 // so a request the founder had killed came back as a completed purchase. The
 // promotion is now guarded exactly like the webhook's and must match nothing.
+//
+// The read-status guard above catches the plain re-POST first, so what this
+// test still pins is the race the promotion guard exists for: the request is
+// pre-payment when we read it and cancelled by the time we write.
 Deno.test('free path on a cancelled request: promotion matches zero rows -> 409, no fulfillment', async () => {
   const admin = newAdmin({ automation: FREE, requestCancelled: true })
   let fulfillCalled = false
 
   const res = await handleCreateCheckout(req(), {
     stripe: { checkout: { sessions: { create: () => Promise.reject(new Error('Stripe must not be touched on the free path')) } } } as never,
-    createUserClient: fakeUserClient('coach@example.com', null, 'cancelled') as never,
+    createUserClient: fakeUserClient('coach@example.com', null, 'requested') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => { fulfillCalled = true; return Promise.resolve() },
     getEnv,
@@ -269,7 +273,7 @@ Deno.test('a request that is already paid returns 409 and never reaches Stripe',
 
   const body = await res.json()
   assertEquals(res.status, 409)
-  assertEquals(body.error, 'Request already completed')
+  assertEquals(body.error, 'Request is no longer payable')
   assertEquals(stripeCalled, false) // no second charge / second subscription
   assertEquals(admin.updates.length, 0) // nothing mutated
 })

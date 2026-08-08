@@ -52,7 +52,12 @@ begin
   join automations a on a.id = r.automation_id
   where a.connector_type = 'twilio_missed_call'
     and p.status in ('pending', 'provisioning', 'active')
-    and r.status in ('paid', 'delivered');
+    -- Every POST-payment status, not just the two obvious ones. 'in_progress'
+    -- is the normal next step after 'paid' (AdminRequestsPage: paid ->
+    -- in_progress -> delivered), and step 4 below has no request-status filter,
+    -- so omitting it would let this migration cancel a paying customer's live
+    -- provision while the guard stayed silent.
+    and r.status not in ('requested', 'payment_pending', 'cancelled');
   if paid_count > 0 then
     raise exception 'Refusing to retire twilio_missed_call: % provision(s) belong to a paid request. Decide about refunds first.', paid_count;
   end if;

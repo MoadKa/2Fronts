@@ -93,8 +93,15 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
   // A request that already completed must never reach Stripe again: a second
   // session would double-charge a one-time SKU or mint a second subscription
   // for the same purchase.
-  if ((requestRow as { status?: string }).status === 'paid') {
-    return json({ error: 'Request already completed' }, 409)
+  // Only a pre-payment request may reach Stripe. 'paid' would double-charge a
+  // one-time SKU or mint a second subscription; 'cancelled' (delisting cancels
+  // in-flight requests) would revive a dead request into 'payment_pending';
+  // 'in_progress'/'delivered' are post-payment and must never be re-sold.
+  // The free path below carries the same guard, which is what "both paths
+  // fulfill identically" is supposed to mean.
+  const currentStatus = (requestRow as { status?: string }).status
+  if (currentStatus && !['requested', 'payment_pending'].includes(currentStatus)) {
+    return json({ error: 'Request is no longer payable' }, 409)
   }
 
   // Re-read the automation through the ADMIN client.
@@ -201,7 +208,28 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
       return json({ error: 'This request is no longer active' }, 409)
     }
 
-    await deps.fulfill(adminClient, requestId)
+    // provisionIfNeeded now THROWS on a transient DB failure so the Stripe
+    // webhook returns non-2xx and Stripe redelivers. This path has no Stripe to
+    // retry it, and an unhandled rejection here is a 500 with no CORS headers
+    // (the browser sees a network error). Worse, the request is already 'paid',
+    // so it can never be recovered: this function 409s on 'paid' and
+    // retry-provision only accepts 'failed'.
+    //
+    // So: catch, park the provision at 'failed' where the admin Retry can reach
+    // it, and still send the customer to the success page. They did buy it.
+    try {
+      await deps.fulfill(adminClient, requestId)
+    } catch (err) {
+      console.error(
+        `create-checkout-session: fulfillment failed for free request ${requestId}:`,
+        err instanceof Error ? err.message : err,
+      )
+      await adminClient
+        .from('automation_provisions')
+        .update({ status: 'failed' })
+        .eq('request_id', requestId)
+        .eq('status', 'pending')
+    }
     return json({ url: `${appBaseUrl}/checkout/result?status=success` })
   }
 

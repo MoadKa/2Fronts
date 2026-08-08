@@ -1,4 +1,4 @@
-import { assertEquals } from 'jsr:@std/assert@1'
+import { assertEquals, assertRejects } from 'jsr:@std/assert@1'
 import { handleStripeWebhook } from './index.ts'
 
 // Default no-op alert for tests that don't exercise alerting. Returns false
@@ -20,6 +20,8 @@ interface CapturedAdminCall {
   table?: string
   patch?: unknown
   eqCalls: [string, unknown][]
+  // The .in(col, vals) steps of an update chain (the promotion's status guard).
+  inCalls?: [string, unknown[]][]
 }
 
 function fakeAdminClient(captured: CapturedAdminCall) {
@@ -34,12 +36,19 @@ function fakeAdminClient(captured: CapturedAdminCall) {
               captured.eqCalls.push([col, val])
               return chain
             },
-            // The paid-promotion guard excludes cancelled requests and reads
-            // back the affected rows to detect a charge against one.
+            // The paid-promotion guard now promotes ONLY from a pre-payment
+            // status, so it filters with .in('status', [...]) rather than
+            // excluding 'cancelled'.
+            in(col: string, vals: unknown[]) {
+              ;(captured.inCalls ??= []).push([col, vals])
+              return chain
+            },
             not(col: string, _op: string, val: unknown) {
               captured.eqCalls.push([`not:${col}`, val])
               return chain
             },
+            // One affected row: the request was still pre-payment ('requested'
+            // or 'payment_pending'), i.e. an ordinary first delivery.
             select: () => Promise.resolve({ data: [{ id: 'req_abc' }], error: null }),
           }
           return chain
@@ -90,7 +99,11 @@ function fakeProvisioningAdminClient(opts: FakeProvisioningAdminClientOpts) {
             opts.updates.push({ table, patch })
             const chain = {
               eq: () => chain,
+              // The promotion guard filters on the set of pre-payment statuses.
+              in: () => chain,
               not: () => chain,
+              // One affected row: the request sat at 'requested'/'payment_pending'
+              // and this is its first completed delivery.
               select: () => Promise.resolve({ data: [{ id: 'req_abc' }], error: null }),
             }
             return chain
@@ -185,6 +198,9 @@ Deno.test('marks the request paid when checkout.session.completed arrives with a
   assertEquals((captured.patch as { status: string }).status, 'paid')
   assertEquals(captured.eqCalls[0], ['id', 'req_abc'])
   assertEquals(captured.eqCalls[1], ['stripe_checkout_session_id', 'cs_123'])
+  // Promoted only from a pre-payment status, so a re-delivery cannot re-stamp
+  // paid_at nor drag an admin's 'in_progress'/'delivered' back to 'paid'.
+  assertEquals(captured.inCalls?.[0], ['status', ['requested', 'payment_pending']])
 })
 
 Deno.test('returns 200 and skips the DB update when checkout.session.completed has no request_id', async () => {
@@ -306,6 +322,11 @@ interface PromotionOpts {
   provisionByRequest?: { id: string; stripe_subscription_id: string | null } | null
   updates: { table: string; patch: Record<string, unknown> }[]
   inserts: { table: string; row: Record<string, unknown> }[]
+  // When set, the promotion UPDATE on automation_requests RESOLVES with this in
+  // the supabase { data, error } envelope — a transient DB failure, not "zero
+  // rows". supabase-js resolves rather than rejects, which is exactly how the
+  // two states got confused in the first place.
+  promoteError?: Error
 }
 
 function fakePromotionAdminClient(opts: PromotionOpts) {
@@ -343,14 +364,20 @@ function fakePromotionAdminClient(opts: PromotionOpts) {
           opts.updates.push({ table, patch })
           const chain = {
             eq: () => chain,
+            // The promotion is guarded on the pre-payment status set.
+            in: () => chain,
             not: () => chain,
             // automation_requests: ZERO affected rows — the premise of every
             // test in this section. Provisions match their pre-read.
-            select: () =>
-              Promise.resolve({
+            select: () => {
+              if (table === 'automation_requests' && opts.promoteError) {
+                return Promise.resolve({ data: null, error: opts.promoteError })
+              }
+              return Promise.resolve({
                 data: table === 'automation_requests' ? [] : provisionByRequest ? [provisionByRequest] : [],
                 error: null,
-              }),
+              })
+            },
           }
           return chain
         },
@@ -416,7 +443,8 @@ Deno.test('a completed session against a CANCELLED request alerts payment_on_can
 // 'cancelled' would tell ops to refund a real customer.
 Deno.test('a completed session whose id differs from the stored one alerts payment_on_stale_session', async () => {
   const opts: PromotionOpts = {
-    currentRequest: { status: 'pending', stripe_checkout_session_id: 'cs_new' },
+    // Still awaiting payment on the NEWER session it was handed.
+    currentRequest: { status: 'payment_pending', stripe_checkout_session_id: 'cs_new' },
     updates: [],
     inserts: [],
   }
@@ -489,6 +517,66 @@ Deno.test('a non-paid request returns 200 early: no self-heal insert and no fulf
   // Only the cancellation alert — provision_missing never fired.
   assertEquals(alerts.length, 1)
   assertEquals(alerts[0].type, 'payment_on_cancelled_request')
+})
+
+// A transient DB failure is NOT "zero rows". Swallowed, it reported a real
+// payment to ops as "this request does not exist" and answered Stripe 200, so
+// the event was never redelivered and the purchase was lost for good.
+Deno.test('a transient DB error on the promotion UPDATE rejects so Stripe redelivers', async () => {
+  const opts: PromotionOpts = {
+    // The row itself is perfectly healthy and still pre-payment; the WRITE failed.
+    currentRequest: { status: 'payment_pending', stripe_checkout_session_id: 'cs_123' },
+    updates: [],
+    inserts: [],
+    promoteError: new Error('canceling statement due to statement timeout'),
+  }
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+  const alerts: { type: string }[] = []
+
+  await assertRejects(
+    () =>
+      handleStripeWebhook(req, {
+        stripe: fakeStripe(completedEvent('cs_123')) as never,
+        createAdminClient: fakePromotionAdminClient(opts) as never,
+        alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
+      }),
+    Error,
+    'statement timeout',
+  )
+
+  // And no misdiagnosis on the way out: ops is never told the request is gone.
+  assertEquals(alerts.length, 0)
+})
+
+// The one zero-row case that must NOT return early. A retry after a 500 is
+// exactly how the subscription store and the self-heal get their second chance;
+// returning early for an already-settled re-delivery would make that 500
+// permanent — subscription live at Stripe, untracked here forever.
+Deno.test('an ordinary re-delivery (paid, same session id) still runs the subscription store', async () => {
+  const opts: PromotionOpts = {
+    currentRequest: { status: 'paid', stripe_checkout_session_id: 'cs_sub' },
+    provisionByRequest: { id: 'prov-1', stripe_subscription_id: null },
+    updates: [],
+    inserts: [],
+  }
+  const event = completedEvent('cs_sub', { subscription: 'sub_123', customer: 'cus_123' })
+  const req = new Request('http://localhost/stripe-webhook', { method: 'POST', body: '{}' })
+  const alerts: { type: string }[] = []
+
+  const res = await handleStripeWebhook(req, {
+    stripe: fakeStripe(event) as never,
+    createAdminClient: fakePromotionAdminClient(opts) as never,
+    alert: (e) => { alerts.push(e as (typeof alerts)[number]); return Promise.resolve(true) },
+  })
+
+  assertEquals(res.status, 200)
+  const subStore = opts.updates.find(
+    (u) => u.table === 'automation_provisions' && 'stripe_subscription_id' in u.patch,
+  )
+  assertEquals(subStore?.patch.stripe_subscription_id, 'sub_123')
+  assertEquals(subStore?.patch.stripe_customer_id, 'cus_123')
+  assertEquals(opts.inserts.length, 0) // the provision existed: nothing to self-heal
+  assertEquals(alerts.length, 0) // a routine retry is not an ops event
 })
 
 // --- Subscription lifecycle (#25) -------------------------------------------

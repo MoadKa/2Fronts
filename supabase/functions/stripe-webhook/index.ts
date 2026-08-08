@@ -48,23 +48,34 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
       // customer who completes one afterwards is really charged. Without this
       // guard the cancelled request silently flips to 'paid' and fulfillment
       // then fails, taking money for something that cannot be delivered.
-      const { data: promoted } = await adminClient
+      // Promote ONLY from a pre-payment status. Guarding with
+      // .not('status','eq','cancelled') instead would re-stamp paid_at on every
+      // re-delivery and silently revert a request an admin had already advanced
+      // to 'in_progress' or 'delivered' back to 'paid'.
+      const { data: promoted, error: promoteError } = await adminClient
         .from('automation_requests')
         .update({ status: 'paid', paid_at: new Date().toISOString() })
         .eq('id', requestId)
         .eq('stripe_checkout_session_id', session.id)
-        .not('status', 'eq', 'cancelled')
+        .in('status', ['requested', 'payment_pending'])
         .select()
 
+      // A transient DB failure must NOT be read as "zero rows". Swallowing it
+      // here reports a real payment to ops as "this request does not exist" and
+      // answers Stripe 200, so the event is never redelivered and the purchase
+      // is permanently lost. Throwing gives Stripe its retry.
+      if (promoteError) throw promoteError
+
       if (((promoted as unknown[] | null) ?? []).length === 0) {
-        // Zero affected rows has four distinct causes and they need different
-        // human responses, so name the actual one instead of asserting the
-        // rarest. Re-read the row to tell them apart.
-        const { data: actual } = await adminClient
+        // Zero affected rows has four distinct causes needing different human
+        // responses, so name the actual one instead of asserting the rarest.
+        const { data: actual, error: reReadError } = await adminClient
           .from('automation_requests')
           .select('status, stripe_checkout_session_id')
           .eq('id', requestId)
           .maybeSingle()
+
+        if (reReadError) throw reReadError
 
         const current = actual as
           | { status?: string; stripe_checkout_session_id?: string | null }
@@ -92,14 +103,22 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
             fields: { requestId, sessionId: session.id, storedSessionId: current.stripe_checkout_session_id ?? null },
           })
         }
-        // Remaining case: already 'paid' with the same session id — an ordinary
-        // Stripe re-delivery. Silent by design.
+        // Nothing below may run for a request that is NOT already past payment.
+        // The subscription store, the self-heal INSERT and provisionIfNeeded
+        // would otherwise deliver the product anyway: concierge live, request
+        // still reading 'cancelled', paid_at null.
+        //
+        // The one case that falls through is an ordinary Stripe re-delivery: the
+        // request is already 'paid' (or an admin has moved it to 'in_progress' /
+        // 'delivered') on THIS session id. That must keep running, because the
+        // subscription store and the self-heal are exactly what a retry after a
+        // 500 needs to complete. Silent by design.
+        const alreadySettled =
+          current !== null &&
+          current.stripe_checkout_session_id === session.id &&
+          ['paid', 'in_progress', 'delivered'].includes(current.status ?? '')
 
-        // Nothing below may run for a request we did not promote. The
-        // subscription store, the self-heal INSERT and provisionIfNeeded would
-        // otherwise deliver the product anyway: concierge live, request still
-        // reading 'cancelled', paid_at null.
-        if (current?.status !== 'paid') {
+        if (!alreadySettled) {
           return new Response(JSON.stringify({ received: true }), { status: 200 })
         }
       }
