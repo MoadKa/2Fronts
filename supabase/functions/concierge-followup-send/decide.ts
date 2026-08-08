@@ -25,6 +25,10 @@ export interface OutboxRow {
   email_normalized: string
   scheduled_at: string
   expires_at: string
+  // Carried for the caller's benefit, NOT read here. The attempt ceiling is
+  // enforced in index.ts, which is the only place that knows an attempt was
+  // actually spent. Stated because a reader finding `attempts` on the input of
+  // a decision function will reasonably assume the decision honours it.
   attempts: number
 }
 
@@ -77,7 +81,19 @@ export function decideSend(input: DecideInput): SendDecision {
 
   // 1. EXPIRED. Checked first because every other branch is a question about a
   //    mail that might still be worth sending, and this one is not.
-  if (nowMs > new Date(row.expires_at).getTime()) {
+  //
+  //    An UNPARSEABLE expiry cancels. NaN loses every comparison, so a garbage
+  //    timestamp would slip past this check AND past the deferred-past-expiry
+  //    guard below, leaving a row that can send forever or be re-deferred every
+  //    six hours forever with no path to cancel. `_shared/entitlement.ts`
+  //    handles its own NaN cases explicitly and documents which way each fails;
+  //    for a rule about commercial mail in a named person's business name, the
+  //    only defensible direction is closed.
+  const expiresMs = new Date(row.expires_at).getTime()
+  if (!Number.isFinite(expiresMs)) {
+    return { action: 'cancel', reason: 'unparseable_expiry' }
+  }
+  if (nowMs > expiresMs) {
     return { action: 'cancel', reason: 'expired' }
   }
 
@@ -99,6 +115,20 @@ export function decideSend(input: DecideInput): SendDecision {
   if (!concierge.followup_sender_block) return { action: 'cancel', reason: 'no_sender_block' }
   if (!concierge.followup_privacy_url) return { action: 'cancel', reason: 'no_privacy_url' }
   if (!concierge.followup_reply_to) return { action: 'cancel', reason: 'no_reply_to' }
+  // VERIFIED, not merely present. Rule 3 cites §5 DDG's "real, reachable
+  // sender", and a coach typing an address into a wizard establishes neither:
+  // a typo means every reply from their own customer vanishes, in a mail
+  // carrying their name.
+  //
+  // Read this consequence plainly: NOTHING sets this column today. The setup
+  // wizard deliberately does not stamp it, and the verification round-trip does
+  // not exist yet, so this rule currently cancels EVERY row with a visible
+  // reason rather than sending to an address nobody confirmed. Building that
+  // round-trip is a hard prerequisite for the first live send, and it is
+  // recorded in TODOS.md as one.
+  if (!concierge.followup_reply_to_verified_at) {
+    return { action: 'cancel', reason: 'reply_to_unverified' }
+  }
   if (!concierge.calendar_url) return { action: 'cancel', reason: 'no_calendar_url' }
 
   // 4. CONSENT. Cancel, not defer: a consent that is not confirmed now will not
@@ -132,7 +162,22 @@ export function decideSend(input: DecideInput): SendDecision {
     return deferOrExpire(row, nowMs + SENDER_DEFER_MS, 'sender_paused')
   }
 
-  // 7. QUIET HOURS. Last, because it is the only reason that resolves purely
+  // 7. NOT DUE YET. Before quiet hours, because a row scheduled three days out
+  //    and evaluated at 03:00 would otherwise be "deferred to 08:00 today" — a
+  //    wake-up answering a question about a moment that has not arrived, which
+  //    then just re-defers, and which records `quiet_hours` as the reason a row
+  //    is waiting when the real reason is that it is not due.
+  const scheduledMs = new Date(row.scheduled_at).getTime()
+  if (!Number.isFinite(scheduledMs)) {
+    // Same posture as the expiry: a timestamp we cannot read is not a licence
+    // to send now.
+    return { action: 'cancel', reason: 'unparseable_schedule' }
+  }
+  if (nowMs < scheduledMs) {
+    return { action: 'defer', until: row.scheduled_at, reason: 'not_due' }
+  }
+
+  // 8. QUIET HOURS. Last, because it is the only reason that resolves purely
   //    with time and so must not mask a reason that never will.
   if (input.localHour >= QUIET_START_HOUR || input.localHour < QUIET_END_HOUR) {
     const hoursUntilMorning =
@@ -142,10 +187,6 @@ export function decideSend(input: DecideInput): SendDecision {
     return deferOrExpire(row, nowMs + hoursUntilMorning * 60 * 60 * 1000, 'quiet_hours')
   }
 
-  if (nowMs < new Date(row.scheduled_at).getTime()) {
-    return { action: 'defer', until: row.scheduled_at, reason: 'not_due' }
-  }
-
   return { action: 'send' }
 }
 
@@ -153,6 +194,8 @@ export function decideSend(input: DecideInput): SendDecision {
 // cancellation that pretends otherwise and leaves a row to be woken up once
 // more for nothing. Say so now.
 function deferOrExpire(row: OutboxRow, untilMs: number, reason: string): SendDecision {
+  // Safe to compare: rule 1 has already cancelled any row whose expiry does not
+  // parse, so this is always a real number by the time we get here.
   const expiresMs = new Date(row.expires_at).getTime()
   if (untilMs >= expiresMs) {
     return { action: 'cancel', reason: `deferred_past_expiry_${reason}` }

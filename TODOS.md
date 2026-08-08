@@ -411,6 +411,16 @@ these survived triage and are recorded rather than rushed.
 Steps 13-19 are code-complete on `feat/followup-send-path`. Two steps of the
 plan are deliberately NOT done, and neither is a coding task.
 
+- [ ] **P0 — build the reply-to verification round-trip.** `decideSend` now
+      cancels every row with `reply_to_unverified` when
+      `followup_reply_to_verified_at` is null, and NOTHING sets that column: the
+      setup wizard deliberately does not stamp it, because a coach typing an
+      address is not proof they read it. So the send path is currently a
+      complete, tested machine that cancels 100% of what it claims. That is the
+      right failure direction (§5 DDG wants a REACHABLE sender, and a typo means
+      a customer's reply vanishes into nothing, in a mail carrying the coach's
+      name) but it is a hard blocker: send one confirmation mail to the coach's
+      reply-to, stamp the column when they click, or the queue never drains.
 - [ ] **Step 20 — the first live fire has not happened.** Nothing in this chain
       has ever sent a follow-up. Before it can: set `RESEND_API_KEY`,
       `FOLLOWUP_FROM_DOMAIN`, `FOLLOWUP_SECRET`, `FOLLOWUP_UNSUB_SECRET`,
