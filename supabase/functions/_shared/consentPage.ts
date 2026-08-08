@@ -161,7 +161,10 @@ const NEUTRAL: Record<ConsentLocale, PageCopy> = {
 // by an edge function, not by the SPA), so the tokens are inlined here with the
 // names they carry in DESIGN.md. Values, not guesses: plaster / plaster-2 /
 // plaster-line / ink / ink-2, zero radius, no shadow, hairline edges.
-const STYLE = `
+// Exported so the sibling withdrawal pages (followupPage.ts) render in the same
+// world without a second copy of it. A copy would drift, and two pages reached
+// from the same mail that look subtly different read as a spoof of one another.
+export const PAGE_STYLE = `
   :root {
     --plaster: #e7dfd0;
     --plaster-2: #f3ede1;
@@ -227,7 +230,7 @@ function page(locale: ConsentLocale, copy: PageCopy): string {
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
 <title>${escapeHtml(copy.title)}</title>
-<style>${STYLE}</style>
+<style>${PAGE_STYLE}</style>
 </head>
 <body>
   <main>

@@ -405,3 +405,41 @@ these survived triage and are recorded rather than rushed.
 - [ ] **P3 — `_shared/email.ts` logs the Resend error body on a 4xx**, which can
       echo the recipient address, while its caller is careful not to. Scrub the
       address in `redact()` or stop logging the body.
+
+## Follow-up send path — what is built, and what is NOT (2026-08-08)
+
+Steps 13-19 are code-complete on `feat/followup-send-path`. Two steps of the
+plan are deliberately NOT done, and neither is a coding task.
+
+- [ ] **Step 20 — the first live fire has not happened.** Nothing in this chain
+      has ever sent a follow-up. Before it can: set `RESEND_API_KEY`,
+      `FOLLOWUP_FROM_DOMAIN`, `FOLLOWUP_SECRET`, `FOLLOWUP_UNSUB_SECRET`,
+      `FOLLOWUP_PUBLIC_BASE_URL`, `CONSENT_CONFIRM_SECRET` and
+      `RESEND_WEBHOOK_SECRET` via `supabase secrets set`; add
+      `FOLLOWUP_DISPATCH_URL` + `FOLLOWUP_SECRET` to the repo's Actions secrets;
+      point the Resend dashboard webhook at `resend-webhook`; then
+      `update concierge_followup_ops set sending_enabled = true` and
+      `FOLLOWUP_SENDING=on`, with `followup_enabled = true` on ONE
+      founder-owned concierge and the founder's own address as the visitor.
+      Walk the whole chain: tick, check mail, confirm, book, wait, follow-up
+      arrives, click unsubscribe, re-run the tick, nothing sends.
+- [ ] **Step 21 — the bot still never mentions the follow-up.** `conciergeChat.ts`
+      is byte-identical to before this work: its prompt still says the setter
+      "must NOT promise any follow-up". That is the correct conservative state
+      until a real mail has been sent and received end to end. Nothing breaks
+      without it; the mail simply arrives unannounced.
+- [ ] **A registered business is required before Step 16 may run for real.**
+      The dispatcher sends commercial email. §6 UWG wants the commercial
+      character and the sender identifiable, and §5 DDG wants a valid Impressum
+      on the sending party. Also needs an Art. 28 AVV signed with each coach,
+      which needs a legal person to sign it.
+- [ ] **The unsubscribe route depends on a Vercel rewrite that has not been
+      exercised.** `vercel.json` now maps `/abmelden` and `/bestaetigen` to the
+      two functions. Confirm both resolve in production before any mail carries
+      those links, because the token module correctly refuses any host that is
+      not `2fronts.de` and a broken rewrite means a dead opt-out.
+- [ ] **A bounce-cancelled row can be revived by an undo click.** The undo
+      migration re-queues rows guarded on `cancel_reason = 'unsubscribed'`, and
+      the bounce path cancels through the same RPC, which hardcodes that reason.
+      The dispatcher re-checks suppression before transmitting, so it should be
+      caught there. Verify that, or give the bounce path its own cancel reason.

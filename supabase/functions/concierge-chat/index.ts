@@ -38,8 +38,10 @@ import {
   type ConsentSnapshot,
   type ConsentSubmission,
   buildConsentRow,
+  type ConsentAction,
   effectiveConsentState,
   isConsentMismatch,
+  maySendFollowup,
   normalizeConsentEmail,
   CONSENT_BUSINESS_NAME_MAX,
   CONSENT_UA_MAX,
@@ -436,6 +438,16 @@ const DOI_RECIPIENT_COOLDOWN_MS = 24 * 60 * 60 * 1000
 // (which must not be able to page us at request rate).
 const MISMATCH_ALERT_CAP = 20
 
+// When the follow-up goes out, measured from the moment the consent was
+// CONFIRMED rather than from the reveal. The visitor's expectation was set at
+// that moment, and a conversation that runs long should not push the mail
+// further away from it.
+const FOLLOWUP_DELAY_MS = 2 * 60 * 60 * 1000
+// After this the queued mail is stale rather than helpful and is cancelled
+// unsent. Three days: past that, "here is the link again" is a message about a
+// conversation the person has stopped thinking about.
+const FOLLOWUP_TTL_MS = 72 * 60 * 60 * 1000
+
 // How long a confirmation link stays spendable. Long enough for someone who
 // reads their mail at the weekend, short enough that a leaked old link is not a
 // standing liability.
@@ -690,11 +702,16 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
     return
   }
 
-  const confirmUrl = await buildConfirmUrl(
-    `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/concierge-consent-confirm`,
-    confirmToken,
-    secret,
-  )
+  // Prefer the 2fronts.de route when one is configured. A confirmation link
+  // pointing at *.supabase.co reads as a phish to anyone who looks at it, and
+  // the people most likely to look are exactly the ones who bother to confirm.
+  // vercel.json rewrites /bestaetigen to this function. Falls back to the
+  // function host so an unconfigured project still works.
+  const publicBase = ctx.env('FOLLOWUP_PUBLIC_BASE_URL')
+  const confirmEndpoint = publicBase
+    ? `${publicBase.replace(/\/+$/, '')}/bestaetigen`
+    : `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/concierge-consent-confirm`
+  const confirmUrl = await buildConfirmUrl(confirmEndpoint, confirmToken, secret)
   if (!confirmUrl) {
     console.error('captureConsent: could not build a confirm URL; nothing sent')
     return
@@ -763,14 +780,111 @@ async function enterQuestionLoop(
 // name/email form set visitor_email), so `hasContact` is true in practice. But
 // if a future refactor ever routes to booking without contact, ask for it
 // instead of leaking the link — the coach must always get the lead.
+// Arm the follow-up: queue ONE outbox row for this conversation, if and only if
+// this visitor has a confirmed consent and everything else lines up.
+//
+// Called from BOTH places that reveal the booking link. Hooking only
+// revealBooking() would miss every conversation where the MODEL surfaced the
+// link, which is the normal path whenever a coach has configured no
+// qualification criteria — i.e. most of them.
+//
+// Nothing in here may break the booking reveal. A visitor who reached the link
+// must get it whatever the queue does, so the whole body is best-effort and the
+// caller ignores the result. `console.error` on failure is not optional:
+// alert() is a documented silent no-op when ALERT_WEBHOOK_URL is unset, so
+// without the log a permanently broken arm looks exactly like "nobody consented".
+async function armFollowUp(
+  admin: SupabaseClient,
+  conversationId: string,
+  concierge: ConciergeRow,
+  visitorEmail: string | null | undefined,
+  now: Date,
+): Promise<void> {
+  try {
+    if (!visitorEmail) return
+    // Same two gates the mail path applies. A demo never mails, and a coach who
+    // has not switched follow-up on and accepted being the sender never mails.
+    if (!mayReceiveFollowUp(concierge, now)) return
+    if (concierge.followup_enabled !== true) return
+    // The link is the entire payload of the follow-up. Both the prompt builder
+    // and revealBooking already treat an empty calendar_url as a live state, so
+    // queueing a mail whose only content is a missing link is a guaranteed
+    // cancel later; skip it now.
+    if (!concierge.calendar_url) return
+
+    const emailNorm = normalizeConsentEmail(visitorEmail)
+
+    // The consent must be CONFIRMED, and it must be confirmed for THIS address.
+    // visitor_email is overwritten by any later contact submission while the
+    // consent stamp is not, so a typo correction would otherwise re-point an
+    // existing consent at a stranger.
+    const { data: ledger, error: ledgerError } = await admin
+      .from('concierge_consents')
+      .select('id, action, created_at')
+      .eq('concierge_id', concierge.id)
+      .eq('visitor_email_norm', emailNorm)
+      .order('created_at', { ascending: false })
+      .limit(CONSENT_HISTORY_LIMIT)
+    if (ledgerError) {
+      console.error('armFollowUp: consent read failed:', ledgerError.message ?? ledgerError)
+      return
+    }
+    const rows = (ledger ?? []) as Array<{ id: string; action: ConsentAction; created_at: string }>
+    if (!maySendFollowup(effectiveConsentState(rows))) return
+    const confirmed = rows.find((r) => r.action === 'confirmed')
+    if (!confirmed) return
+
+    // Already suppressed (bounced, complained, unsubscribed)? Do not queue.
+    // Checked here as well as in the dispatcher: a row that can never send is
+    // noise in the queue and in every health count read off it.
+    const { data: suppressed, error: suppressedError } = await admin.rpc(
+      'concierge_followup_suppressed',
+      { p_pairs: [{ concierge_id: concierge.id, email_normalized: emailNorm }] },
+    )
+    if (suppressedError) {
+      console.error('armFollowUp: suppression check failed:', suppressedError.message ?? suppressedError)
+      return
+    }
+    if (Array.isArray(suppressed) && suppressed.length > 0) return
+
+    const confirmedAt = new Date(confirmed.created_at).getTime()
+    if (!Number.isFinite(confirmedAt)) {
+      console.error('armFollowUp: unparseable consent timestamp; not arming')
+      return
+    }
+
+    // Timed from the CONSENT, not from now: the promise the visitor read is
+    // about that moment, and a conversation that runs long should not push the
+    // mail further away from it.
+    const { error: insertError } = await admin.from('concierge_followup_outbox').insert({
+      concierge_id: concierge.id,
+      conversation_id: conversationId,
+      email_normalized: emailNorm,
+      consent_id: confirmed.id,
+      scheduled_at: new Date(confirmedAt + FOLLOWUP_DELAY_MS).toISOString(),
+      expires_at: new Date(confirmedAt + FOLLOWUP_TTL_MS).toISOString(),
+    })
+    if (insertError) {
+      // conversation_id is UNIQUE, so a second reveal in the same conversation
+      // lands here. That is the constraint doing its job, not a fault.
+      if ((insertError as { code?: string }).code === '23505') return
+      console.error('armFollowUp: outbox insert failed:', insertError.message ?? insertError)
+    }
+  } catch (e) {
+    console.error('armFollowUp: threw:', e instanceof Error ? e.message : e)
+  }
+}
+
 async function revealBooking(
   admin: SupabaseClient,
   conversationId: string,
   concierge: ConciergeRow,
-  hasContact: boolean,
+  // The address, not a boolean: armFollowUp needs it to find the consent, and
+  // passing a bool here meant the reveal knew a contact existed but not who.
+  visitorEmail: string | null | undefined,
   userLabel?: string,
 ): Promise<Response> {
-  if (!hasContact) {
+  if (!visitorEmail) {
     const reply = contactRequest(concierge.language)
     await logTurns(admin, conversationId, [
       ...(userLabel ? [{ role: 'user' as const, content: userLabel }] : []),
@@ -782,6 +896,10 @@ async function revealBooking(
     .from('concierge_conversations')
     .update({ phase: 'booking', outcome: 'booking_shown' })
     .eq('id', conversationId)
+  // Arm the follow-up. Best-effort by contract: it can never throw and its
+  // result is ignored, because the visitor reaching this point must get their
+  // link whatever the queue does.
+  await armFollowUp(admin, conversationId, concierge, visitorEmail, new Date())
   const reply = bookingInvite(concierge.language)
   await logTurns(admin, conversationId, [
     ...(userLabel ? [{ role: 'user' as const, content: userLabel }] : []),
@@ -816,11 +934,11 @@ async function advancePastIntroQuestions(
   concierge: ConciergeRow,
   criteria: QualCriterion[],
   priorAnswers: QualAnswer[],
-  hasContact: boolean,
+  visitorEmail: string | null | undefined,
   userLabel: string,
 ): Promise<Response> {
   const next = nextUnansweredCriterion(criteria, priorAnswers)
-  if (!next) return revealBooking(admin, conversationId, concierge, hasContact, userLabel)
+  if (!next) return revealBooking(admin, conversationId, concierge, visitorEmail, userLabel)
   await admin.from('concierge_conversations').update({ phase: 'qualifying' }).eq('id', conversationId)
   const reply = `${answerAck(concierge.language)} ${next.question}`
   await logTurns(admin, conversationId, [
@@ -1121,13 +1239,13 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       if (answer.criterion_id === CONTROL.intro && phase === 'intro_gate') {
         return answer.qualifies
           ? await enterQuestionLoop(admin, conversationId, concierge, 'answering_intro', answer.label)
-          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, hasContact, answer.label)
+          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, visitor_email, answer.label)
       }
       // Final gate: "any questions before I send the link?"
       if (answer.criterion_id === CONTROL.final && phase === 'final_gate') {
         return answer.qualifies
           ? await enterQuestionLoop(admin, conversationId, concierge, 'answering_final', answer.label)
-          : await revealBooking(admin, conversationId, concierge, hasContact, answer.label)
+          : await revealBooking(admin, conversationId, concierge, visitor_email, answer.label)
       }
       // Exit button: leave the Q&A loop and move forward from where it was opened.
       // Guarded to the answering phases like the two gates above, so a stale or
@@ -1136,8 +1254,8 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       // the very first request, skipping contact capture and both gates).
       if (answer.criterion_id === CONTROL.done && (phase === 'answering_intro' || phase === 'answering_final')) {
         return phase === 'answering_final'
-          ? await revealBooking(admin, conversationId, concierge, hasContact, answer.label)
-          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, hasContact, answer.label)
+          ? await revealBooking(admin, conversationId, concierge, visitor_email, answer.label)
+          : await advancePastIntroQuestions(admin, conversationId, concierge, criteria, priorAnswers, visitor_email, answer.label)
       }
       // Control id but phase does not match: fall through (treated as free text).
     }
@@ -1331,6 +1449,10 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
         .from('concierge_conversations')
         .update({ outcome: 'booking_shown', phase: 'booking' })
         .eq('id', conversationId)
+      // The OTHER writer. Hooking only revealBooking() would miss every
+      // conversation where the model surfaced the link, which is the normal
+      // path whenever the coach configured no qualification criteria.
+      await armFollowUp(admin, conversationId, concierge, visitor_email, nowFn())
     }
 
     // 6. Return only the reply + booking signal. The bot already asked `next` in

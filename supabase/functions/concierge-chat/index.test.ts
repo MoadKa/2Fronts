@@ -48,6 +48,10 @@ interface Captured {
   // Makes the contact write fail the way PostgREST does: { error }, not a throw.
   contactUpdateError?: { message: string } | null
   insertedConsents: Array<Record<string, unknown>>
+  // Outbox rows the booking reveal armed, and the suppression RPC's answer.
+  armedRows?: Array<Record<string, unknown>>
+  armError?: { code?: string; message: string } | null
+  suppressedPairs?: Array<Record<string, unknown>>
 }
 
 function makeCaptured(overrides: Partial<Captured> = {}): Captured {
@@ -93,6 +97,11 @@ function makeCaptured(overrides: Partial<Captured> = {}): Captured {
 
 function fakeAdminClient(c: Captured) {
   return () => ({
+    // concierge_followup_suppressed: answers with the pairs that ARE suppressed.
+    // Empty means "none of these are suppressed", i.e. go ahead.
+    rpc(_name: string, _args: unknown) {
+      return Promise.resolve({ data: c.suppressedPairs ?? [], error: null })
+    },
     from(table: string) {
       if (table === 'concierges') {
         return {
@@ -182,6 +191,15 @@ function fakeAdminClient(c: Captured) {
           insert(rows: Record<string, unknown>[]) {
             for (const r of (Array.isArray(rows) ? rows : [rows])) c.insertedMessages.push(r)
             return Promise.resolve({ error: null })
+          },
+        }
+      }
+      if (table === 'concierge_followup_outbox') {
+        return {
+          insert(row: Record<string, unknown>) {
+            c.armedRows = c.armedRows ?? []
+            c.armedRows.push(row)
+            return Promise.resolve({ error: c.armError ?? null })
           },
         }
       }
@@ -2090,4 +2108,136 @@ Deno.test('hardening: a failed contact write is reported, never dressed up as su
   // No consent is recorded for a lead that was never stored.
   assertEquals(h.captured.insertedConsents.length, 0)
   assertEquals(h.mails.length, 0)
+})
+
+// ===========================================================================
+// ARMING THE FOLLOW-UP
+//
+// The queue's only input. Two things make this worth testing hard: it runs on
+// the booking reveal, which is the moment the coach actually paid for, so it
+// must never be able to break it; and it decides which conversations become
+// mail, so a wrong "yes" here is an unlawful send and a wrong "no" is a lead
+// that quietly gets nothing.
+// ===========================================================================
+
+const CONFIRMED_LEDGER = [
+  { id: 'consent-1', action: 'confirmed', created_at: '2026-08-08T10:00:00Z' },
+  { id: 'consent-0', action: 'granted', created_at: '2026-08-08T09:00:00Z' },
+]
+
+function bookingReq() {
+  return postReq({
+    slug: 'acme',
+    session_id: 's-arm',
+    message: 'Nein, alles klar',
+    answer: { criterion_id: '__final_gate__', label: 'Nein, alles klar', qualifies: false },
+  })
+}
+
+function armHarness(over: Partial<Captured> = {}): ConsentHarness {
+  return consentHarness({
+    existingConversation: {
+      id: 'conv-x',
+      outcome: 'open',
+      phase: 'final_gate',
+      visitor_email: 'anna@example.de',
+    },
+    consentHistory: CONFIRMED_LEDGER,
+    ...over,
+  })
+}
+
+Deno.test('arm: a confirmed consent queues exactly one outbox row on the booking reveal', async () => {
+  const h = armHarness()
+  const res = await handleConciergeChat(bookingReq(), consentDeps(h) as never)
+  assertEquals(res.status, 200)
+  const body = await res.json()
+  assertEquals(body.show_booking, true)
+
+  assertEquals((h.captured.armedRows ?? []).length, 1)
+  const row = h.captured.armedRows![0]
+  assertEquals(row.concierge_id, 'con-1')
+  assertEquals(row.conversation_id, 'conv-x')
+  assertEquals(row.email_normalized, 'anna@example.de')
+  assertEquals(row.consent_id, 'consent-1')
+  // Timed from the CONSENT, not from now: the visitor's expectation was set at
+  // the moment they confirmed, and a long conversation must not push the mail
+  // further away from it.
+  assertEquals(row.scheduled_at, '2026-08-08T12:00:00.000Z')
+  assertEquals(row.expires_at, '2026-08-11T10:00:00.000Z')
+})
+
+Deno.test('arm: a GRANTED but unconfirmed consent queues nothing', async () => {
+  // The whole point of double opt-in. A ticked box proves someone typed an
+  // address, not that they own it.
+  const h = armHarness({
+    consentHistory: [{ id: 'consent-0', action: 'granted', created_at: '2026-08-08T09:00:00Z' }],
+  })
+  await (await handleConciergeChat(bookingReq(), consentDeps(h) as never)).json()
+  assertEquals((h.captured.armedRows ?? []).length, 0)
+})
+
+Deno.test('arm: a withdrawal after a confirmation queues nothing', async () => {
+  const h = armHarness({
+    consentHistory: [
+      { id: 'consent-2', action: 'withdrawn', created_at: '2026-08-08T11:00:00Z' },
+      ...CONFIRMED_LEDGER,
+    ],
+  })
+  await (await handleConciergeChat(bookingReq(), consentDeps(h) as never)).json()
+  assertEquals((h.captured.armedRows ?? []).length, 0)
+})
+
+Deno.test('arm: a suppressed address queues nothing', async () => {
+  // Bounced, complained, or already unsubscribed. Checked here as well as in
+  // the dispatcher: a row that can never send is noise in the queue and in
+  // every health count read off it.
+  const h = armHarness({
+    suppressedPairs: [{ concierge_id: 'con-1', email_normalized: 'anna@example.de' }],
+  })
+  await (await handleConciergeChat(bookingReq(), consentDeps(h) as never)).json()
+  assertEquals((h.captured.armedRows ?? []).length, 0)
+})
+
+Deno.test('arm: a demo concierge queues nothing', async () => {
+  const h = armHarness()
+  h.captured.conciergeRow!.is_demo = true
+  h.captured.conciergeRow!.demo_expires_at = '2099-01-01T00:00:00Z'
+  await (await handleConciergeChat(bookingReq(), consentDeps(h) as never)).json()
+  assertEquals((h.captured.armedRows ?? []).length, 0)
+})
+
+Deno.test('arm: a coach with follow-up switched off queues nothing', async () => {
+  const h = armHarness()
+  h.captured.conciergeRow!.followup_enabled = false
+  await (await handleConciergeChat(bookingReq(), consentDeps(h) as never)).json()
+  assertEquals((h.captured.armedRows ?? []).length, 0)
+})
+
+Deno.test('arm: an empty calendar_url queues nothing, because the link IS the payload', async () => {
+  const h = armHarness()
+  h.captured.conciergeRow!.calendar_url = ''
+  await (await handleConciergeChat(bookingReq(), consentDeps(h) as never)).json()
+  assertEquals((h.captured.armedRows ?? []).length, 0)
+})
+
+Deno.test('arm: a failing arm STILL reveals the booking link', async () => {
+  // The invariant that matters most. The visitor reached the link; the coach
+  // paid for exactly this moment. Whatever the queue does, they get it.
+  const h = armHarness({ armError: { message: 'relation does not exist' } })
+  const res = await handleConciergeChat(bookingReq(), consentDeps(h) as never)
+  assertEquals(res.status, 200)
+  const body = await res.json()
+  assertEquals(body.show_booking, true)
+  assertEquals(body.calendar_url, 'https://cal.com/acme')
+})
+
+Deno.test('arm: a duplicate (unique conversation_id) is not an error', async () => {
+  // conversation_id is UNIQUE, so a second reveal in the same conversation
+  // lands on the constraint. That is the constraint working, not a fault, and
+  // it must not produce a log line that looks like one.
+  const h = armHarness({ armError: { code: '23505', message: 'duplicate key' } })
+  const res = await handleConciergeChat(bookingReq(), consentDeps(h) as never)
+  assertEquals(res.status, 200)
+  assertEquals((await res.json()).show_booking, true)
 })

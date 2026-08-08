@@ -441,3 +441,18 @@ verify_jwt = false
 # confirm token (CONSENT_CONFIRM_SECRET), not the gateway.
 [functions.concierge-consent-confirm]
 verify_jwt = false
+# The one-click withdrawal at the bottom of every follow-up mail. Reached both by
+# a human clicking out of a mail client and by Gmail/Outlook POSTing RFC 8058
+# One-Click, neither of which carries a JWT. Its security is the signed
+# unsubscribe token (FOLLOWUP_UNSUB_SECRET, with FOLLOWUP_UNSUB_SECRET_PREVIOUS
+# as the rotation fallback), not the gateway. A gateway that could refuse this
+# request would be a gateway that can break a §7 UWG withdrawal.
+[functions.concierge-followup-unsubscribe]
+verify_jwt = false
+# Resend's bounce and complaint callbacks. A provider carries no Supabase JWT,
+# and the whole point of this endpoint is to stop mailing a dead or hostile
+# address before the sending domain — which also carries notify-request and
+# submit-wish — is burned. Its security is the Svix signature over
+# RESEND_WEBHOOK_SECRET, verified before any database client exists.
+[functions.resend-webhook]
+verify_jwt = false
