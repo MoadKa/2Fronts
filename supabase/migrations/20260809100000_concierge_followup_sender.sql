@@ -86,7 +86,7 @@ comment on column concierges.followup_sender_ack_at is
 
 comment on column concierges.followup_sender_ack_version is
   'Which wording of that acknowledgement was on screen when it was given (mirrors '
-  'consent_events.notice_version). Changing the text is a NEW version: an old row '
+  'concierge_consents.notice_version). Changing the text is a NEW version: an old row '
   'must keep proving what it was collected under, never be retro-fitted to wording '
   'the coach never read. Operator-owned for the same reason as followup_sender_ack_at.';
 

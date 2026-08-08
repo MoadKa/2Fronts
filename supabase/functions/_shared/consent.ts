@@ -232,6 +232,7 @@ export interface ConsentRow {
 export type ConsentRejectReason =
   | 'ok'
   | 'no_consent_no_prior'      // unticked, nothing to withdraw. Normal. Silent.
+  | 'withdrawal_not_owned'     // unticked, but the grant belongs to another conversation. Silent.
   | 'already_granted'          // ticked again over a live grant. Normal. Silent.
   | 'malformed'                // consent object present but not parseable. Bug or probe.
   | 'version_mismatch'         // client rendered a version this build cannot rebuild.
@@ -251,6 +252,21 @@ export interface BuildConsentRowInput {
   locale: ConsentLocale
   prior_state: ConsentState
   prior_snapshot: ConsentSnapshot | null
+  // The conversation the live grant was given in, when there is one.
+  //
+  // An unticked resubmit only counts as a WITHDRAWAL when it comes from that
+  // same conversation. The endpoint is unauthenticated and accepts any
+  // well-formed address, so without this scope anyone who guesses a lead's
+  // address can file a permanent withdrawal in their name, and the coach
+  // silently loses a lead they paid for. It also stops the accidental case: the
+  // box always re-renders unticked, so a real visitor returning in a new session
+  // and resubmitting their details would otherwise revoke their own confirmed
+  // consent with no warning and no way to tell it happened.
+  //
+  // Cost of the scope: a visitor who wants out from a different browser cannot
+  // use the form. That is what the one-click link at the bottom of every mail is
+  // for, and that route proves mailbox control, which this one cannot.
+  prior_conversation_id?: string | null
   visitor_ip?: string | null
   visitor_user_agent?: string | null
 }
@@ -308,6 +324,16 @@ export function buildConsentRow(input: BuildConsentRowInput): BuildConsentRowRes
   if (!submission) {
     if (prior_state !== 'granted' && prior_state !== 'confirmed') {
       return { row: null, reason: 'no_consent_no_prior' }
+    }
+    // Only the conversation that gave the consent may take it back this way.
+    // See prior_conversation_id for why an unauthenticated form cannot be
+    // allowed to revoke on behalf of an address it has not proven it owns.
+    if (
+      !input.conversation_id ||
+      !input.prior_conversation_id ||
+      input.prior_conversation_id !== input.conversation_id
+    ) {
+      return { row: null, reason: 'withdrawal_not_owned' }
     }
     // Word the withdrawal in the terms of the grant it revokes. Falling back to
     // the CURRENT wording would file a withdrawal quoting text this visitor

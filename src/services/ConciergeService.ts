@@ -150,6 +150,17 @@ export interface ConciergeIntro {
    * deploy that doesn't send the field yet.
    */
   is_demo: boolean
+  /**
+   * True only when this coach can actually send follow-up mail: their switch is
+   * on, they have accepted being the legal sender, they have a privacy URL, and
+   * this is not a demo. The page renders the consent checkbox ONLY when this is
+   * true, because the notice promises a confirmation mail — offering the box
+   * while that mail cannot be sent puts a false statement on the consent screen.
+   *
+   * Defaults to FALSE, which is the safe reading of an older function deploy
+   * that does not send the field: no checkbox, no consent, nothing collected.
+   */
+  followup_available: boolean
 }
 
 /**
@@ -175,6 +186,7 @@ export async function fetchConciergeIntro(slug: string): Promise<ConciergeIntro>
     language: intro.language,
     business_name: String(intro.business_name ?? ''),
     is_demo: intro.is_demo === true,
+    followup_available: intro.followup_available === true,
   }
 }
 
@@ -311,6 +323,9 @@ const CONSENT_COLUMNS = [
   'locale',
 ].join(', ')
 
+// Cap on one dashboard read of the consent ledger. See listConciergeConsents.
+const CONSENT_READ_LIMIT = 2000
+
 /**
  * Read the consent ledger for one of the coach's concierges, newest first. RLS
  * ("senders read own consent evidence") already limits this to evidence the
@@ -328,6 +343,12 @@ export async function listConciergeConsents(conciergeId: string): Promise<Concie
     .select(CONSENT_COLUMNS)
     .eq('concierge_id', conciergeId)
     .order('created_at', { ascending: false })
+    // Bounded on purpose. The public chat is unauthenticated, so the number of
+    // rows a coach's ledger can hold is not under their control; an unbounded
+    // read makes their Chats page a payload a stranger can inflate. Newest
+    // first, so the rows that decide the current state are always the ones we
+    // get. A coach who outgrows this needs paging, not a bigger number.
+    .limit(CONSENT_READ_LIMIT)
   if (error) throw new Error('conciergeChats.loadFailed')
   return (data ?? []) as unknown as ConciergeConsentRecord[]
 }

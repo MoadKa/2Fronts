@@ -32,7 +32,7 @@ import {
   evaluateQualified,
   nextUnansweredCriterion,
 } from '../_shared/qualification.ts'
-import { isEntitledToServe, isExpiredDemo } from '../_shared/entitlement.ts'
+import { isEntitledToServe, isExpiredDemo, mayReceiveFollowUp } from '../_shared/entitlement.ts'
 import {
   type ConsentLocale,
   type ConsentSnapshot,
@@ -41,6 +41,7 @@ import {
   effectiveConsentState,
   isConsentMismatch,
   normalizeConsentEmail,
+  CONSENT_BUSINESS_NAME_MAX,
   CONSENT_UA_MAX,
 } from '../_shared/consent.ts'
 import { buildConfirmUrl, buildConsentMail } from '../_shared/consentMail.ts'
@@ -89,6 +90,13 @@ export interface ConciergeChatDeps {
   // Injectable env reader, so the consent path's configuration branches are
   // testable without touching the process environment.
   env?: (key: string) => string | undefined
+  // Injectable double-opt-in mail cap. Deliberately SEPARATE from
+  // checkSpendCap and deliberately parameterised: it takes the max and the
+  // window, so a test can assert the actual numbers rather than only the bucket
+  // key. Reusing checkSpendCap here silently applied the Gemini budget
+  // (1000/day) to outbound mail while three DOI_* constants sat unreferenced,
+  // and a test that injected the stub could not see the difference.
+  checkDoiCap?: (key: string, max: number, windowSecs: number) => Promise<boolean>
 }
 
 const defaultDeps: ConciergeChatDeps = {
@@ -170,6 +178,18 @@ async function hitBucket(
 
 interface ConciergeRow extends ConciergeKnowledge {
   id: string
+  // Read by the consent path. Optional because ConciergeKnowledge is the shape
+  // the prompt builder needs and these are not part of it; the select at 1b
+  // always supplies them.
+  owner_id?: string | null
+  slug?: string | null
+  is_demo?: boolean | null
+  demo_expires_at?: string | null
+  entitled_until?: string | null
+  followup_enabled?: boolean | null
+  followup_sender_block?: string | null
+  followup_privacy_url?: string | null
+  followup_reply_to?: string | null
 }
 
 // A QualCriterion is structurally a QualPrompt (criterion_id alias is the id).
@@ -349,7 +369,16 @@ function parseContact(raw: unknown): VisitorContact | null {
     const locale = k.locale
     const rendered =
       typeof k.rendered_business_name === 'string' ? k.rendered_business_name.trim() : ''
-    if (version && version.length <= 100 && (locale === 'de' || locale === 'en') && rendered) {
+    // The length bound on `rendered` is NOT optional and was missing here while
+    // present in the module this deliberately mirrors: an unbounded value on an
+    // unauthenticated endpoint is memory a caller controls for free.
+    if (
+      version &&
+      version.length <= 100 &&
+      (locale === 'de' || locale === 'en') &&
+      rendered &&
+      rendered.length <= CONSENT_BUSINESS_NAME_MAX
+    ) {
       consent = { notice_version: version, locale, rendered_business_name: rendered }
     }
   }
@@ -397,6 +426,15 @@ async function logTurns(
 const DOI_DAILY_CAP = 100 // per concierge
 const DOI_IP_DAILY_CAP = 5 // per client IP, across all concierges
 const DOI_WINDOW_SECS = 86_400
+// Per-RECIPIENT cooldown: one confirmation mail per address per concierge per
+// day, whatever the ledger does in between. The per-concierge and per-IP buckets
+// bound our total spend; this one bounds what a single human's inbox sees, which
+// is the only number they experience.
+const DOI_RECIPIENT_COOLDOWN_MS = 24 * 60 * 60 * 1000
+// Mismatch alerts per concierge per day. A mismatch is either a deploy skew
+// (which alerts once and stays true until fixed) or someone poking the endpoint
+// (which must not be able to page us at request rate).
+const MISMATCH_ALERT_CAP = 20
 
 // How long a confirmation link stays spendable. Long enough for someone who
 // reads their mail at the weekend, short enough that a leaked old link is not a
@@ -416,16 +454,12 @@ function randomConfirmToken(): string {
 
 interface ConsentCaptureCtx {
   admin: SupabaseClient
-  concierge: ConciergeRow & {
-    owner_id?: string | null
-    slug?: string | null
-    followup_sender_block?: string | null
-  }
+  concierge: ConciergeRow
   conversationId: string
   contact: VisitorContact
   visitorIp: string
   userAgent: string | null
-  spendCap: (key: string) => Promise<boolean>
+  doiCap: (key: string, max: number, windowSecs: number) => Promise<boolean>
   alertFn: (event: AlertEvent) => Promise<boolean>
   sendMail: typeof sendEmail
   env: (k: string) => string | undefined
@@ -448,7 +482,7 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
   const { data: history, error: historyError } = await admin
     .from('concierge_consents')
     .select(
-      'action, created_at, notice_version, notice_label, notice_text, rendered_business_name, locale',
+      'action, created_at, conversation_id, notice_version, notice_label, notice_text, rendered_business_name, locale',
     )
     .eq('concierge_id', concierge.id)
     .eq('visitor_email_norm', emailNorm)
@@ -465,6 +499,7 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
   const rows = (history ?? []) as Array<{
     action: 'granted' | 'confirmed' | 'withdrawn'
     created_at: string
+    conversation_id: string | null
     notice_version: string
     notice_label: string
     notice_text: string
@@ -472,7 +507,38 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
     locale: ConsentLocale
   }>
   const priorState = effectiveConsentState(rows)
-  const lastGrant = rows.find((r) => r.action === 'granted')
+
+  // The last grant is fetched with its OWN query rather than searched inside the
+  // truncated history window. A subject's newest CONSENT_HISTORY_LIMIT rows can
+  // all be non-grant rows, and then the snapshot would be null and the fallback
+  // in buildConsentRow would file a withdrawal quoting an EMPTY wording -- into
+  // an append-only ledger, permanently, as the record of what someone read.
+  const { data: grantRow, error: grantError } = await admin
+    .from('concierge_consents')
+    .select(
+      'created_at, conversation_id, notice_version, notice_label, notice_text, rendered_business_name, locale',
+    )
+    .eq('concierge_id', concierge.id)
+    .eq('visitor_email_norm', emailNorm)
+    .eq('action', 'granted')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (grantError) {
+    console.error('captureConsent: last-grant read failed:', grantError.message ?? grantError)
+    return
+  }
+  const lastGrant = grantRow as
+    | {
+        created_at: string
+        conversation_id: string | null
+        notice_version: string
+        notice_label: string
+        notice_text: string
+        rendered_business_name: string
+        locale: ConsentLocale
+      }
+    | null
   const priorSnapshot: ConsentSnapshot | null = lastGrant
     ? {
         notice_version: lastGrant.notice_version,
@@ -493,21 +559,34 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
     locale,
     prior_state: priorState,
     prior_snapshot: priorSnapshot,
+    prior_conversation_id: lastGrant?.conversation_id ?? null,
     visitor_ip: ctx.visitorIp,
     visitor_user_agent: ctx.userAgent,
   })
 
   if (isConsentMismatch(reason)) {
+    // Capped, and fail-closed. The trigger is fully caller-controlled (send any
+    // rendered_business_name) on an endpoint with no JWT, and alerting.ts has no
+    // rate limit, no dedupe and no timeout — so an uncapped alert here is a free
+    // amplifier that drowns real alerts and gets the ops webhook revoked. The
+    // cap sits BEFORE the call for the same reason.
     // The screen and the server disagree about what was consented to: either a
     // deploy skew (the browser is running an older bundle than this isolate) or
     // someone forging submissions. Both need a human, and neither may write.
     // No address in the payload: alerting.ts forwards `fields` verbatim to a
-    // third-party webhook.
-    await ctx.alertFn({
-      type: 'consent_mismatch',
-      message: `Follow-up consent refused for concierge ${concierge.slug ?? concierge.id}: ${reason}`,
-      fields: { concierge_id: concierge.id, reason, claimed_version: contact.consent?.notice_version },
-    })
+    // third-party webhook. `claimed_version` is caller-controlled, so it is
+    // length-bounded by parseContact before it gets here.
+    if (await ctx.doiCap(`consent-mismatch:${concierge.id}`, MISMATCH_ALERT_CAP, DOI_WINDOW_SECS)) {
+      await ctx.alertFn({
+        type: 'consent_mismatch',
+        message: `Follow-up consent refused for concierge ${concierge.slug ?? concierge.id}: ${reason}`,
+        fields: {
+          concierge_id: concierge.id,
+          reason,
+          claimed_version: contact.consent?.notice_version,
+        },
+      })
+    }
     return
   }
   if (!row) return // no_consent_no_prior / already_granted: normal, silent.
@@ -534,6 +613,59 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
   // consent simply stays 'granted' and nothing may ever be sent to it, which is
   // the safe direction. The reverse -- mail first, row second -- could put a
   // live confirm link in someone's inbox with no record behind it.
+  // A demo concierge never mails. It speaks in a named real person's business
+  // name without that person's agreement (20260727120000), and there is a live
+  // one at /c/singularitysales. A prospect receiving "you told <their business>
+  // they may email you" from a company that has never heard of us is the exact
+  // harm mayReceiveFollowUp was written to prevent — and until now nothing but
+  // its own test ever called it.
+  if (!mayReceiveFollowUp(concierge, new Date())) {
+    console.error(
+      `captureConsent: consent stored for concierge ${concierge.id} but it is a demo or not entitled; no mail sent`,
+    )
+    return
+  }
+
+  // PER-RECIPIENT COOLDOWN. This is what stops the endpoint being a mail cannon.
+  //
+  // The two caps below are per concierge and per (forgeable) client IP, so
+  // neither bounds what any single INBOX receives. And because a withdrawal
+  // makes the next tick a fresh grant, an unauthenticated caller could otherwise
+  // alternate ticked/unticked posts and re-arm the mail every cycle, aimed at
+  // any address they name. The ledger is append-only, so the evidence needed to
+  // stop that is already in the rows we just read: if this subject was granted
+  // anything recently, they have already been mailed and must not be mailed
+  // again, whatever happened in between.
+  // `lastGrant` was read BEFORE our own insert, so it is the previous grant if
+  // there is one. Any grant inside the window means this inbox has already had
+  // a confirmation mail from this concierge today.
+  const cooldownStart = new Date(Date.now() - DOI_RECIPIENT_COOLDOWN_MS).toISOString()
+  if (lastGrant && lastGrant.created_at > cooldownStart) {
+    console.error(
+      'captureConsent: a confirmation mail already went to this address recently; not sending another',
+    )
+    return
+  }
+
+  // The coach's own off switch, and the reason it is checked HERE rather than
+  // before the insert: the ledger row is evidence and must be complete whatever
+  // happens next, but a confirmation mail goes out under the COACH's business
+  // name. Sending one for a coach who never turned follow-up on would put us in
+  // their name without their agreement, which is the exact harm the sender
+  // acknowledgement exists to prevent. Every concierge defaults to false.
+  //
+  // The visitor should never have been offered the box in this state at all —
+  // the intro probe reports `followup_available` and the page hides the checkbox
+  // when it is false. Reaching this branch therefore means a stale page, so the
+  // consent is recorded and the mail is not sent. It stays 'granted' forever,
+  // which maySendFollowup() already treats as "never send".
+  if (concierge.followup_enabled !== true) {
+    console.error(
+      `captureConsent: consent stored for concierge ${concierge.id} but follow-up is switched off; no mail sent`,
+    )
+    return
+  }
+
   const secret = ctx.env('CONSENT_CONFIRM_SECRET')
   const supabaseUrl = ctx.env('SUPABASE_URL')
   const apiKey = ctx.env('RESEND_API_KEY')
@@ -545,11 +677,15 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
     return
   }
 
-  if (!(await ctx.spendCap(`doi:${concierge.id}`))) {
+  if (!(await ctx.doiCap(`doi:${concierge.id}`, DOI_DAILY_CAP, DOI_WINDOW_SECS))) {
     console.error(`captureConsent: DOI daily cap reached for concierge ${concierge.id}`)
     return
   }
-  if (!(await ctx.spendCap(`doi-ip:${ctx.visitorIp}`))) {
+  // Keyed on clientIp(), which reads a client-supplied X-Forwarded-For (see the
+  // note at RATE_LIMIT_MAX). A determined caller rotates it, so this bucket
+  // raises the cost of casual abuse rather than preventing it; the per-concierge
+  // cap above is the one that actually binds.
+  if (!(await ctx.doiCap(`doi-ip:${ctx.visitorIp}`, DOI_IP_DAILY_CAP, DOI_WINDOW_SECS))) {
     console.error('captureConsent: DOI per-IP cap reached')
     return
   }
@@ -585,8 +721,12 @@ async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
     subject: mail.subject,
     text: mail.text,
     html: mail.html,
-    // Stable per grant: a redelivered request must not produce a second mail.
-    idempotencyKey: `doi:${confirmToken.slice(0, 24)}`,
+    // Scoped to the GRANT ROW, not to the request. The token is freshly random
+    // per invocation, so keying on it would mint a new key for a redelivery and
+    // suppress nothing — the comment here used to claim the opposite. What
+    // actually prevents a duplicate mail is the per-recipient cooldown above;
+    // this key only guards a retry of this exact send.
+    idempotencyKey: `doi:${concierge.id}:${emailNorm}:${confirmToken.slice(0, 12)}`,
   })
   if (!result.ok) {
     // No address and no raw provider body in the log: a Resend 4xx echoes the
@@ -778,7 +918,9 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       // EVERY concierge page down, paying customers included. The deploy
       // workflow already runs `supabase db push` before `functions deploy`;
       // don't deploy functions by hand without pushing migrations first.
-      .select('business_name, language, is_demo, demo_expires_at, entitled_until')
+      // followup_* come from migration 20260809100000; the same deploy-order
+      // hazard described above applies to them.
+      .select('business_name, language, is_demo, demo_expires_at, entitled_until, followup_enabled, followup_sender_ack_at, followup_privacy_url')
       .eq('slug', slug)
       .eq('is_active', true)
       .maybeSingle()
@@ -791,6 +933,9 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       is_demo?: boolean | null
       demo_expires_at?: string | null
       entitled_until?: string | null
+      followup_enabled?: boolean | null
+      followup_sender_ack_at?: string | null
+      followup_privacy_url?: string | null
     }
     // An expired demo, an unpaid concierge and an unknown link are all the same
     // 404 on purpose: the visitor gets the same calm "not available" screen, and
@@ -807,6 +952,22 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
       // Drives the page's visible "this is a demo" line. Sent on the probe so
       // the disclosure renders on the opening screen, before the first turn.
       is_demo: intro.is_demo === true,
+      // Whether the consent checkbox may be offered at all.
+      //
+      // The notice states "Wir schicken dir gleich eine kurze Bestätigungsmail".
+      // If the coach has not switched follow-up on and accepted being the legal
+      // sender, that mail cannot be sent, and a notice promising a mail that
+      // never arrives is a false statement on the consent screen itself. So the
+      // page hides the box rather than collecting a consent it cannot honour.
+      //
+      // A demo is excluded outright: it speaks in a named real person's business
+      // name without that person's agreement (see 20260727120000), and mailing
+      // prospects under that name is categorically worse than chatting as it.
+      followup_available:
+        intro.followup_enabled === true &&
+        Boolean(intro.followup_sender_ack_at) &&
+        Boolean(intro.followup_privacy_url) &&
+        intro.is_demo !== true,
     })
   }
 
@@ -878,10 +1039,30 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     //     open the flow at the FIRST question gate: greet by name and ask whether
     //     they have questions before we start. No model call this turn.
     if (contact) {
-      await admin
+      // THE write this whole feature's "never lose a lead" argument rests on.
+      // supabase-js returns PostgREST failures as { error }, not as a throw, so
+      // discarding it meant a constraint, permission or schema failure lost the
+      // coach their lead in silence while the visitor got a friendly greeting
+      // and a 200. Every consent path around it was fail-closed and audited;
+      // this one was not checked at all.
+      const { error: contactError } = await admin
         .from('concierge_conversations')
         .update({ visitor_name: contact.name, visitor_email: contact.email, phase: 'intro_gate' })
         .eq('id', conversationId)
+      if (contactError) {
+        console.error('concierge-chat: storing the contact FAILED:', contactError.message ?? contactError)
+        await (deps.alertFn ?? ((e: AlertEvent) => alert(e)))({
+          type: 'lead_lost',
+          message: `Contact submission could not be stored for concierge ${concierge.slug ?? concierge.id}`,
+          fields: { concierge_id: concierge.id, conversation_id: conversationId },
+        })
+        // Tell the visitor rather than pretending. A friendly greeting over a
+        // lead that was never stored is the one outcome worse than an error.
+        return new Response(JSON.stringify({ error: 'contact_not_stored' }), {
+          status: 503,
+          headers: jsonHeaders,
+        })
+      }
       // Consent capture. Wrapped here, not inside captureConsent, so that BOTH
       // an { error } response and a thrown transport failure end the same way:
       // the lead is stored, the visitor gets their greeting, and the consent is
@@ -895,7 +1076,9 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
           contact,
           visitorIp: clientIp(req),
           userAgent: (req.headers.get('user-agent') ?? '').slice(0, CONSENT_UA_MAX) || null,
-          spendCap,
+          doiCap:
+            deps.checkDoiCap ??
+            ((key, max, windowSecs) => hitBucket(admin, key, max, windowSecs, false)),
           alertFn: deps.alertFn ?? ((event) => alert(event)),
           sendMail: deps.sendMail ?? sendEmail,
           env: deps.env ?? ((k) => Deno.env.get(k) ?? undefined),

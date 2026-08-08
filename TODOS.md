@@ -361,3 +361,47 @@ verbatim from the original captures — only structure changed.
       `FOLLOWUP_SENDER_ACK_VERSION` lives in `concierge-setup/index.ts`. Nothing
       links them, so a copy edit can silently invalidate stored evidence. Mirror
       it the way `src/lib/consent.test.ts` mirrors the consent wording.
+
+## Follow-up consent — open findings from the pre-landing review (2026-08-08)
+
+Found by an adversarial review of the consent chain. The mail-cannon chain
+(dead caps + re-armable grant + demo not excluded) was FIXED before landing;
+these survived triage and are recorded rather than rushed.
+
+- [ ] **P1 — Decide whether a consent survives a business-name change, BEFORE
+      the send path is built.** The notice a visitor agreed to says "Sie gilt
+      nur für {business_name}". State is derived from `action` + `created_at`
+      alone; nothing compares the stored `rendered_business_name` to the
+      concierge's CURRENT `business_name`. A coach who renames, repurposes or
+      sells their setter inherits every confirmed consent given under the old
+      name. The grant path checks name equality meticulously; the send path has
+      no equivalent. The ledger is append-only, so a wrong-sender binding cannot
+      be corrected afterwards. This is a decision, not a bug: decide it in
+      step 16, not after the first send.
+- [ ] **P2 — Read-then-insert on the consent ledger is not atomic.** Both
+      `captureConsent` and `concierge-consent-confirm` derive state from a read
+      and then insert, with no lock between. Two simultaneous confirms can file
+      two `confirmed` rows (harmless: latest-wins reads them as one), and a
+      withdrawal landing inside the window can be overtaken by a confirmation
+      with a later timestamp. The per-recipient cooldown closes the abusive
+      path; the ordering edge remains. Proper fix is one `security definer`
+      function doing `insert … select … where not exists (…)` in a single
+      statement.
+- [ ] **P2 — `concierge_rate_limits` grows without bound on attacker-controlled
+      keys.** Pre-existing: `20260625130000` defines `bucket_key text primary
+      key` with no TTL and no purge job. The new `doi-ip:<x-forwarded-for>`
+      bucket adds a second unbounded key space next to the existing `ip:` one.
+      Both are fed by an unauthenticated endpoint.
+- [ ] **P3 — The `current_setting('role')` half of the append-only trigger's
+      service-role check has no test.** `concierge_consents.test.sql`
+      impersonates via a JWT claim, so every service-role assertion passes
+      through the `auth.role()` half. Add one assertion using `set local role
+      service_role` with no JWT (the psql/SQL-editor path the comment
+      describes), and bump `plan(25)` to `plan(26)`.
+- [ ] **P3 — The 3-year retention purge is manual.** The consent notice AND the
+      privacy page both promise three years to visitors; nothing deletes
+      anything. There is no scheduler in this database on purpose. Until one
+      exists, this is a promise kept by a human remembering.
+- [ ] **P3 — `_shared/email.ts` logs the Resend error body on a 4xx**, which can
+      echo the recipient address, while its caller is careful not to. Scrub the
+      address in `redact()` or stop logging the body.

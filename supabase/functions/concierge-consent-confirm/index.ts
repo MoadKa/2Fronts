@@ -58,6 +58,13 @@
 // reads them as one 'confirmed', so the legal state is unaffected and the only
 // cost is a duplicate line in the evidence.
 //
+// Do NOT read that as "add the index". A partial unique index on
+// (concierge_id, visitor_email_norm) where action = 'confirmed' would make a
+// lawful withdraw -> re-grant -> re-confirm cycle fail permanently, because the
+// first 'confirmed' row never goes away: the ledger is append-only by design.
+// Getting a duplicate evidence line is the cheaper of the two failures. If the
+// duplicate ever matters, dedupe on read, not with a constraint.
+//
 // NEVER THROWS. Every path, including a database that refuses to answer,
 // returns a Response. The visitor is holding a mail client, not a console.
 //
@@ -165,6 +172,20 @@ export async function handleConsentConfirm(
     // fetched cross-origin, so it needs no Access-Control headers and grants
     // none.
     if (req.method !== 'GET' && req.method !== 'HEAD') return neutral(405)
+
+    // HEAD NEVER CONFIRMS.
+    //
+    // Outlook Safe Links, Proofpoint and Mimecast issue HEAD against every URL
+    // in an inbound mail as a matter of course. Letting HEAD take the write path
+    // files an `action='confirmed'` row, permanently, into an append-only
+    // evidence ledger for a click no human ever made — a consent we would then
+    // present as proof. GET carries the same prefetch risk and is accepted
+    // anyway, because a human clicking really does produce a GET and refusing it
+    // would drop lawful consents; there is no such argument for HEAD, which no
+    // browser navigation emits. Answer the neutral page and touch nothing.
+    if (req.method === 'HEAD') {
+      return consentPageResponse(renderNeutralPage(neutralLocale), 200)
+    }
 
     const secret = deps.env('CONSENT_CONFIRM_SECRET') ?? ''
     if (!secret) {

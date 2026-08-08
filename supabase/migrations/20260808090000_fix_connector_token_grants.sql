@@ -41,6 +41,13 @@
 -- (ALTER DEFAULT PRIVILEGES is harmless here: it only applies to tables created
 -- after it, never to this existing one.)
 --
+-- ROLLBACK (this migration has no down file; run by hand if reverting):
+--   grant select, insert, update, delete on public.connector_connections
+--     to authenticated;
+-- Read that as a warning, not a recipe: restoring TABLE-level SELECT re-opens
+-- the encrypted_refresh_token hole this migration exists to close. Reverting is
+-- almost certainly the wrong move; fix forward instead.
+--
 -- No transaction wrapper: the Supabase CLI owns the transaction for a migration
 -- file, and a nested begin;/commit; breaks it.
 

@@ -19,6 +19,7 @@ let capturedSelect: {
   table: string
   columns: string
   filters: Array<{ column: string; value: unknown }>
+  limit?: number
 } | null = null
 
 vi.mock('../lib/supabaseClient', () => ({
@@ -41,7 +42,18 @@ vi.mock('../lib/supabaseClient', () => ({
             capturedSelect?.filters.push({ column, value })
             return chain
           },
-          order: () => Promise.resolve(selectResult),
+          // Awaitable AND chainable: some reads end at .order(), the consent
+          // ledger read continues into .limit(). The limit is recorded because
+          // the ledger read MUST be bounded — the public chat is
+          // unauthenticated, so a stranger can grow a coach's ledger.
+          order: () => ({
+            then: (res: (v: typeof selectResult) => unknown) =>
+              Promise.resolve(selectResult).then(res),
+            limit: (n: number) => {
+              if (capturedSelect) capturedSelect.limit = n
+              return Promise.resolve(selectResult)
+            },
+          }),
         }
         return chain
       },
@@ -149,10 +161,35 @@ describe('ConciergeService', () => {
     const result = await fetchConciergeIntro('acme')
     expect(capturedInvoke?.name).toBe('concierge-chat')
     expect(capturedInvoke?.body).toEqual({ slug: 'acme', probe: true })
-    // is_demo is absent from this payload on purpose: it models an edge function
-    // deployed before the demo-disclosure change. It must read false, so a lagging
-    // deploy can never make a real coach's page claim to be a demo.
-    expect(result).toEqual({ language: 'en', business_name: 'Acme', is_demo: false })
+    // is_demo and followup_available are absent from this payload on purpose: it
+    // models an edge function deployed before those changes. BOTH must read
+    // false. For is_demo, so a lagging deploy never makes a real coach's page
+    // claim to be a demo. For followup_available, so a lagging deploy never
+    // offers a consent checkbox whose promised confirmation mail the deployed
+    // backend cannot send — that would put a false statement on the consent
+    // screen and collect evidence of a consent nobody can honour.
+    expect(result).toEqual({
+      language: 'en',
+      business_name: 'Acme',
+      is_demo: false,
+      followup_available: false,
+    })
+  })
+
+  it('fetchConciergeIntro carries followup_available through', async () => {
+    invokeResult = {
+      data: { language: 'de', business_name: 'Acme', is_demo: false, followup_available: true },
+      error: null,
+    }
+    expect((await fetchConciergeIntro('acme')).followup_available).toBe(true)
+  })
+
+  it('fetchConciergeIntro treats a non-boolean followup_available as false', async () => {
+    invokeResult = {
+      data: { language: 'de', business_name: 'Acme', followup_available: 'yes' },
+      error: null,
+    }
+    expect((await fetchConciergeIntro('acme')).followup_available).toBe(false)
   })
 
   it('fetchConciergeIntro carries is_demo through so the page can disclose it', async () => {
@@ -298,6 +335,15 @@ describe('ConciergeService', () => {
     const out = await listConciergeConsents('con-1')
     expect(capturedSelect?.filters).toContainEqual({ column: 'concierge_id', value: 'con-1' })
     expect(out).toEqual(rows)
+  })
+
+  it('listConciergeConsents bounds the read', async () => {
+    // The public chat is unauthenticated, so how many rows a coach's ledger
+    // holds is not under the coach's control. An unbounded read turns their
+    // Chats page into a payload a stranger can inflate.
+    selectResult = { data: [], error: null }
+    await listConciergeConsents('con-1')
+    expect(capturedSelect?.limit).toBeGreaterThan(0)
   })
 
   it('listConciergeConsents returns an empty list rather than null when there is nothing', async () => {

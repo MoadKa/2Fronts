@@ -30,7 +30,13 @@ name: Deploy Supabase backend
 on:
   push:
     branches: [main]
-    paths: &supabase_paths
+    # The list is duplicated under pull_request rather than shared via a YAML
+    # anchor. An anchor parses fine locally but GitHub's own workflow parser has
+    # rejected anchors/aliases, and an invalid workflow does not fail loudly —
+    # it simply never runs. That would silently remove the pgTAP gate, the
+    # migration push and the function deploy all at once, which is the worst
+    # possible failure for a change that documents a deploy-order hazard twice.
+    paths:
       - 'supabase/migrations/**'
       - 'supabase/functions/**'
       - 'supabase/config.toml'
@@ -41,7 +47,12 @@ on:
   # production: `needs: test-db` still stops the push, but you only find out
   # after landing, with main already carrying the bad file.
   pull_request:
-    paths: *supabase_paths
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - 'supabase/tests/**'
+      - '.github/workflows/deploy-supabase.yml'
   workflow_dispatch: {} # allow manual runs from the Actions tab
 
 concurrency:

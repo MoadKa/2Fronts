@@ -79,6 +79,10 @@ export interface SendEmailDeps {
 }
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails'
+
+// Wall-clock deadline for one send. Callers may run this inline on a request a
+// human is waiting on, so "no timeout" is not an option.
+const SEND_TIMEOUT_MS = 10_000
 const REDACTED = '[redacted]'
 // Bound what we hand back: provider bodies can be large, and this string ends
 // up in logs and possibly a database column.
@@ -142,6 +146,12 @@ export async function sendEmail(args: SendEmailArgs, deps: SendEmailDeps = {}): 
       method: 'POST',
       headers: requestHeaders,
       body: JSON.stringify(payload),
+      // A hung socket must not pin the isolate. This call runs inline on a
+      // visitor's contact submission, so without a deadline a slow Resend stalls
+      // the person who just typed their name and email until the platform's own
+      // wall clock kills the request. An abort surfaces as indeterminate, which
+      // is exactly right: we genuinely do not know whether it was accepted.
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     })
   } catch (e) {
     // INDETERMINATE: the request may or may not have reached Resend. This is

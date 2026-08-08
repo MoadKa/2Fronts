@@ -66,7 +66,10 @@ describe('ConciergePublicPage', () => {
 
   // A probe that lands, in German, naming a business — the ordinary case, and
   // the only one in which the consent box exists at all.
-  const INTRO_DE = { language: 'de', business_name: 'Coach Meyer', is_demo: false }
+  // followup_available: the coach has switched follow-up on and accepted being
+  // the legal sender. Without it the page renders NO consent checkbox, because
+  // the notice promises a confirmation mail that could not be sent.
+  const INTRO_DE = { language: 'de', business_name: 'Coach Meyer', is_demo: false, followup_available: true }
 
   // Render with a probe that actually answers, and wait until it has. Most tests
   // here are about what happens AFTER the contact gate, and the gate now waits
@@ -391,7 +394,7 @@ describe('ConciergePublicPage', () => {
     // A concierge is a per-visitor chat surface, not content — and a demo one is
     // a page on 2Fronts' domain speaking as a named real business. Both demos
     // that existed when this was added were indexable.
-    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: 'Acme', is_demo: false })
+    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: 'Acme', is_demo: false, followup_available: true })
     renderAt('acme')
 
     await waitFor(() =>
@@ -422,7 +425,7 @@ describe('ConciergePublicPage', () => {
   it('does NOT render the demo disclosure on a real customer concierge', async () => {
     // The inverse matters as much: stamping a paying coach's own setter with a
     // "this is a demo" notice would be worse than the exposure it prevents.
-    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: 'Acme', is_demo: false })
+    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: 'Acme', is_demo: false, followup_available: true })
     renderAt('acme')
 
     await waitFor(() => expect(screen.getByPlaceholderText('Dein Name')).toBeInTheDocument())
@@ -844,7 +847,7 @@ describe('ConciergePublicPage', () => {
     // AI answers in it, and a consent shown in a language the visitor was not
     // being spoken to in is not one they were given a fair chance to read.
     const english = buildConsentNotice(CONSENT_NOTICE_VERSION, 'en', 'Coach Meyer')!
-    await renderSettled('acme', { language: 'en', business_name: 'Coach Meyer', is_demo: false })
+    await renderSettled('acme', { language: 'en', business_name: 'Coach Meyer', is_demo: false, followup_available: true })
 
     expect(screen.getByText(english.label)).toBeInTheDocument()
     expect(screen.queryByText(CONSENT_LABEL_DE)).not.toBeInTheDocument()
@@ -866,7 +869,7 @@ describe('ConciergePublicPage', () => {
   it('renders no consent box for a concierge with no business name', async () => {
     // buildConsentNotice returns null and the page must render nothing rather
     // than a box promising an email from nobody. The rest of the page carries on.
-    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: '', is_demo: false })
+    fetchConciergeIntro.mockResolvedValue({ language: 'de', business_name: '', is_demo: false, followup_available: true })
     renderAt('acme')
 
     const submit = screen.getByRole('button', { name: "Los geht's" })
@@ -935,5 +938,41 @@ describe('ConciergePublicPage', () => {
       expect(skip).not.toHaveAttribute('type', 'submit')
       expect(submit).toHaveAttribute('type', 'submit')
     })
+  })
+
+  // -------------------------------------------------------------------------
+  // The consent box is only offered when the promised mail can actually be sent
+  // -------------------------------------------------------------------------
+  it('renders NO consent box when the coach cannot send follow-up mail', async () => {
+    // The notice says "Wir schicken dir gleich eine kurze Bestaetigungsmail".
+    // If the coach has not switched follow-up on and accepted being the legal
+    // sender, that mail cannot go out, so offering the box would put a false
+    // statement on the consent screen and collect evidence of a consent nobody
+    // can honour.
+    fetchConciergeIntro.mockResolvedValue({
+      language: 'de',
+      business_name: 'Coach Meyer',
+      is_demo: false,
+      followup_available: false,
+    })
+    renderAt('acme')
+    // Fill the form first: the submit button is gated on a valid name and email
+    // as well as on the probe, so waiting for it to enable before typing would
+    // wait forever and prove nothing about the checkbox.
+    fireEvent.change(screen.getByPlaceholderText('Dein Name'), { target: { value: 'Max' } })
+    fireEvent.change(screen.getByPlaceholderText('Deine E-Mail'), {
+      target: { value: 'max@example.com' },
+    })
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: "Los geht's" })).toBeEnabled(),
+    )
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    // And the visitor is not blocked: the form still works, it just collects
+    // no consent.
+    sendConciergeMessage.mockResolvedValueOnce({ reply: 'Danke, Max!', show_booking: false })
+    fireEvent.click(screen.getByRole('button', { name: "Los geht's" }))
+    await waitFor(() => expect(sendConciergeMessage).toHaveBeenCalled())
+    const contact = sendConciergeMessage.mock.calls.at(-1)![5] as Record<string, unknown>
+    expect('consent' in contact).toBe(false)
   })
 })

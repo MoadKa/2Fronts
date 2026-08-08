@@ -74,6 +74,10 @@ export function ConciergePublicPage() {
   // their business, so it says so — out loud, on the page itself, not only in
   // whatever message the link arrived in.
   const [isDemo, setIsDemo] = useState(false)
+  // Whether this coach can actually send follow-up mail. False until the probe
+  // says otherwise, so no consent is ever offered on a page that cannot honour
+  // it (including every page served by an older function deploy).
+  const [followupAvailable, setFollowupAvailable] = useState(false)
   // ?embed=1: the page runs inside the small widget iframe from public/embed.js,
   // so the standalone-page breathing room goes away and the chat fills the frame.
   const [searchParams] = useSearchParams()
@@ -149,6 +153,7 @@ export function ConciergePublicPage() {
         setPageLang(intro.language)
         setBusinessName(intro.business_name)
         setIsDemo(intro.is_demo)
+        setFollowupAvailable(intro.followup_available)
         setProbeSettled(true)
       })
       .catch((err: unknown) => {
@@ -206,9 +211,19 @@ export function ConciergePublicPage() {
   // all, because a consent box that names no sender is not a consent box. The
   // wording itself lives in src/lib/consent.ts and is mirrored byte for byte by
   // the edge function; nothing here retypes it.
+  //
+  // `followupAvailable` is the other half of the gate, and it is not cosmetic:
+  // the notice promises "Wir schicken dir gleich eine kurze Bestätigungsmail".
+  // When the coach has not switched follow-up on and accepted being the legal
+  // sender, that mail cannot go out, so offering the box would put a false
+  // statement on the consent screen itself. It defaults to false, so an older
+  // edge-function deploy that does not send the field simply shows no checkbox.
   const consentNotice = useMemo<ConsentNotice | null>(
-    () => (pageLang ? buildConsentNotice(CONSENT_NOTICE_VERSION, pageLang, businessName) : null),
-    [pageLang, businessName],
+    () =>
+      pageLang && followupAvailable
+        ? buildConsentNotice(CONSENT_NOTICE_VERSION, pageLang, businessName)
+        : null,
+    [pageLang, businessName, followupAvailable],
   )
 
   // If the notice the visitor is looking at ever changes underneath them — a

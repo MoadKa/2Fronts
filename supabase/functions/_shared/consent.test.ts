@@ -312,6 +312,9 @@ Deno.test('buildConsentRow: unticked over a prior grant is a withdrawal in the O
     ...BASE,
     prior_state: 'granted',
     prior_snapshot: snapshot,
+    // Same conversation that gave it — the only case allowed to take it back
+    // from the form. See prior_conversation_id in consent.ts.
+    prior_conversation_id: 'conv-1',
     submission: null,
   })
   assertEquals(reason, 'ok')
@@ -329,10 +332,48 @@ Deno.test('buildConsentRow: unticked over a CONFIRMED consent also withdraws', (
     ...BASE,
     prior_state: 'confirmed',
     prior_snapshot: null,
+    prior_conversation_id: 'conv-1',
     submission: null,
   })
   assertEquals(reason, 'ok')
   assertEquals(row!.action, 'withdrawn')
+})
+
+// The endpoint is unauthenticated and accepts any well-formed address, so an
+// unticked resubmit from SOMEWHERE ELSE must not revoke a consent. Two harms
+// otherwise: a stranger who guesses a lead's address files a permanent
+// withdrawal in their name and the coach silently loses a lead they paid for;
+// and a real visitor returning in a new session revokes their own confirmed
+// consent just by resubmitting their details, because the box always
+// re-renders unticked.
+Deno.test('buildConsentRow: an unticked resubmit from ANOTHER conversation does not withdraw', () => {
+  const { row, reason } = buildConsentRow({
+    ...BASE,
+    conversation_id: 'conv-2',
+    prior_state: 'confirmed',
+    prior_snapshot: null,
+    prior_conversation_id: 'conv-1',
+    submission: null,
+  })
+  assertEquals(row, null)
+  assertEquals(reason, 'withdrawal_not_owned')
+  // Routine, not an incident: must not page anyone.
+  assertEquals(isConsentMismatch(reason), false)
+})
+
+Deno.test('buildConsentRow: an unticked resubmit with no known grant conversation does not withdraw', () => {
+  // A grant filed before this column carried a conversation. Fail closed:
+  // keeping a consent we cannot prove ownership of is recoverable via the
+  // unsubscribe link; destroying one is not.
+  const { row, reason } = buildConsentRow({
+    ...BASE,
+    prior_state: 'granted',
+    prior_snapshot: null,
+    prior_conversation_id: null,
+    submission: null,
+  })
+  assertEquals(row, null)
+  assertEquals(reason, 'withdrawal_not_owned')
 })
 
 Deno.test('buildConsentRow: unticked over an ALREADY withdrawn consent writes nothing', () => {

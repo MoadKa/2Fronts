@@ -402,14 +402,32 @@ Deno.test('a POST is refused with the neutral page and no database access', asyn
   assertEquals(fake.adminCalls, 0)
 })
 
-Deno.test('HEAD is treated as a read, like GET', async () => {
+// HEAD MUST NOT CONFIRM. Outlook Safe Links, Proofpoint and Mimecast issue HEAD
+// against every URL in an inbound mail as a matter of course. Letting it take
+// the write path files a permanent 'confirmed' row into an append-only evidence
+// ledger for a click no human made — and we would later present that row as
+// proof that someone agreed. GET is accepted despite the same prefetch risk,
+// because a human clicking really does produce a GET; no browser navigation
+// emits HEAD, so there is no such argument for it.
+Deno.test('HEAD answers a page but NEVER records a confirmation', async () => {
   const { fake, deps } = makeFake()
   const res = await handleConsentConfirm(
     new Request(`https://ref.functions.test/concierge-consent-confirm?t=${await signed()}`, { method: 'HEAD' }),
     deps,
   )
   assertEquals(res.status, 200)
-  assertEquals(fake.inserts.length, 1)
+  assertEquals(fake.inserts.length, 0)
+})
+
+Deno.test('HEAD touches the database at all: it does not even look the token up', async () => {
+  const { fake, deps } = makeFake()
+  await handleConsentConfirm(
+    new Request(`https://ref.functions.test/concierge-consent-confirm?t=${await signed()}`, { method: 'HEAD' }),
+    deps,
+  )
+  // A scanner sweeping a mailbox must not be able to drive queries either.
+  assertEquals(fake.inserts.length, 0)
+  assertEquals(fake.adminCalls ?? 0, 0)
 })
 
 Deno.test('every response carries the noindex, no-referrer and no-store headers', async () => {

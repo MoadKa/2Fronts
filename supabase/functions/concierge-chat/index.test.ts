@@ -37,10 +37,16 @@ interface Captured {
   // error either side of the ledger raises.
   consentHistory: Array<Record<string, unknown>>
   consentHistoryError: { message: string } | null
+  // The dedicated last-grant read. `undefined` means "derive it from
+  // consentHistory"; an explicit null means "there is no prior grant".
+  lastGrant?: Record<string, unknown> | null
+  lastGrantError?: { message: string } | null
   consentInsertError: { message: string } | null
   // Set to throw from the ledger insert, modelling a TRANSPORT failure —
   // supabase-js returns { error } for PostgREST errors but REJECTS on those.
   consentInsertThrows: boolean
+  // Makes the contact write fail the way PostgREST does: { error }, not a throw.
+  contactUpdateError?: { message: string } | null
   insertedConsents: Array<Record<string, unknown>>
 }
 
@@ -60,6 +66,11 @@ function makeCaptured(overrides: Partial<Captured> = {}): Captured {
       // in the future, so omitting it would 404 every test in this file -- which
       // is the gate working, not a bug. Tests about the unpaid case override it.
       entitled_until: '2099-01-01T00:00:00Z',
+      // The coach's follow-up switch. FALSE in the database by default; the
+      // fixture turns it on so the consent tests can reach the mail path at all.
+      // A concierge with it off must never send a confirmation mail in that
+      // coach's name, and there is a test for exactly that below.
+      followup_enabled: true,
     },
     existingConversation: null,
     newConversationAnswers: [],
@@ -145,6 +156,8 @@ function fakeAdminClient(c: Captured) {
             }
             if ('visitor_email' in patch) {
               c.contactUpdate = { visitor_name: patch.visitor_name, visitor_email: patch.visitor_email }
+              // The one write the whole "never lose a lead" argument rests on.
+              return { eq: () => Promise.resolve({ error: c.contactUpdateError ?? null }) }
             }
             return { eq: () => Promise.resolve({ error: null }) }
           },
@@ -174,25 +187,38 @@ function fakeAdminClient(c: Captured) {
       }
       if (table === 'concierge_consents') {
         return {
-          // .select(cols).eq(concierge_id).eq(visitor_email_norm).order().limit()
+          // Two shapes are issued against this table:
+          //   history:    .select().eq(concierge).eq(email).order().limit()
+          //   last grant: .select().eq(concierge).eq(email).eq('action','granted')
+          //                       .order().limit(1).maybeSingle()
+          // The second exists because searching the truncated history window for
+          // the last grant could file a withdrawal quoting an EMPTY wording.
           select() {
-            return {
-              eq() {
-                return {
-                  eq() {
-                    return {
-                      order: () => ({
-                        limit: () =>
-                          Promise.resolve({
-                            data: c.consentHistory,
-                            error: c.consentHistoryError,
-                          }),
+            const afterTwoEqs = {
+              // third .eq() -> the last-grant query
+              eq: () => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: () =>
+                      Promise.resolve({
+                        data:
+                          c.lastGrant !== undefined
+                            ? c.lastGrant
+                            : (c.consentHistory.find((r) => r.action === 'granted') ?? null),
+                        error: c.lastGrantError ?? null,
                       }),
-                    }
-                  },
-                }
-              },
+                  }),
+                }),
+              }),
+              order: () => ({
+                limit: () =>
+                  Promise.resolve({
+                    data: c.consentHistory,
+                    error: c.consentHistoryError,
+                  }),
+              }),
             }
+            return { eq: () => ({ eq: () => afterTwoEqs }) }
           },
           insert(row: Record<string, unknown>) {
             if (c.consentInsertThrows) {
@@ -1583,7 +1609,7 @@ interface ConsentHarness {
   captured: Captured
   alerts: AlertEvent[]
   mails: Array<Record<string, unknown>>
-  capKeys: string[]
+  capCalls: Array<{ key: string; max: number; windowSecs: number }>
 }
 
 function consentDeps(
@@ -1610,15 +1636,20 @@ function consentDeps(
           : { ok: true, status: 200, id: 'mail-1', retryable: false, indeterminate: false },
       )
     },
-    checkSpendCap: (key: string) => {
-      h.capKeys.push(key)
+    // The DOI cap is injected through its OWN dep, and the stub records the
+    // limits as well as the key. Reusing checkSpendCap here is exactly how three
+    // DOI_* constants ended up declared and never threaded through while the
+    // tests still went green: they asserted the bucket names and could not see
+    // that the applied ceiling was the Gemini budget of 1000/day.
+    checkDoiCap: (key: string, max: number, windowSecs: number) => {
+      h.capCalls.push({ key, max, windowSecs })
       return Promise.resolve(opts.capAllows ? opts.capAllows(key) : true)
     },
   }
 }
 
 function consentHarness(overrides: Partial<Captured> = {}): ConsentHarness {
-  return { captured: makeCaptured(overrides), alerts: [], mails: [], capKeys: [] }
+  return { captured: makeCaptured(overrides), alerts: [], mails: [], capCalls: [] }
 }
 
 function contactReq(consent: unknown) {
@@ -1636,6 +1667,9 @@ function grantedHistoryRow(over: Record<string, unknown> = {}) {
   return {
     action: 'granted',
     created_at: '2026-08-01T10:00:00Z',
+    // The conversation the grant was given in. Only THAT conversation may
+    // withdraw it from the form; 'conv-new' is what the fixture's upsert returns.
+    conversation_id: 'conv-new',
     notice_version: CONSENT_NOTICE_VERSION,
     notice_label: 'L',
     notice_text: 'T',
@@ -1814,7 +1848,7 @@ Deno.test('consent: an unconfigured project stores the consent and sends nothing
   assertEquals(h.captured.insertedConsents.length, 1)
   assertEquals(h.mails.length, 0)
   // And it never even reached the caps.
-  assertEquals(h.capKeys.filter((k) => k.startsWith('doi')).length, 0)
+  assertEquals(h.capCalls.filter((c) => c.key.startsWith('doi')).length, 0)
 })
 
 Deno.test('consent: both DOI caps are consulted, and either one denying stops the mail', async () => {
@@ -1843,8 +1877,13 @@ Deno.test('consent: both DOI caps are consulted, and either one denying stops th
   // Both keys are actually used on the allowed path.
   const ok = consentHarness()
   await (await handleConciergeChat(contactReq(TICKED), consentDeps(ok) as never)).json()
-  assertEquals(ok.capKeys.some((k) => k === 'doi:con-1'), true)
-  assertEquals(ok.capKeys.some((k) => k.startsWith('doi-ip:')), true)
+  assertEquals(ok.capCalls.some((c) => c.key === 'doi:con-1'), true)
+  assertEquals(ok.capCalls.some((c) => c.key.startsWith('doi-ip:')), true)
+  // The LIMITS, not just the keys. This is the assertion whose absence let the
+  // three DOI_* constants sit unreferenced while the real ceiling was 1000/day.
+  assertEquals(ok.capCalls.find((c) => c.key === 'doi:con-1')?.max, 100)
+  assertEquals(ok.capCalls.find((c) => c.key.startsWith('doi-ip:'))?.max, 5)
+  assertEquals(ok.capCalls.every((c) => c.windowSecs === 86_400), true)
 })
 
 Deno.test('consent: a rejected mail does not undo the stored consent', async () => {
@@ -1940,4 +1979,115 @@ Deno.test('skip contact: a stale click at a LATER phase cannot rewind the flow',
   await res.json()
   // It fell through to normal handling: the phase was NOT rewritten to intro_gate.
   assertEquals(h.captured.phaseUpdate === 'intro_gate', false)
+})
+
+// ===========================================================================
+// HARDENING — the findings an adversarial review turned up, each with the test
+// that would have caught it.
+//
+// The headline one: the three DOI_* cap constants were declared and referenced
+// by NOTHING, so the applied ceiling was the Gemini spend budget of 1000/day.
+// Combined with "a withdrawal makes the next tick a fresh grant", that made an
+// unauthenticated endpoint into a mail cannon: alternate ticked and unticked
+// posts and it re-arms the confirmation mail every cycle, at any address the
+// caller names, under a real coach's business name.
+// ===========================================================================
+
+Deno.test('hardening: a second grant inside the cooldown sends no second mail', async () => {
+  // The cannon's ammunition. The ledger is append-only, so the grant that
+  // already earned a mail is still there however many withdrawals follow it.
+  const h = consentHarness({
+    consentHistory: [],
+    lastGrant: grantedHistoryRow({ created_at: new Date().toISOString() }),
+  })
+  await (await handleConciergeChat(contactReq(TICKED), consentDeps(h) as never)).json()
+  // The consent is still recorded — evidence must be complete either way.
+  assertEquals(h.captured.insertedConsents.length, 1)
+  assertEquals(h.mails.length, 0)
+})
+
+Deno.test('hardening: a grant OLDER than the cooldown may be mailed again', async () => {
+  const h = consentHarness({
+    consentHistory: [],
+    lastGrant: grantedHistoryRow({ created_at: '2020-01-01T00:00:00Z' }),
+  })
+  await (await handleConciergeChat(contactReq(TICKED), consentDeps(h) as never)).json()
+  assertEquals(h.mails.length, 1)
+})
+
+Deno.test('hardening: a coach with follow-up switched OFF never mails in their name', async () => {
+  // followup_enabled defaults to false for every concierge. It was selected and
+  // then never read, so the confirmation mail went out under the business name
+  // of coaches who had never agreed to be the sender.
+  const h = consentHarness()
+  h.captured.conciergeRow!.followup_enabled = false
+  await (await handleConciergeChat(contactReq(TICKED), consentDeps(h) as never)).json()
+  assertEquals(h.captured.insertedConsents.length, 1)
+  assertEquals(h.mails.length, 0)
+})
+
+Deno.test('hardening: a DEMO concierge never mails', async () => {
+  // A demo speaks in a named real person's business name without their
+  // agreement, and there is a live one in production. mayReceiveFollowUp was
+  // written for exactly this and was called by nothing but its own test.
+  const h = consentHarness()
+  h.captured.conciergeRow!.is_demo = true
+  h.captured.conciergeRow!.demo_expires_at = '2099-01-01T00:00:00Z'
+  await (await handleConciergeChat(contactReq(TICKED), consentDeps(h) as never)).json()
+  assertEquals(h.captured.insertedConsents.length, 1)
+  assertEquals(h.mails.length, 0)
+})
+
+Deno.test('hardening: an unticked resubmit from another conversation does NOT withdraw', async () => {
+  // Unauthenticated endpoint, any well-formed address. Without the conversation
+  // scope, a stranger who guesses a lead's address files a permanent withdrawal
+  // in their name and the coach silently loses a lead they paid for.
+  const h = consentHarness({
+    consentHistory: [grantedHistoryRow({ conversation_id: 'someone-elses-conversation' })],
+    lastGrant: grantedHistoryRow({ conversation_id: 'someone-elses-conversation' }),
+  })
+  await (await handleConciergeChat(contactReq(undefined), consentDeps(h) as never)).json()
+  assertEquals(h.captured.insertedConsents.length, 0)
+})
+
+Deno.test('hardening: the mismatch alert is capped, so it cannot be driven at request rate', async () => {
+  // alerting.ts has no rate limit, no dedupe and no timeout, and the trigger is
+  // fully caller-controlled. Uncapped this drowns real alerts and gets the ops
+  // webhook revoked.
+  const h = consentHarness()
+  await (
+    await handleConciergeChat(
+      contactReq({ ...TICKED, rendered_business_name: 'Coach Schmidt' }),
+      consentDeps(h, { capAllows: (k) => !k.startsWith('consent-mismatch:') }) as never,
+    )
+  ).json()
+  assertEquals(h.alerts.length, 0)
+  assertEquals(h.captured.insertedConsents.length, 0)
+
+  // And the cap is consulted with a real limit, not the Gemini budget.
+  const allowed = consentHarness()
+  await (
+    await handleConciergeChat(
+      contactReq({ ...TICKED, rendered_business_name: 'Coach Schmidt' }),
+      consentDeps(allowed) as never,
+    )
+  ).json()
+  assertEquals(allowed.alerts.length, 1)
+  const call = allowed.capCalls.find((c) => c.key.startsWith('consent-mismatch:'))
+  assertEquals(typeof call?.max, 'number')
+  assertEquals((call?.max ?? 0) < 1000, true)
+})
+
+Deno.test('hardening: a failed contact write is reported, never dressed up as success', async () => {
+  // supabase-js returns PostgREST failures as { error }, not a throw. Discarding
+  // it lost the coach their lead in silence while the visitor got a friendly
+  // greeting and a 200 — the one outcome worse than an error.
+  const h = consentHarness({ contactUpdateError: { message: 'permission denied' } })
+  const res = await handleConciergeChat(contactReq(TICKED), consentDeps(h) as never)
+  assertEquals(res.status, 503)
+  await res.json()
+  assertEquals(h.alerts.some((a) => a.type === 'lead_lost'), true)
+  // No consent is recorded for a lead that was never stored.
+  assertEquals(h.captured.insertedConsents.length, 0)
+  assertEquals(h.mails.length, 0)
 })

@@ -201,6 +201,16 @@ grant select (
 -- edge function fails at privilege-check time (42501) rather than relying on the
 -- trigger alone; the trigger stays as the backstop that also covers `postgres`
 -- and the SQL editor, which no revoke can constrain.
+-- Stated explicitly rather than inherited. service_role's SELECT/INSERT/DELETE
+-- would arrive on their own via the ALTER DEFAULT PRIVILEGES rule in
+-- 20260714000000, but that rule is recorded per GRANTOR and applies only to
+-- tables created by that same role. If that ever stops holding, nothing here
+-- would say so: REVOKE of a privilege never held is a silent no-op, and the
+-- symptom would be every consent insert failing 42501 inside a best-effort
+-- try/catch -- the evidence ledger quietly not being written. This is the same
+-- argument the file already makes for the anon/authenticated column grants.
+grant select, insert, delete on table public.concierge_consents to service_role;
+
 revoke update on table public.concierge_consents from service_role;
 
 -- No sequence is created: the primary key is a uuid with gen_random_uuid(), so
