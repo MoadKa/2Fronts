@@ -57,6 +57,10 @@ const SEND_SPACING_MS = 600
 // outage becomes an infinite loop.
 const MAX_SOFT_RETRIES = 8
 
+// How long to hold a row whose preconditions could not be READ. Short: the
+// cause is usually a blip, and the row is still inside its own expiry window.
+const READ_ERROR_DEFER_MS = 15 * 60 * 1000
+
 export interface FollowupSendDeps {
   createAdminClient: () => SupabaseClient
   env?: (key: string) => string | undefined
@@ -214,7 +218,7 @@ async function processOne(
     soft_retries: number
   }
 
-  const { data: conciergeRow } = await admin
+  const { data: conciergeRow, error: conciergeError } = await admin
     .from('concierges')
     .select(
       'id, slug, business_name, language, is_active, is_demo, demo_expires_at, entitled_until, calendar_url, followup_enabled, followup_sender_ack_at, followup_sender_block, followup_privacy_url, followup_reply_to, followup_reply_to_verified_at, followup_note',
@@ -227,7 +231,7 @@ async function processOne(
 
   // Consent, read fresh. Not trusted from enqueue time: a withdrawal between
   // arming and sending is precisely the case this has to honour.
-  const { data: ledger } = await admin
+  const { data: ledger, error: ledgerError } = await admin
     .from('concierge_consents')
     .select('action, created_at, visitor_email_norm, notice_text, locale')
     .eq('concierge_id', row.concierge_id)
@@ -251,7 +255,7 @@ async function processOne(
   // is dead for everyone, and someone who clicked "spam" once is not asking to
   // hear from the next coach instead. Asking only for the real pair would leave
   // the global row recorded and toothless.
-  const { data: suppressedPairs } = await admin.rpc('concierge_followup_suppressed', {
+  const { data: suppressedPairs, error: suppressedError } = await admin.rpc('concierge_followup_suppressed', {
     p_pairs: [
       { concierge_id: row.concierge_id, email_normalized: row.email_normalized },
       { concierge_id: GLOBAL_SUPPRESSION_CONCIERGE_ID, email_normalized: row.email_normalized },
@@ -259,7 +263,7 @@ async function processOne(
   })
   const suppressed = Array.isArray(suppressedPairs) && suppressedPairs.length > 0
 
-  const { data: sentAlready } = await admin
+  const { data: sentAlready, error: sentError } = await admin
     .from('concierge_followup_outbox')
     .select('id')
     .eq('concierge_id', row.concierge_id)
@@ -267,6 +271,35 @@ async function processOne(
     .eq('status', 'sent')
     .limit(1)
   const alreadyMailed = Array.isArray(sentAlready) && sentAlready.length > 0
+
+  // EVERY read above must have succeeded before we decide anything.
+  //
+  // Each of the four discarded its error until now, and two of them failed
+  // toward SENDING: a failed suppression RPC read as "not suppressed", and a
+  // failed sent-check read as "not yet mailed". The suppression one is the
+  // backstop that stops mail to a mailbox a hard bounce told us is dead, so an
+  // RPC hiccup was enough to send it anyway. The other two failed closed, but
+  // for the wrong reason — a transient error was reported as `concierge_missing`
+  // or as an absent consent, which is a permanent-sounding cancel written into
+  // a queue a human later reads.
+  //
+  // Defer rather than cancel: a database that could not answer is not evidence
+  // about this row, and deferring is the only answer that neither sends wrongly
+  // nor destroys a legitimate mail.
+  const readError = conciergeError ?? ledgerError ?? suppressedError ?? sentError
+  if (readError) {
+    console.error('followup-send: a precondition read failed; deferring:', readError.message ?? readError)
+    await admin
+      .from('concierge_followup_outbox')
+      .update({
+        status: 'pending',
+        claimed_at: null,
+        scheduled_at: new Date(ctx.now.getTime() + READ_ERROR_DEFER_MS).toISOString(),
+        last_error: 'precondition_read_failed',
+      })
+      .eq('id', row.id)
+    return 'deferred'
+  }
 
   const decision = decideSend({
     row,

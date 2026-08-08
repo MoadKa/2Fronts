@@ -6,8 +6,14 @@ import {
   createClassifyAnswer,
   createGeminiChatComplete,
   detectShowBooking,
+  FOLLOW_UP_PHRASE,
   generateConciergeReply,
 } from './conciergeChat.ts'
+import {
+  type FollowUpGrant,
+  type FollowUpGrantInput,
+  resolveFollowUpGrant,
+} from './followUpGrant.ts'
 import type { QualCriterion } from './qualification.ts'
 
 const concierge = {

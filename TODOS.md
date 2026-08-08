@@ -453,3 +453,26 @@ plan are deliberately NOT done, and neither is a coding task.
       the bounce path cancels through the same RPC, which hardcodes that reason.
       The dispatcher re-checks suppression before transmitting, so it should be
       caught there. Verify that, or give the bounce path its own cancel reason.
+
+## Follow-up: undo can revive a bounce-cancelled row (2026-08-08)
+
+- [ ] **Give the provider path its own `cancel_reason`.** `concierge_followup_unsubscribe()`
+      hardcodes `cancel_reason = 'unsubscribed'`, and BOTH the visitor
+      unsubscribe and the bounce webhook call it. The undo function's DELETE is
+      source-guarded (it refuses to remove a `provider_bounce` suppression) but
+      its re-queue is a separate statement guarded only on that hardcoded
+      reason, so an undo click can re-queue a row a hard bounce cancelled.
+      The dispatcher's pre-send suppression re-check catches it — the bounce's
+      suppression rows survive the undo, so the row is re-cancelled on the next
+      tick and nothing is transmitted. That backstop is now fail-closed (a
+      failed read defers instead of sending). But the queue still churns rows it
+      should never have revived, and the fix is one predicate: add a
+      `p_cancel_reason` parameter so the undo's re-queue cannot match rows it
+      did not cancel.
+- [ ] **One arrangement where both layers are gone.** `concierge_followup_unsubscribe`
+      inserts ON CONFLICT DO NOTHING, so if a `visitor_unsubscribe` suppression
+      already existed when a bounce landed, the per-sender row still reads
+      `visitor_unsubscribe` and the undo may delete it. If that bounce was
+      TRANSIENT no global sentinel was written either. Not the dead-mailbox
+      case (transient means the mailbox exists), but worth closing with the
+      cancel-reason fix above.
