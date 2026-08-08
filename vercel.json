@@ -3,5 +3,19 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [{ "source": "/((?!assets/|_vercel/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/abmelden",
+      "destination": "https://fettkrnajxbrfvwbenzf.supabase.co/functions/v1/concierge-followup-unsubscribe"
+    },
+    {
+      "source": "/bestaetigen",
+      "destination": "https://fettkrnajxbrfvwbenzf.supabase.co/functions/v1/concierge-consent-confirm"
+    },
+    {
+      "source": "/absender-bestaetigen",
+      "destination": "https://fettkrnajxbrfvwbenzf.supabase.co/functions/v1/concierge-followup-verify-reply-to"
+    },
+    { "source": "/((?!assets/|_vercel/).*)", "destination": "/index.html" }
+  ]
 }

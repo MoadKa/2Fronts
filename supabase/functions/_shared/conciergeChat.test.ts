@@ -6,8 +6,14 @@ import {
   createClassifyAnswer,
   createGeminiChatComplete,
   detectShowBooking,
+  FOLLOW_UP_PHRASE,
   generateConciergeReply,
 } from './conciergeChat.ts'
+import {
+  type FollowUpGrant,
+  type FollowUpGrantInput,
+  resolveFollowUpGrant,
+} from './followUpGrant.ts'
 import type { QualCriterion } from './qualification.ts'
 
 const concierge = {
@@ -328,4 +334,229 @@ Deno.test('buildConciergeSystemPrompt forbids Markdown, because the chat renders
   // Named literally so the instruction cannot be satisfied by a vague
   // "write nicely" that a model reads as permission to keep formatting.
   assertStringIncludes(prompt, '**')
+})
+
+// ---------------------------------------------------------------------------
+// Follow-up: the three prompt states
+// ---------------------------------------------------------------------------
+
+// THE FROZEN SNAPSHOT. Character for character what buildConciergeSystemPrompt
+// produced for `concierge` on the day the follow-up grant was introduced -- i.e.
+// before any of it existed.
+//
+// This is the most important assertion in this file. The setter has told every
+// visitor of every coach, on every page this product has ever served, that it
+// cannot have anyone follow up. Adding a case where that changes is only
+// defensible if the case where it does NOT change is provably untouched. A
+// string comparison is the only thing that proves it: any of the softer
+// assertions in this file would still pass if a word, an indent or a newline
+// moved.
+//
+// If this test fails, the question is never "update the snapshot". It is "which
+// visitor is now being told something different, and did anyone decide that".
+const NO_GRANT_PROMPT = `You are the AI booking assistant for "Acme Coaching". You chat with
+visitors on the coach's public page, answer their questions, gently handle
+hesitation, and help them book a call.
+
+Speak in a friendly tone, as Acme Coaching would.
+ALWAYS respond in German, regardless of the visitor's language.
+
+What the coach offers:
+A 12-week 1:1 program for founders, EUR 5000.
+
+Questions the coach has already answered (use these as your source of truth):
+Q: Refunds? A: 14-day money back.
+
+STRICT RULES (these protect the coach and are non-negotiable):
+- Answer ONLY from the offer and Q&A above. This is your entire knowledge.
+- NEVER invent or guess prices, policies, dates, availability, or facts that
+  are not stated above. A wrong answer to a prospect destroys trust.
+- If you cannot answer from the content above, do NOT make something up. Say
+  honestly (in German) that you can't answer that specific
+  thing here, and invite the visitor to get it answered on a quick call by
+  sharing the booking link verbatim: https://cal.com/acme/intro
+- NEVER promise anything the system cannot do. You CANNOT notify anyone, you
+  CANNOT let Acme Coaching know, you CANNOT have someone follow up, reach
+  out, call back, or get back to the visitor, and you CANNOT collect contact
+  details for follow-up. Do not imply any of these. The ONLY real next step
+  you can offer is booking the call via the link above.
+- When the visitor wants to book, is ready, or asks how to get started, share
+  the booking link verbatim: https://cal.com/acme/intro
+- Keep replies short, warm, and conversational. One idea at a time.
+- TAKE INITIATIVE — you lead, you do not just wait. Briefly address what the
+  visitor said, then move things forward with ONE next step: a guiding question,
+  or (when they are ready or it fits) the booking link above. Never end flat or
+  passive, and never just ask "what would you like to know?".
+- Write PLAIN PROSE. The chat bubble shows your reply verbatim and renders no
+  formatting, so Markdown does not become bold or a list — it reaches the
+  visitor as literal characters. Never use **, *, _, \`, #, or "-" and "1." as
+  bullets. If you need to name several things, put them in a sentence or
+  across short sentences. This is also why replies stay to one idea at a
+  time: a chat message that needs a bulleted list is too long for a chat.`
+
+// A real grant. Minted through resolveFollowUpGrant with every precondition
+// satisfied, and with the shipped flag forced on (it is false in production, and
+// deliberately so) -- because a grant is the ONLY way to reach the granted
+// prompt state, and a test cannot fabricate one.
+function realGrant(): FollowUpGrant {
+  const input: FollowUpGrantInput = {
+    concierge: {
+      is_active: true,
+      is_demo: false,
+      entitled_until: '2026-12-01T00:00:00.000Z',
+      calendar_url: concierge.calendar_url,
+      followup_enabled: true,
+      followup_sender_ack_at: '2026-08-01T09:00:00.000Z',
+      followup_sender_block: 'Acme Coaching GmbH, Musterstr. 1, 45127 Essen',
+      followup_privacy_url: 'https://acme.example/datenschutz',
+      followup_reply_to: 'coach@acme.example',
+      followup_reply_to_verified_at: '2026-08-02T09:00:00.000Z',
+    },
+    consentState: 'confirmed',
+    consentEmail: 'visitor@example.com',
+    consentConfirmedAt: '2026-08-13T10:00:00.000Z',
+    visitorEmail: 'visitor@example.com',
+    suppressed: false,
+    alreadyMailed: false,
+    sendingEnabled: true,
+    now: new Date('2026-08-13T12:00:00.000Z'),
+  }
+  const grant = resolveFollowUpGrant(input, true)
+  if (!grant) throw new Error('test fixture: expected a grant')
+  return grant
+}
+
+Deno.test('STATE 1 — with no grant the prompt is BYTE-IDENTICAL to the one that shipped', () => {
+  assertEquals(buildConciergeSystemPrompt(concierge), NO_GRANT_PROMPT)
+  // Every shape of "no follow-up information" produces the same bytes: omitted,
+  // null, an empty state object, and an explicit null grant.
+  assertEquals(buildConciergeSystemPrompt(concierge, null), NO_GRANT_PROMPT)
+  assertEquals(buildConciergeSystemPrompt(concierge, null, null), NO_GRANT_PROMPT)
+  assertEquals(buildConciergeSystemPrompt(concierge, null, {}), NO_GRANT_PROMPT)
+  assertEquals(buildConciergeSystemPrompt(concierge, null, { grant: null }), NO_GRANT_PROMPT)
+  // And it says nothing about a follow-up mail coming.
+  assertEquals(NO_GRANT_PROMPT.includes(FOLLOW_UP_PHRASE), false)
+})
+
+Deno.test('STATE 1 — a forged grant object cannot unlock the mention', () => {
+  // The compile-time half of this is in followUpGrant.test.ts: the brand is a
+  // module-private `unique symbol`, so an object literal typed as FollowUpGrant
+  // does not compile anywhere outside that module. This is the runtime half --
+  // a forgery that got here through `as`, through JSON.parse, or through an
+  // `any`-typed boundary must be treated as no grant at all, not as a grant.
+  const forged = { kind: 'follow_up_grant' } as unknown as FollowUpGrant
+  assertEquals(buildConciergeSystemPrompt(concierge, null, { grant: forged }), NO_GRANT_PROMPT)
+})
+
+Deno.test('STATE 2 — a real grant lets the bot mention the mail, exactly once', () => {
+  const prompt = buildConciergeSystemPrompt(concierge, null, { grant: realGrant() })
+  assertStringIncludes(prompt, FOLLOW_UP_PHRASE)
+  // Exactly once. A phrase that appears twice usually means it was assembled
+  // from parts and a refactor duplicated one of them; a phrase that appears
+  // zero times means it was split across two array elements and the join()
+  // pushed a newline through its middle -- which is invisible to a substring
+  // assertion on either half, and is why this counts.
+  assertEquals(prompt.split(FOLLOW_UP_PHRASE).length - 1, 1)
+  // The prohibition on COLLECTING contact details survives. Permission to
+  // mention the mail is not permission to ask for an address: the deterministic
+  // contact form is the only lawful capture point, because it is what renders
+  // the consent notice and files the evidence row. A model that may harvest
+  // addresses in free text collects them outside that surface entirely.
+  assertStringIncludes(prompt, 'CANNOT ask for or collect contact details')
+  // Everything else the system still cannot do is still refused.
+  assertStringIncludes(prompt, 'CANNOT notify anyone')
+  assertStringIncludes(prompt, 'CANNOT have someone call back')
+  // The granted state is a real change, not a no-op.
+  assertEquals(prompt === NO_GRANT_PROMPT, false)
+  // Nothing else in the prompt moved: the grant swaps ONE block.
+  assertStringIncludes(prompt, 'TAKE INITIATIVE')
+  assertStringIncludes(prompt, 'Markdown')
+  assertStringIncludes(prompt, concierge.calendar_url)
+})
+
+Deno.test('STATE 3 — a consent withdrawn AFTER a promise adds an explicit correction', () => {
+  const prompt = buildConciergeSystemPrompt(concierge, null, {
+    grant: null,
+    promisedAt: '2026-08-13T10:05:00.000Z',
+    consentState: 'withdrawn',
+  })
+  // The prohibition is BACK, in full...
+  assertStringIncludes(prompt, 'NEVER promise anything the system cannot do')
+  assertStringIncludes(prompt, 'CANNOT notify anyone')
+  // ...and the mention is gone.
+  assertEquals(prompt.includes(FOLLOW_UP_PHRASE), false)
+  // ...plus the correction, because the model is about to re-read its OWN
+  // earlier promise in the conversation history and will otherwise keep the
+  // story going. Silence reads to the visitor as "still coming".
+  assertStringIncludes(prompt, 'CORRECTION REQUIRED')
+  assertStringIncludes(prompt, 'no email will be sent')
+  assertStringIncludes(prompt, 'do NOT ask them')
+  // Stated in the coach's language, since that is the reply it has to open.
+  assertStringIncludes(prompt, 'in German, in one')
+  const en = buildConciergeSystemPrompt({ ...concierge, language: 'en' }, null, {
+    promisedAt: '2026-08-13T10:05:00.000Z',
+    consentState: 'withdrawn',
+  })
+  assertStringIncludes(en, 'in English, in one')
+})
+
+Deno.test('STATE 3 — the correction needs BOTH a prior promise and a withdrawal', () => {
+  // A withdrawal with no promise ever made has nothing to correct: the model's
+  // history contains no claim, and inventing one ("no email will be sent") would
+  // be a statement about a thing the visitor was never told.
+  assertEquals(
+    buildConciergeSystemPrompt(concierge, null, { consentState: 'withdrawn' }),
+    NO_GRANT_PROMPT,
+  )
+  // A promise that is merely un-granted right now is NOT corrected. Only a
+  // withdrawal makes the dispatcher cancel outright (decide.ts rule 4); a coach
+  // pausing or an entitlement lapsing makes it DEFER, so the mail may still
+  // arrive and retracting the promise would be a second false statement.
+  assertEquals(
+    buildConciergeSystemPrompt(concierge, null, { promisedAt: '2026-08-13T10:05:00.000Z' }),
+    NO_GRANT_PROMPT,
+  )
+  assertEquals(
+    buildConciergeSystemPrompt(concierge, null, {
+      promisedAt: '2026-08-13T10:05:00.000Z',
+      consentState: 'confirmed',
+    }),
+    NO_GRANT_PROMPT,
+  )
+})
+
+Deno.test('the follow-up state composes with a pending qualifying question', () => {
+  // The two blocks are independent: a grant must not swallow the qualification
+  // instruction, which is what actually drives the buttons under the reply.
+  const prompt = buildConciergeSystemPrompt(
+    concierge,
+    { id: 'budget', question: 'What is your budget?', options: [{ label: '5k+', qualifies: true }] },
+    { grant: realGrant() },
+  )
+  assertStringIncludes(prompt, FOLLOW_UP_PHRASE)
+  assertStringIncludes(prompt, 'What is your budget?')
+  assertStringIncludes(prompt, 'do NOT list or mention the answer options')
+})
+
+Deno.test('generateConciergeReply forwards the follow-up state into the system prompt', async () => {
+  let system = ''
+  const complete: ChatCompleteFn = (s) => {
+    system = s
+    return Promise.resolve('ok')
+  }
+  await generateConciergeReply(
+    { concierge, history: [], message: 'Kommt da noch was?', followUp: { grant: realGrant() } },
+    { complete },
+  )
+  assertStringIncludes(system, FOLLOW_UP_PHRASE)
+})
+
+Deno.test('generateConciergeReply without a follow-up state sends the frozen prompt', async () => {
+  let system = ''
+  const complete: ChatCompleteFn = (s) => {
+    system = s
+    return Promise.resolve('ok')
+  }
+  await generateConciergeReply({ concierge, history: [], message: 'hi' }, { complete })
+  assertEquals(system, NO_GRANT_PROMPT)
 })

@@ -14,12 +14,23 @@
 // keep) to a coach's prospect is trust-destroying, so "route to the booking
 // link, promise nothing the system can't do" beats "guess" or "fake a callback".
 //
+// THE ONE EXCEPTION, and it is earned, not assumed: when the caller hands over a
+// FollowUpGrant (_shared/followUpGrant.ts), a follow-up mail really is coming,
+// and the flat prohibition becomes its own kind of lie -- the visitor ticked a
+// box, confirmed a mail, and the bot pretends nothing will happen. A grant
+// cannot be forged (module-private symbol brand) and is only issued when every
+// precondition the SENDER checks is already true. No grant, no mention: the
+// no-grant prompt is byte-identical to the one that shipped before any of this
+// existed, and a test pins it character for character.
+//
 // The LLM call is an injectable dep (`complete`) -- like columnMapping's -- so
 // tests pin it with canned replies and run with no network. The real Gemini
 // implementation is at the bottom and reuses the exact key-in-header / never-log
 // / error-handling posture of createGeminiComplete.
 
 import { geminiFetchWithRetry } from './geminiRetry.ts'
+import type { ConsentState } from './consent.ts'
+import { type FollowUpGrant, isFollowUpGrant } from './followUpGrant.ts'
 import type { QualCriterion, QualOption, QualPrompt } from './qualification.ts'
 
 export type ConciergeLanguage = 'de' | 'en'
@@ -64,6 +75,10 @@ export interface GenerateConciergeReplyInput {
   // model weaves it into its reply so the bot itself asks it — the buttons are
   // just the answer options. Null/absent = nothing to ask this turn.
   pendingCriterion?: QualCriterion | null
+  // Whether this visitor's follow-up mail is real (a grant), and whether a
+  // promise already made has to be taken back. Absent = the flat prohibition,
+  // which is the shipped behaviour and stays the default.
+  followUp?: FollowUpPromptState | null
 }
 
 export interface ConciergeReply {
@@ -96,14 +111,132 @@ function emptyReplyFallback(c: ConciergeKnowledge): string {
     : 'Entschuldige, das kann ich hier nicht beantworten.'
 }
 
+// ---------------------------------------------------------------------------
+// Follow-up: the three prompt states
+// ---------------------------------------------------------------------------
+
+// What the caller knows about this conversation's follow-up situation.
+//
+// Passing nothing (or an empty object) is the default and produces the prompt
+// that shipped before follow-up existed, byte for byte.
+export interface FollowUpPromptState {
+  // Issued by resolveFollowUpGrant(). Unforgeable: an object literal typed into
+  // this field does not compile, and one smuggled in through `as`/JSON fails the
+  // runtime brand check below and is treated as no grant at all.
+  grant?: FollowUpGrant | null
+  // concierge_conversations.followup_promised_at (migration 20260813100000):
+  // when the bot first told THIS visitor a mail was coming. Null = it never did.
+  promisedAt?: string | null
+  // The consent state as it stands right now, derived from the ledger.
+  consentState?: ConsentState
+}
+
+// THE SENTENCE THAT MAY BE SAID, and the only one.
+//
+// A single constant on a single array element, deliberately. buildConciergeSystemPrompt
+// joins its parts with '\n', so a phrase split across two ELEMENTS would have a
+// newline injected into its middle and would be literally ABSENT from the prompt
+// that a test then searches for -- the test would fail, or worse, a laxer test
+// would pass while the model read two half-sentences.
+//
+// The line breaks below are INSIDE the constant, so the searched-for string
+// contains them and the property still holds exactly. That is the only way to
+// wrap this to the same width as the rest of the prompt. Do NOT turn these
+// concatenated pieces into separate array elements, and do not reflow them
+// without keeping them inside this one constant.
+export const FOLLOW_UP_PHRASE =
+  '- ONE follow-up email will be sent to the address this visitor already\n' +
+  '  confirmed, so you MAY say that an email about this conversation is coming.\n' +
+  '  Never say when it will arrive, and never promise anything in it beyond the\n' +
+  '  booking link above.'
+
+// State 1 (default): the flat prohibition. Byte-identical to what shipped before
+// any follow-up existed. DO NOT EDIT THESE FIVE LINES -- conciergeChat.test.ts
+// pins the whole no-grant prompt against a frozen snapshot, because "the bot
+// promises nothing" is the property that was true on every page this product has
+// ever served, and the migration to sometimes-promising must not quietly change
+// what it says when it is NOT promising.
+function noPromiseBlock(c: ConciergeKnowledge): string[] {
+  return [
+    "- NEVER promise anything the system cannot do. You CANNOT notify anyone, you",
+    `  CANNOT let ${c.business_name} know, you CANNOT have someone follow up, reach`,
+    '  out, call back, or get back to the visitor, and you CANNOT collect contact',
+    '  details for follow-up. Do not imply any of these. The ONLY real next step',
+    '  you can offer is booking the call via the link above.',
+  ]
+}
+
+// State 2: a grant is in hand, so the mail is real and may be mentioned.
+//
+// The contact-details clause SURVIVES, and that is not tidiness. The one lawful
+// capture point is the deterministic contact form, which is what renders the
+// consent notice and files the evidence row. A model that may "collect contact
+// details" harvests addresses in free text, outside the consent surface, with no
+// notice shown and nothing to prove -- which is the §7 Abs. 2 UWG failure the
+// whole consent chain exists to prevent. Permission to MENTION the mail is not
+// permission to ASK for an address.
+function grantedBlock(c: ConciergeKnowledge): string[] {
+  return [
+    FOLLOW_UP_PHRASE,
+    '- Nothing else about follow-up became possible. You CANNOT notify anyone, you',
+    `  CANNOT let ${c.business_name} know, you CANNOT have someone call back or reach`,
+    '  out personally, and you CANNOT ask for or collect contact details — the form on',
+    '  this page is the only place an address may ever be given, and that one email is',
+    '  the only message that will ever be sent. The real next step you offer is still',
+    '  booking the call via the link above.',
+  ]
+}
+
+// State 3: the bot already promised, and the permission is gone.
+//
+// This block is ADDED TO the prohibition, never instead of it. The model is not
+// starting fresh: its own earlier promise is sitting in the conversation history
+// it is about to re-read, and a model reading "an email is on its way" in its
+// own voice will happily keep the story going. Silence here reads to the visitor
+// as a mail that is still coming. So the correction has to be an instruction,
+// and it has to be explicit about going FIRST.
+function correctionBlock(c: ConciergeKnowledge): string[] {
+  return [
+    '- CORRECTION REQUIRED, before anything else you say. Earlier in this conversation',
+    '  you told the visitor that an email would follow. That is no longer true: they',
+    '  have withdrawn their permission to be emailed, and no email will be sent.',
+    `  Open your next reply by saying exactly that, in ${languageName(c.language)}, in one`,
+    '  short friendly sentence — no blame, no explanation of why, and do NOT ask them',
+    '  to give permission again. Then carry on normally with the booking link above.',
+  ]
+}
+
+type FollowUpMode = 'none' | 'granted' | 'correction'
+
+// Which of the three states applies.
+//
+// The correction fires ONLY on a withdrawal, not on any other way a grant can be
+// lost. That is deliberate: a withdrawal is the one case where the dispatcher
+// CANCELS outright (decide.ts rule 4), so "no email will be sent" is certainly
+// true. The other losses -- the coach pausing, an entitlement lapsing -- make
+// decide.ts DEFER, and a mail that is merely delayed may still arrive. Retracting
+// a promise that then gets kept would be a second false statement, aimed the
+// other way, so those stay silent.
+function followUpMode(state?: FollowUpPromptState | null): FollowUpMode {
+  if (!state) return 'none'
+  // Runtime brand check, not a truthiness check: a forged literal that reached
+  // here through `as` or JSON.parse must not unlock the mention.
+  if (isFollowUpGrant(state.grant)) return 'granted'
+  if (state.promisedAt && state.consentState === 'withdrawn') return 'correction'
+  return 'none'
+}
+
 // Build the system prompt that grounds the AI in this coach's content and pins
 // its behaviour. Everything the AI is allowed to say comes from offer + qa; the
 // rest of the prompt is guardrails (never invent, honestly route to the booking
-// link when it can't answer -- never a fake follow-up, surface booking).
+// link when it can't answer -- never a fake follow-up unless a grant proves one
+// is real, surface booking).
 export function buildConciergeSystemPrompt(
   c: ConciergeKnowledge,
   pendingCriterion?: QualCriterion | null,
+  followUp?: FollowUpPromptState | null,
 ): string {
+  const mode = followUpMode(followUp)
   return [
     `You are the AI booking assistant for "${c.business_name}". You chat with`,
     "visitors on the coach's public page, answer their questions, gently handle",
@@ -126,11 +259,8 @@ export function buildConciergeSystemPrompt(
     `  honestly (in ${languageName(c.language)}) that you can't answer that specific`,
     '  thing here, and invite the visitor to get it answered on a quick call by',
     `  sharing the booking link verbatim: ${c.calendar_url}`,
-    "- NEVER promise anything the system cannot do. You CANNOT notify anyone, you",
-    `  CANNOT let ${c.business_name} know, you CANNOT have someone follow up, reach`,
-    '  out, call back, or get back to the visitor, and you CANNOT collect contact',
-    '  details for follow-up. Do not imply any of these. The ONLY real next step',
-    '  you can offer is booking the call via the link above.',
+    ...(mode === 'granted' ? grantedBlock(c) : noPromiseBlock(c)),
+    ...(mode === 'correction' ? correctionBlock(c) : []),
     '- When the visitor wants to book, is ready, or asks how to get started, share',
     `  the booking link verbatim: ${c.calendar_url}`,
     '- Keep replies short, warm, and conversational. One idea at a time.',
@@ -176,7 +306,11 @@ export async function generateConciergeReply(
   input: GenerateConciergeReplyInput,
   deps: ConciergeChatDeps,
 ): Promise<ConciergeReply> {
-  const system = buildConciergeSystemPrompt(input.concierge, input.pendingCriterion)
+  const system = buildConciergeSystemPrompt(
+    input.concierge,
+    input.pendingCriterion,
+    input.followUp,
+  )
   const turns: ChatTurn[] = [...input.history, { role: 'user', content: input.message }]
   const reply = await deps.complete(system, turns)
 

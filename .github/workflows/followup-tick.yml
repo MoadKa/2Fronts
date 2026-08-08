@@ -1,0 +1,75 @@
+name: Follow-up mail tick
+
+# Drains the follow-up outbox. Every 15 minutes it POSTs the dispatch endpoint,
+# which claims a batch of due rows and sends them.
+#
+# WHY GITHUB ACTIONS AND NOT pg_cron
+#
+# pg_cron + pg_net + Vault was the obvious answer and is the wrong one here. It
+# is roughly twelve hours of work and a permanent operational surface, and its
+# worst failure mode is silent: when a pg_cron job stops firing, nothing tells
+# you. The outbox simply stops draining and every queued follow-up quietly
+# expires. You find out from a customer.
+#
+# A scheduled workflow fails LOUDLY. GitHub emails the repo owner when a
+# scheduled run fails, with nothing to configure. That single property is worth
+# more than the precision we give up.
+#
+# What we give up, stated plainly:
+#   * Scheduled runs are best-effort. GitHub delays them under load, commonly by
+#     5 to 15 minutes. Irrelevant for a mail that fires about two hours after a
+#     conversation ends.
+#   * GitHub DISABLES scheduled workflows after 60 days with no repository
+#     activity. A dormant repo stops sending. If this repo ever goes quiet for
+#     two months, re-enable it in the Actions tab.
+#
+# If either of those ever stops being acceptable, move to pg_cron then, with the
+# outbox already proven.
+
+on:
+  schedule:
+    # Every 15 minutes. Cron here is UTC; the dispatcher does its own quiet-hours
+    # arithmetic in the recipient's terms, so this schedule carries no policy.
+    - cron: '*/15 * * * *'
+  # So a human can drain the queue immediately without waiting for the slot, and
+  # so the first live-fire test does not depend on the scheduler at all.
+  workflow_dispatch: {}
+
+concurrency:
+  # Never two ticks at once. The claim RPC is `for update skip locked`, so an
+  # overlap would be safe rather than double-sending, but a backlog of queued
+  # runs is a signal we would rather not have to read around.
+  group: followup-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    name: Drain the follow-up outbox
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST the dispatch endpoint
+        env:
+          # Set once in the repo's Actions secrets. FOLLOWUP_DISPATCH_URL is the
+          # full function URL; FOLLOWUP_SECRET is the shared secret the endpoint
+          # demands (it refuses to run at all when that secret is unset, so a
+          # half-configured deploy sends nothing rather than sending wrongly).
+          DISPATCH_URL: ${{ secrets.FOLLOWUP_DISPATCH_URL }}
+          FOLLOWUP_SECRET: ${{ secrets.FOLLOWUP_SECRET }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISPATCH_URL:-}" ] || [ -z "${FOLLOWUP_SECRET:-}" ]; then
+            echo "::error::FOLLOWUP_DISPATCH_URL or FOLLOWUP_SECRET is not set. The tick cannot run."
+            exit 1
+          fi
+          # --fail-with-body turns a non-2xx into a non-zero exit AND still shows
+          # the body, so a failure is both loud and diagnosable. Without it curl
+          # exits 0 on an HTTP 500 and the workflow goes green while the queue
+          # never drains — the exact silent failure this design exists to avoid.
+          curl --silent --show-error --fail-with-body \
+            --max-time 120 \
+            -X POST "$DISPATCH_URL" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "x-followup-secret: $FOLLOWUP_SECRET" \
+            -H 'Content-Type: application/json' \
+            -d '{}'

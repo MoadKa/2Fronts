@@ -16,17 +16,40 @@
 // function, with the service role, stamps it — and only after re-checking the
 // input server-side, since the browser's validation is a courtesy, not a gate.
 //
+// AND, HANGING OFF THAT SECOND ACTION: the reply-to VERIFICATION ROUND-TRIP.
+// Saving an address is not proof the coach reads it, so this function also
+// sends the mail that asks (best-effort, never failing the save) and clears
+// followup_reply_to_verified_at whenever the address changes. The stamp itself
+// is written by concierge-followup-verify-reply-to when the coach clicks. Until
+// that click, decideSend() cancels every queued follow-up with
+// `reply_to_unverified`, so this pair is what the whole send path waits on.
+//
 // All external effects are injected so the handler is unit-tested offline.
 
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
+import { sendEmail } from '../_shared/email.ts'
+import {
+  buildReplyToVerifyMail,
+  buildReplyToVerifyUrl,
+  normalizeReplyTo,
+  replyToDigest,
+} from '../_shared/replyToVerifyMail.ts'
 
 const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
 
 export interface ConciergeSetupDeps {
   createAdminClient: () => SupabaseClient
   getUserId: (authHeader: string) => Promise<string | null>
+  // Injectable mail transport for the reply-to verification mail, so tests stay
+  // offline. Defaults to the shared Resend transport.
+  sendMail?: typeof sendEmail
+  // Injectable env reader, so the verification path's configuration branches are
+  // testable without touching the process environment.
+  env?: (key: string) => string | undefined
+  // Fixed-window cap, same contract as concierge-chat's hitBucket: true = allowed.
+  verifyMailCap?: (key: string, max: number, windowSecs: number) => Promise<boolean>
 }
 
 async function defaultGetUserId(authHeader: string): Promise<string | null> {
@@ -146,6 +169,148 @@ export function parseFollowupSender(raw: unknown): FollowupSenderInput | null {
   return { sender_block: block, privacy_url: privacy, reply_to: replyTo }
 }
 
+// ---------------------------------------------------------------------------
+// Reply-to verification (the round-trip that unblocks the send path)
+// ---------------------------------------------------------------------------
+//
+// decideSend() cancels every queued follow-up while
+// concierges.followup_reply_to_verified_at is null, and the ONLY writer of that
+// column is concierge-followup-verify-reply-to, reached by clicking the link in
+// the mail this section sends. So this is the step that turns the whole
+// follow-up pipeline from "cancels 100% of what it claims" into something that
+// can send.
+//
+// IT IS BEST-EFFORT AND NEVER FAILS THE SAVE. Same posture as
+// concierge-chat's captureConsent: the coach's sender identity is already
+// stored by the time we get here, and a Resend outage, a missing secret or a
+// tripped cap must cost the verification MAIL, never the coach's data. The
+// failure direction is safe by construction: no mail means no verification,
+// which means the send path keeps refusing to send. It cannot fail open.
+
+// The signing secret. Mirrors concierge-followup-verify-reply-to's own constant;
+// duplicated rather than imported because an edge function importing another
+// edge function's index.ts drags that whole module (and its admin client) into
+// this one's bundle.
+const REPLY_TO_SECRET_ENV = 'FOLLOWUP_REPLY_TO_SECRET'
+
+// The pretty route. vercel.json rewrites it to the function; the function's own
+// URL is the fallback so an unconfigured project still works. A verification
+// link pointing at *.supabase.co reads as a phish to anyone who looks at it.
+const VERIFY_PATH = '/absender-bestaetigen'
+
+// Per-concierge daily ceiling on verification mails.
+//
+// The coach chooses followup_reply_to freely, so "save the panel again" is a
+// button that sends a mail to any address they name, in 2Fronts' name. Five a
+// day is far above a coach fixing a typo twice and far below anything useful as
+// a mail cannon aimed at a third party.
+const VERIFY_MAIL_DAILY_CAP = 5
+const VERIFY_MAIL_WINDOW_SECS = 86_400
+
+// Fixed-window counter, copied from concierge-chat's hitBucket. Fails CLOSED:
+// this cap exists precisely because the mail can be aimed at an address the
+// recipient never asked to hear from, so a database that will not answer must
+// not become a free pass. A missing `.rpc` is a unit-test double, not a
+// production condition, and always allows.
+async function hitVerifyBucket(
+  admin: SupabaseClient,
+  key: string,
+  max: number,
+  windowSecs: number,
+): Promise<boolean> {
+  try {
+    if (typeof (admin as { rpc?: unknown }).rpc !== 'function') return true
+    const { data, error } = await admin.rpc('concierge_rate_limit_hit', {
+      p_key: key,
+      p_max: max,
+      p_window_secs: windowSecs,
+    })
+    if (error) return false
+    return data !== false
+  } catch {
+    return false
+  }
+}
+
+interface VerifyMailCtx {
+  admin: SupabaseClient
+  conciergeId: string
+  businessName: string
+  language: string | null
+  replyTo: string
+  env: (key: string) => string | undefined
+  sendMail: typeof sendEmail
+  cap: (key: string, max: number, windowSecs: number) => Promise<boolean>
+}
+
+/**
+ * Send the verification mail to the address the coach just saved.
+ *
+ * Returns whether a mail was accepted, for the response body only. Never
+ * throws, never rejects: every branch either returns or logs and returns.
+ */
+async function sendReplyToVerification(ctx: VerifyMailCtx): Promise<boolean> {
+  const secret = ctx.env(REPLY_TO_SECRET_ENV)
+  const supabaseUrl = ctx.env('SUPABASE_URL')
+  const apiKey = ctx.env('RESEND_API_KEY')
+  const from = ctx.env('FOLLOWUP_FROM_DOMAIN')
+  if (!secret || !supabaseUrl || !apiKey || !from) {
+    // Loud: an unconfigured project stores the sender identity and can never
+    // send a follow-up, and the visible symptom (every row cancelled with
+    // reply_to_unverified) points at the wrong place.
+    console.error('concierge-setup: reply-to verification mail is unconfigured; nothing sent')
+    return false
+  }
+
+  if (!(await ctx.cap(`replyto-verify:${ctx.conciergeId}`, VERIFY_MAIL_DAILY_CAP, VERIFY_MAIL_WINDOW_SECS))) {
+    console.error(`concierge-setup: reply-to verification cap reached for concierge ${ctx.conciergeId}`)
+    return false
+  }
+
+  const publicBase = ctx.env('FOLLOWUP_PUBLIC_BASE_URL')
+  const endpoint = publicBase
+    ? `${publicBase.replace(/\/+$/, '')}${VERIFY_PATH}`
+    : `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/concierge-followup-verify-reply-to`
+
+  const verifyUrl = await buildReplyToVerifyUrl(endpoint, ctx.conciergeId, ctx.replyTo, secret)
+  if (!verifyUrl) {
+    console.error('concierge-setup: could not build a reply-to verification URL; nothing sent')
+    return false
+  }
+
+  const mail = buildReplyToVerifyMail({
+    concierge: { business_name: ctx.businessName, language: ctx.language },
+    verifyUrl,
+  })
+  if (!mail) {
+    console.error('concierge-setup: could not build the reply-to verification mail; nothing sent')
+    return false
+  }
+
+  // Keyed on (concierge, address, hour). The digest makes a double-click on
+  // "save" one mail rather than two; the hour bucket makes sure a coach whose
+  // mail was lost can get another one by saving again, instead of being told
+  // nothing for the 24 hours Resend deduplicates over.
+  const digest = (await replyToDigest(ctx.replyTo, secret)) ?? ''
+  const hour = new Date().toISOString().slice(0, 13)
+  const result = await ctx.sendMail({
+    apiKey,
+    from,
+    to: ctx.replyTo,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+    idempotencyKey: `replyto:${ctx.conciergeId}:${digest.slice(0, 12)}:${hour}`,
+  })
+  if (!result.ok) {
+    // No address and no raw provider body in the log: a Resend 4xx echoes the
+    // recipient, and this log is not the place for it.
+    console.error(`concierge-setup: reply-to verification mail rejected (status ${result.status ?? 'none'})`)
+    return false
+  }
+  return true
+}
+
 export async function handleConciergeSetup(req: Request, deps: ConciergeSetupDeps = defaultDeps): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') {
@@ -186,6 +351,41 @@ export async function handleConciergeSetup(req: Request, deps: ConciergeSetupDep
     if (!sender) {
       return new Response(JSON.stringify({ error: 'followup_invalid' }), { status: 400, headers: jsonHeaders })
     }
+    // Read the row BEFORE writing it, owner-scoped, for one question: is the
+    // address the coach is saving the SAME one that is currently verified? The
+    // answer decides both halves of the round-trip below, and it cannot be
+    // recovered after the update, because the update is what overwrites it.
+    const { data: before, error: beforeErr } = await admin
+      .from('concierges')
+      .select('id, business_name, language, followup_reply_to, followup_reply_to_verified_at')
+      .eq('id', conciergeId)
+      .eq('owner_id', uid)
+      .maybeSingle()
+    if (beforeErr) {
+      return new Response(JSON.stringify({ error: 'persist_failed' }), { status: 500, headers: jsonHeaders })
+    }
+    if (!before) {
+      return new Response(JSON.stringify({ error: 'concierge_not_found' }), { status: 404, headers: jsonHeaders })
+    }
+    const current = before as {
+      business_name?: string | null
+      language?: string | null
+      followup_reply_to?: string | null
+      followup_reply_to_verified_at?: string | null
+    }
+
+    // A VERIFICATION MUST NEVER SURVIVE THE ADDRESS IT VERIFIED.
+    //
+    // followup_reply_to is the coach's own data and stays client-writable (see
+    // 20260809100000), so this branch is not the only way it changes; but it is
+    // the way the wizard changes it, and leaving the stamp in place here would
+    // mean a coach verifies a mailbox they control and then re-points Reply-To
+    // at one they do not, inheriting our attestation that we checked. The
+    // column comment says the stamp means "we proved the coach controls THIS
+    // address". Keeping it across a change would make that sentence false.
+    const alreadyVerified = !!current.followup_reply_to_verified_at &&
+      normalizeReplyTo(current.followup_reply_to ?? '') === normalizeReplyTo(sender.reply_to)
+
     // owner_id is part of the filter, not merely the provision check: owning the
     // provision proves nothing about owning the concierge id in the body. Without
     // this, a caller with one paid provision could stamp an acknowledgement onto
@@ -204,7 +404,9 @@ export async function handleConciergeSetup(req: Request, deps: ConciergeSetupDep
         // nothing on its own — the send path still needs a confirmed visitor
         // consent and a verified reply-to. followup_reply_to_verified_at is
         // POINTEDLY not set here: a coach typing an address is not proof they
-        // read it. That stamp belongs to the verification round-trip.
+        // read it. That stamp belongs to the verification round-trip, and this
+        // path only ever CLEARS it (see above), never sets it.
+        ...(alreadyVerified ? {} : { followup_reply_to_verified_at: null }),
         followup_enabled: true,
       })
       .eq('id', conciergeId)
@@ -216,8 +418,43 @@ export async function handleConciergeSetup(req: Request, deps: ConciergeSetupDep
     if (!updated || updated.length === 0) {
       return new Response(JSON.stringify({ error: 'concierge_not_found' }), { status: 404, headers: jsonHeaders })
     }
+
+    // The round-trip. Best-effort, wrapped here rather than inside the helper so
+    // that BOTH an { ok: false } result and a thrown transport failure end the
+    // same way: the sender identity is saved, the coach gets their 200, and the
+    // verification is simply absent (which the send path already reads as "do
+    // not send"). An unwrapped rejection would answer 500 over a write that
+    // succeeded, and the wizard would tell the coach their setup failed.
+    let verificationMailSent = false
+    if (!alreadyVerified) {
+      try {
+        verificationMailSent = await sendReplyToVerification({
+          admin,
+          conciergeId,
+          businessName: current.business_name ?? '',
+          language: current.language ?? null,
+          replyTo: sender.reply_to,
+          env: deps.env ?? ((k) => Deno.env.get(k) ?? undefined),
+          sendMail: deps.sendMail ?? sendEmail,
+          cap: deps.verifyMailCap ??
+            ((key, max, windowSecs) => hitVerifyBucket(admin, key, max, windowSecs)),
+        })
+      } catch (e) {
+        console.error('concierge-setup: reply-to verification mail threw', e)
+      }
+    }
+
     return new Response(
-      JSON.stringify({ ok: true, followupSaved: true, ackVersion: FOLLOWUP_SENDER_ACK_VERSION }),
+      JSON.stringify({
+        ok: true,
+        followupSaved: true,
+        ackVersion: FOLLOWUP_SENDER_ACK_VERSION,
+        // What the wizard needs to say next: either "this address is already
+        // confirmed" or "check that inbox". Never a claim that a mail went out
+        // when it did not.
+        replyToVerified: alreadyVerified,
+        verificationMailSent,
+      }),
       { status: 200, headers: jsonHeaders },
     )
   }

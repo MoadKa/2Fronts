@@ -1,5 +1,5 @@
 begin;
-select plan(17);
+select plan(20);
 
 -- The follow-up sender identity (20260809100000).
 --
@@ -136,6 +136,57 @@ select isnt(
      where id = '22222222-2222-2222-2222-222222222222'),
   null,
   'the service-role reply-to verification timestamp should land'
+);
+
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- A VERIFICATION MUST NOT SURVIVE THE ADDRESS IT VERIFIED (20260814100000).
+--
+-- The coach keeps the right to correct their own address, so this is coerced,
+-- not raised. But the stamp is our statement that we proved THAT mailbox; a
+-- coach who edits followup_reply_to from the browser and keeps the stamp could
+-- point Reply-To at a mailbox nobody proved they own and have 2Fronts carry the
+-- reply traffic there. Locking the stamp while leaving the address open is the
+-- same hole reached in two steps.
+-- ---------------------------------------------------------------------------
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111"}';
+
+select lives_ok(
+  $$ update public.concierges set followup_reply_to = 'neu@acme.de'
+      where id = '22222222-2222-2222-2222-222222222222' $$,
+  'authenticated should still be able to change their own reply-to'
+);
+
+select is(
+  (select followup_reply_to_verified_at from public.concierges
+     where id = '22222222-2222-2222-2222-222222222222'),
+  null,
+  'changing the reply-to should drop the verification of the old address'
+);
+
+reset role;
+
+-- And the coercion is narrow: an edit that does NOT touch the address leaves the
+-- verification alone. Without this, every unrelated dashboard save would send
+-- the coach another verification mail.
+set local role service_role;
+set local request.jwt.claims = '{"role":"service_role"}';
+update public.concierges set followup_reply_to_verified_at = now()
+  where id = '22222222-2222-2222-2222-222222222222';
+reset role;
+
+set local role authenticated;
+set local request.jwt.claims = '{"role":"authenticated","sub":"11111111-1111-1111-1111-111111111111"}';
+update public.concierges set followup_sender_block = 'Acme Coaching GmbH, Musterstr. 2, 45127 Essen'
+  where id = '22222222-2222-2222-2222-222222222222';
+
+select isnt(
+  (select followup_reply_to_verified_at from public.concierges
+     where id = '22222222-2222-2222-2222-222222222222'),
+  null,
+  'an edit that leaves the reply-to alone should keep the verification'
 );
 
 reset role;

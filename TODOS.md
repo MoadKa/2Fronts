@@ -351,11 +351,11 @@ verbatim from the original captures — only structure changed.
       standing. The real fix is a settings surface under `/app/` that edits
       `followup_sender_block` / `followup_privacy_url` / `followup_reply_to`,
       with `concierge-setup`'s owner-scoped service-side ack write behind it.
-- [ ] **`followup_reply_to_verified_at` is never set by anything.** The wizard
-      deliberately does not stamp it (typing an address is not proof of reading
-      it), and no verification round-trip exists yet. Until one does, any send
-      path that requires a verified reply-to will refuse every row. Build the
-      round-trip, or decide explicitly that the ack alone is the gate.
+- [x] **`followup_reply_to_verified_at` is set by the verification round-trip
+      (2026-08-08).** The wizard still deliberately does not stamp it; the only
+      writer is `concierge-followup-verify-reply-to`, reached by the coach
+      clicking the link in the mail `concierge-setup` fires on save. See the
+      P0 entry under "Follow-up send path" for what is left.
 - [ ] **The ack wording and its version constant can drift apart.** The text is
       `conciergeOnboarding.followup.ackLabel` in both locale files;
       `FOLLOWUP_SENDER_ACK_VERSION` lives in `concierge-setup/index.ts`. Nothing
@@ -405,3 +405,95 @@ these survived triage and are recorded rather than rushed.
 - [ ] **P3 — `_shared/email.ts` logs the Resend error body on a 4xx**, which can
       echo the recipient address, while its caller is careful not to. Scrub the
       address in `redact()` or stop logging the body.
+
+## Follow-up send path — what is built, and what is NOT (2026-08-08)
+
+Steps 13-19 are code-complete on `feat/followup-send-path`. Two steps of the
+plan are deliberately NOT done, and neither is a coding task.
+
+- [x] **P0 — the reply-to verification round-trip is built (2026-08-08).**
+      `_shared/replyToVerifyMail.ts` builds a content-free mail to the coach's
+      reply-to; `concierge-followup-verify-reply-to` is the ONLY writer of
+      `followup_reply_to_verified_at`; `concierge-setup` fires the mail
+      best-effort on save and CLEARS the stamp whenever the address changes. The
+      link's token binds the concierge id AND a keyed digest of the address, so
+      an outstanding link dies the moment the address does. What is left is
+      operational, not code: set `FOLLOWUP_REPLY_TO_SECRET`, confirm the
+      `/absender-bestaetigen` rewrite resolves, and walk one coach through it.
+      The WIZARD STILL SAYS NOTHING about the mail: `saveFollowupSender` in
+      `src/services/ConciergeService.ts` ignores the response, which now carries
+      `replyToVerified` / `verificationMailSent`. A coach therefore gets an
+      unannounced mail and no "check your inbox" line. Wire that before selling
+      the feature.
+- [ ] **Step 20 — the first live fire has not happened.** Nothing in this chain
+      has ever sent a follow-up. Before it can: set `RESEND_API_KEY`,
+      `FOLLOWUP_FROM_DOMAIN`, `FOLLOWUP_SECRET`, `FOLLOWUP_UNSUB_SECRET`,
+      `FOLLOWUP_PUBLIC_BASE_URL`, `CONSENT_CONFIRM_SECRET`,
+      `FOLLOWUP_REPLY_TO_SECRET` and
+      `RESEND_WEBHOOK_SECRET` via `supabase secrets set`; add
+      `FOLLOWUP_DISPATCH_URL` + `FOLLOWUP_SECRET` to the repo's Actions secrets;
+      point the Resend dashboard webhook at `resend-webhook`; then
+      `update concierge_followup_ops set sending_enabled = true` and
+      `FOLLOWUP_SENDING=on`, with `followup_enabled = true` on ONE
+      founder-owned concierge and the founder's own address as the visitor.
+      Walk the whole chain: tick, check mail, confirm, book, wait, follow-up
+      arrives, click unsubscribe, re-run the tick, nothing sends.
+- [ ] **Step 21 — the bot still never mentions the follow-up.** `conciergeChat.ts`
+      is byte-identical to before this work: its prompt still says the setter
+      "must NOT promise any follow-up". That is the correct conservative state
+      until a real mail has been sent and received end to end. Nothing breaks
+      without it; the mail simply arrives unannounced.
+- [ ] **A registered business is required before Step 16 may run for real.**
+      The dispatcher sends commercial email. §6 UWG wants the commercial
+      character and the sender identifiable, and §5 DDG wants a valid Impressum
+      on the sending party. Also needs an Art. 28 AVV signed with each coach,
+      which needs a legal person to sign it.
+- [ ] **The unsubscribe route depends on a Vercel rewrite that has not been
+      exercised.** `vercel.json` now maps `/abmelden`, `/bestaetigen` and
+      `/absender-bestaetigen` to the three functions. Confirm all three resolve
+      in production before any mail carries those links, because the token
+      module correctly refuses any host that is not `2fronts.de`, a broken
+      rewrite on the first means a dead opt-out, and a broken rewrite on the
+      third means no coach can verify and every queued mail cancels.
+- [ ] **A bounce-cancelled row can be revived by an undo click.** The undo
+      migration re-queues rows guarded on `cancel_reason = 'unsubscribed'`, and
+      the bounce path cancels through the same RPC, which hardcodes that reason.
+      The dispatcher re-checks suppression before transmitting, so it should be
+      caught there. Verify that, or give the bounce path its own cancel reason.
+
+## Follow-up: undo can revive a bounce-cancelled row (2026-08-08)
+
+- [ ] **Give the provider path its own `cancel_reason`.** `concierge_followup_unsubscribe()`
+      hardcodes `cancel_reason = 'unsubscribed'`, and BOTH the visitor
+      unsubscribe and the bounce webhook call it. The undo function's DELETE is
+      source-guarded (it refuses to remove a `provider_bounce` suppression) but
+      its re-queue is a separate statement guarded only on that hardcoded
+      reason, so an undo click can re-queue a row a hard bounce cancelled.
+      The dispatcher's pre-send suppression re-check catches it — the bounce's
+      suppression rows survive the undo, so the row is re-cancelled on the next
+      tick and nothing is transmitted. That backstop is now fail-closed (a
+      failed read defers instead of sending). But the queue still churns rows it
+      should never have revived, and the fix is one predicate: add a
+      `p_cancel_reason` parameter so the undo's re-queue cannot match rows it
+      did not cancel.
+- [ ] **One arrangement where both layers are gone.** `concierge_followup_unsubscribe`
+      inserts ON CONFLICT DO NOTHING, so if a `visitor_unsubscribe` suppression
+      already existed when a bounce landed, the per-sender row still reads
+      `visitor_unsubscribe` and the undo may delete it. If that bounce was
+      TRANSIENT no global sentinel was written either. Not the dead-mailbox
+      case (transient means the mailbox exists), but worth closing with the
+      cancel-reason fix above.
+
+## Follow-up: the grant is built but not wired (2026-08-08)
+
+- [ ] **`resolveFollowUpGrant` is not called from `concierge-chat/index.ts`.**
+      The branded grant type, the three prompt states and the
+      `followup_promised_at` column all exist and are tested, but nothing
+      constructs a grant in production and nothing reads the new column. The
+      bot's behaviour is therefore unchanged, which is the correct state while
+      `FOLLOW_UP_SENDER_SHIPPED = false`.
+      **Flipping that flag alone will NOT make the bot speak.** The handler
+      wiring is a separate piece of work: load the consent state and
+      `followup_promised_at` per turn, do the suppressed / already-mailed
+      lookups, and write `followup_promised_at` the first time the bot promises.
+      Do it only after a real follow-up mail has been sent and received.
