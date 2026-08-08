@@ -4,7 +4,86 @@ Reorganized 2026-07-12 by `/ship` into the gstack canonical format (component
 groupings, P0-P4 priority, dedicated Completed section). Content preserved
 verbatim from the original captures — only structure changed.
 
-## Missed-Call Recovery (Twilio)
+## Missed-Call Recovery (Twilio) — RETIRED 2026-08-07
+
+> The product was withdrawn on 2026-08-07 (German prospects do not use SMS). The
+> connector, both webhooks and the number-purchasing helper were deleted; the
+> automation is delisted and its rows marked cancelled. Tables and columns were
+> kept. The items below are what the retirement left open.
+
+### Release the purchased Twilio numbers and close the account
+
+**What:** Any phone number bought through the old missed-call flow is still owned and billed at Twilio, and now points at webhook URLs that 404. There is no deprovision path left in code — `twilioProvision.ts` was deleted with the product.
+
+**Why:** Recurring cost for a dead product, and a live number answering nothing is worse than no number.
+
+**Context:** `automation_provisions.twilio_phone_number` / `twilio_phone_number_sid` still hold the SIDs needed to release them. Migration `20260807160000` marks the rows cancelled but cannot touch Twilio itself.
+
+**Effort:** S (manual, Twilio console)
+**Priority:** P2
+**Depends on:** Nothing.
+
+### Retention decision for `automation_provision_opt_outs`
+
+**What:** Decide whether to keep or delete the rows.
+
+**Why:** It stores bare phone numbers of third parties who replied STOP. Their stated purpose — suppressing SMS that can no longer be sent — no longer exists, which under DSGVO Art. 5(1)(e) is personal data retained past its purpose.
+
+**Context:** Flagged by the data-migration review during `/ship` on 2026-08-07. Kept for now as history rather than deleted silently; this is a decision, not an oversight.
+
+**Correction (2026-08-08):** an earlier version of this entry claimed the table was fully orphaned because its only writer was deleted from the repo. That was **wrong** and the third adversarial review caught it. `supabase functions deploy` does not prune, so the deployed `twilio-sms-webhook` keeps running its last-deployed bundle: it looks a provision up by `twilio_phone_number` with no status filter and inserts the caller's number into this table. As long as the numbers are owned and still routed to it, it is **actively writing new personal data**. Deleting the function (see the deploy note in the item above) is therefore a prerequisite for this decision, not merely related to it.
+
+**Effort:** S
+**Priority:** P2
+**Depends on:** `supabase functions delete twilio-sms-webhook` must land first, otherwise the table refills.
+
+### Provisions can get stuck in `provisioning` with no recovery path
+
+**What:** If an edge function times out or crashes between `runConnectorProvision`'s claim and its outcome write, the row stays `provisioning` forever. `retry-provision` only accepts rows whose status is `failed` (returns 404 otherwise), and the claim is guarded on `fromStatus`, so neither a redelivered webhook nor an admin Retry can pick it back up. Recovery needs a manual UPDATE.
+
+**Why:** A paid customer sits with an unfulfilled automation and no self-service or admin route to fix it.
+
+**Context:** Pre-existing shape (the deleted `attemptProvision` had the same two-statement gap), surfaced by the data-migration review on 2026-08-07 when the logic was generalised to every connector. Fix is either letting retry accept stale `provisioning` rows, or a reaper that returns them to `failed`.
+
+**Effort:** M
+**Priority:** P2
+**Depends on:** Nothing.
+
+### Orphaned phone / call-forwarding UI and its strings
+
+**What:** `MyRequestsPage.tsx` (lines ~89, 112, 117-125) and `AdminRequestsPage.tsx` (~107-108) still render the Twilio phone number and the call-forwarding instructions, gated on `provision.twilio_phone_number`. Nothing writes that column any more. Their i18n strings go with them: `myRequests.forwardingSummary`, `forwardingStep1-4`, `myRequests.active`. Separately, `myRequests.settingUp` / `failedPrefix` interpolate `provision.business_name`, which no write path sets, so the slot renders empty.
+
+**Why:** Dead UI that advertises a number whose webhooks now 404, plus a visibly empty placeholder in a customer-facing sentence.
+
+**Context:** Found by the maintainability review during `/review` on 2026-08-07. Left out of that PR to keep the diff focused on the payment path.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** Nothing.
+
+### Rename `AttemptProvisionResult` and break the connectors/provisioning cycle
+
+**What:** The type is named after `attemptProvision`, deleted on 2026-08-07. It also creates a module cycle: `connectors.ts` imports the type from `provisioning.ts` while `provisioning.ts` imports `Connector`/`ConnectorDeps`/`ProvisionRow` back. Moving it into `connectors.ts` next to the `Connector` interface (as `ProvisionResult`) removes both problems.
+
+**Why:** The name points at code that no longer exists, and the cycle makes the module graph harder to reason about than it needs to be.
+
+**Context:** Maintainability review, 2026-08-07.
+
+**Effort:** S
+**Priority:** P4
+**Depends on:** Nothing.
+
+### `RETIRED_CONNECTOR_TYPES` is mirrored with nothing enforcing it
+
+**What:** The list exists twice, in `supabase/functions/_shared/connectors.ts` and `src/services/RequestService.ts`. The duplication is defensible (Deno edge functions and the Vite bundle share no module graph), but nothing keeps them in sync. Retiring a second connector will update one copy and the failure is silent: the client stops warning and the user gets a raw server error instead. The thrown message is also raw English reaching a German customer.
+
+**Why:** Silent drift on a guard whose whole job is to fail loudly.
+
+**Context:** Maintainability review, 2026-08-07.
+
+**Effort:** S
+**Priority:** P3
+**Depends on:** Nothing.
 
 ### Active failure alerting (email/Slack) on provisioning failure
 

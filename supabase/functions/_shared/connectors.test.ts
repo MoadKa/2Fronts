@@ -3,53 +3,23 @@ import {
   bookingConciergeConnector,
   getConnector,
   googleSheetsConnector,
-  twilioMissedCallConnector,
   type Connector,
 } from './connectors.ts'
 import type { SheetsFetcher } from './sheetsClient.ts'
 
-// A minimal admin client that records update() patches, mirroring the shape
-// attemptProvision drives (update -> eq -> select -> maybeSingle).
-function fakeAdminClient(claimSucceeds: boolean, provisionRow: { id: string; business_name: string }) {
-  const updates: { patch: unknown; matchedStatus?: string }[] = []
-  const client = {
-    updates,
-    from() {
-      return {
-        update(patch: unknown) {
-          const record: { patch: unknown; matchedStatus?: string } = { patch }
-          updates.push(record)
-          const builder = {
-            eq(col: string, val: unknown) {
-              if (col === 'status') record.matchedStatus = val as string
-              return builder
-            },
-            select() {
-              return {
-                maybeSingle: () =>
-                  Promise.resolve({
-                    data: claimSucceeds ? { ...provisionRow, ...(patch as object) } : null,
-                    error: null,
-                  }),
-              }
-            },
-          }
-          return builder
-        },
-      }
-    },
-  }
-  return client
-}
-
-Deno.test('getConnector resolves the twilio connector by type', () => {
-  assertEquals(getConnector('twilio_missed_call'), twilioMissedCallConnector)
+Deno.test('getConnector refuses a retired connector type with a named error', () => {
+  // twilio_missed_call was retired with the SMS product (2026-08-07). Its rows
+  // were kept, so this path stays reachable and must explain itself rather than
+  // look like a missing registry entry.
+  assertThrows(() => getConnector('twilio_missed_call'), Error, 'is retired')
 })
 
-Deno.test('getConnector defaults a null/undefined type to the missed-call connector', () => {
-  // Legacy rows written before connector_type existed arrive as null.
-  assertEquals(getConnector(null), twilioMissedCallConnector)
-  assertEquals(getConnector(undefined), twilioMissedCallConnector)
+Deno.test('getConnector refuses a null/undefined type instead of defaulting', () => {
+  // Legacy rows written before connector_type existed arrive as null. That used
+  // to be an implicit alias for the missed-call connector; with it gone, an
+  // untyped row is unfulfillable and must say so.
+  assertThrows(() => getConnector(null), Error, 'no connector_type')
+  assertThrows(() => getConnector(undefined), Error, 'no connector_type')
 })
 
 Deno.test('getConnector throws on an unregistered type rather than silently no-op', () => {
@@ -61,43 +31,10 @@ Deno.test('getConnector consults an injected registry', () => {
   assertEquals(getConnector('fake', { fake }), fake)
 })
 
-Deno.test('twilio connector provisions through attemptProvision and persists the number', async () => {
-  const client = fakeAdminClient(true, { id: 'prov-1', business_name: 'Acme Plumbing' })
-  let purchasedFor = ''
-
-  const result = await twilioMissedCallConnector.provision({
-    adminClient: client as never,
-    row: { id: 'prov-1', connector_type: 'twilio_missed_call', business_name: 'Acme Plumbing' },
-    fromStatus: 'pending',
-    deps: {
-      provisionAutomation: {
-        purchaseNumber: (businessName: string) => {
-          purchasedFor = businessName
-          return Promise.resolve({ phoneNumber: '+31612345678', sid: 'PN123' })
-        },
-      },
-    },
-  })
-
-  assertEquals(result, 'active')
-  assertEquals(purchasedFor, 'Acme Plumbing')
-  assertEquals(client.updates[0].matchedStatus, 'pending')
-  assertEquals((client.updates[1].patch as { status: string }).status, 'active')
-})
-
-Deno.test('twilio connector fails loudly when its provisionAutomation dep is missing', async () => {
-  await assertRejects(
-    () =>
-      twilioMissedCallConnector.provision({
-        adminClient: fakeAdminClient(true, { id: 'prov-1', business_name: 'Acme' }) as never,
-        row: { id: 'prov-1', connector_type: 'twilio_missed_call', business_name: 'Acme' },
-        fromStatus: 'pending',
-        deps: {},
-      }),
-    Error,
-    'requires the provisionAutomation dependency',
-  )
-})
+// The two twilio-connector tests that stood here (number purchased through
+// attemptProvision, and a loud failure when its dep was missing) were removed
+// with the SMS product on 2026-08-07. Their subject no longer exists; the
+// retired-type behaviour that replaced it is asserted at the top of this file.
 
 // --- google_sheets connector -------------------------------------------------
 

@@ -4,6 +4,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
 import { resolveAppBaseUrl } from '../_shared/appUrl.ts'
 import { provisionIfNeeded } from '../_shared/provisionFulfillment.ts'
+import { RETIRED_CONNECTOR_TYPES } from '../_shared/connectors.ts'
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 
@@ -81,17 +82,67 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
   // named, reused Stripe Customer.
   const { data: requestRow, error: requestError } = await userClient
     .from('automation_requests')
-    .select('id, status, customer_id, stripe_checkout_session_id, automations(name, price_cents, currency, pricing_model, recurring_interval, connector_type), profiles(email, stripe_customer_id)')
+    .select('id, status, customer_id, automation_id, stripe_checkout_session_id, profiles(email, stripe_customer_id)')
     .eq('id', requestId)
     .single()
 
   if (requestError || !requestRow) return json({ error: 'Request not found' }, 404)
 
+  const adminClient = deps.createAdminClient()
+
   // A request that already completed must never reach Stripe again: a second
   // session would double-charge a one-time SKU or mint a second subscription
   // for the same purchase.
-  if ((requestRow as { status?: string }).status === 'paid') {
-    return json({ error: 'Request already completed' }, 409)
+  // Only a pre-payment request may reach Stripe. 'paid' would double-charge a
+  // one-time SKU or mint a second subscription; 'cancelled' (delisting cancels
+  // in-flight requests) would revive a dead request into 'payment_pending';
+  // 'in_progress'/'delivered' are post-payment and must never be re-sold.
+  // The free path below carries the same guard, which is what "both paths
+  // fulfill identically" is supposed to mean.
+  const currentStatus = (requestRow as { status?: string }).status
+  if (currentStatus && !['requested', 'payment_pending'].includes(currentStatus)) {
+    return json({ error: 'Request is no longer payable' }, 409)
+  }
+
+  // Re-read the automation through the ADMIN client.
+  //
+  // The embed above came through userClient, and RLS on automations is
+  // `using (is_active = true or is_admin())` (20260618000000_initial_schema:51).
+  // The moment an automation is delisted, that embed comes back NULL for a
+  // normal customer — so a guard reading `requestRow.automations` never fires,
+  // and the code below would then dereference null on `automation.price_cents`
+  // and throw a TypeError with no CORS headers (the browser sees a network
+  // error, not a 409). This applies to ANY automation the founder deactivates
+  // while a request is open, not just the retired Twilio one.
+  const { data: purchasedRow } = await adminClient
+    .from('automations')
+    .select('name, price_cents, currency, pricing_model, recurring_interval, connector_type, is_active')
+    .eq('id', (requestRow as { automation_id?: string }).automation_id ?? '')
+    .maybeSingle()
+
+  const purchased = purchasedRow as
+    | {
+        name?: string
+        price_cents?: number
+        currency?: string
+        pricing_model?: string
+        recurring_interval?: string | null
+        connector_type?: string | null
+        is_active?: boolean
+      }
+    | null
+
+  if (!purchased) return json({ error: 'Automation not found' }, 404)
+
+  // A retired or delisted automation can never provision, so charging for one
+  // would take real money for a product that cannot be delivered. Requests
+  // created BEFORE the delisting are still sitting in the funnel and would
+  // otherwise sail through here.
+  if (
+    purchased.is_active === false ||
+    (purchased.connector_type && RETIRED_CONNECTOR_TYPES.includes(purchased.connector_type))
+  ) {
+    return json({ error: 'This automation is no longer available' }, 409)
   }
 
   // Replay while a session is still open: a coach who abandons checkout and
@@ -118,7 +169,9 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
     }
   }
 
-  const automation = requestRow.automations as unknown as {
+  // Read through the admin client above, so a delisted automation still resolves
+  // instead of coming back null under RLS.
+  const automation = purchased as {
     name: string
     price_cents: number
     currency: string
@@ -134,18 +187,49 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
     | null
   const customerEmail = profileRow?.email
   const customerId = (requestRow as { customer_id?: string }).customer_id
-  const adminClient = deps.createAdminClient()
 
   // Free automations (price 0) skip Stripe entirely: Stripe rejects zero-amount
   // charges, and a free tier / test offering must not require a card. Fulfill the
   // request server-side exactly as the stripe-webhook does on a paid session,
   // then send the customer to the same success page.
   if (automation.price_cents === 0) {
-    await adminClient
+    // Guarded exactly like the stripe-webhook's promotion: a CANCELLED request
+    // (delisting cancels in-flight ones) must not be re-POSTed into a completed
+    // free purchase. The module comment says both paths fulfill identically, and
+    // for a while only the webhook actually had this guard.
+    const { data: promoted } = await adminClient
       .from('automation_requests')
       .update({ status: 'paid', paid_at: new Date().toISOString() })
       .eq('id', requestId)
-    await deps.fulfill(adminClient, requestId)
+      .not('status', 'eq', 'cancelled')
+      .select()
+
+    if (((promoted as unknown[] | null) ?? []).length === 0) {
+      return json({ error: 'This request is no longer active' }, 409)
+    }
+
+    // provisionIfNeeded now THROWS on a transient DB failure so the Stripe
+    // webhook returns non-2xx and Stripe redelivers. This path has no Stripe to
+    // retry it, and an unhandled rejection here is a 500 with no CORS headers
+    // (the browser sees a network error). Worse, the request is already 'paid',
+    // so it can never be recovered: this function 409s on 'paid' and
+    // retry-provision only accepts 'failed'.
+    //
+    // So: catch, park the provision at 'failed' where the admin Retry can reach
+    // it, and still send the customer to the success page. They did buy it.
+    try {
+      await deps.fulfill(adminClient, requestId)
+    } catch (err) {
+      console.error(
+        `create-checkout-session: fulfillment failed for free request ${requestId}:`,
+        err instanceof Error ? err.message : err,
+      )
+      await adminClient
+        .from('automation_provisions')
+        .update({ status: 'failed' })
+        .eq('request_id', requestId)
+        .eq('status', 'pending')
+    }
     return json({ url: `${appBaseUrl}/checkout/result?status=success` })
   }
 
@@ -274,9 +358,12 @@ export async function handleCreateCheckout(req: Request, deps: CheckoutDeps = de
           .from('automation_provisions')
           .insert({
             request_id: requestId,
-            // Derive from the purchased automation (as the client does); fall
-            // back to the DB default when an older row predates the column.
-            ...(automation.connector_type ? { connector_type: automation.connector_type } : {}),
+            // Derive from the purchased automation (as the client does). Set
+            // unconditionally: the column's DB default was dropped on
+            // 2026-08-07, so omitting it is a NOT NULL violation rather than a
+            // silent fallback. automations.connector_type is itself NOT NULL,
+            // so this always has a value.
+            connector_type: automation.connector_type,
             status: 'pending',
           })
         if (provisionInsertError) throw provisionInsertError

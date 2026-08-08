@@ -16,12 +16,15 @@ export interface NewAutomationInput {
   // Defaults to one_time at the DB level when omitted.
   pricing_model?: 'one_time' | 'subscription'
   recurring_interval?: 'day' | 'week' | 'month' | 'year' | null
-  // Which connector fulfils this automation. Without it the DB default
-  // ('twilio_missed_call') applies, so a Google Sheets / Slack automation could
-  // never be created from the Admin UI. Admin sets it explicitly.
+  // Which connector fulfils this automation. Mandatory: the column's DB default
+  // was 'twilio_missed_call' until that product was retired on 2026-08-07, and
+  // migration 20260807160000 dropped it, so omitting this is now a NOT NULL
+  // violation rather than a silent (and wrong) default.
   connector_type: string
-  // Twilio missed-call needs a booking link at request time; other connectors
-  // do not. Drives the booking-link field on the customer detail page.
+  // Whether purchase creates an automation_provisions row that fulfillment then
+  // has to act on. No connector collects settings on the customer detail page
+  // any more; the booking-link field that used to depend on this belonged to the
+  // retired Twilio connector.
   requires_provisioning?: boolean
   // Admin can create an automation inactive (hidden from the catalog) and flip
   // it live later — e.g. Slack stays inactive until its OAuth secrets are set.

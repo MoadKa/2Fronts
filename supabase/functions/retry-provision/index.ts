@@ -1,13 +1,14 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
-import { purchaseNumber } from '../_shared/twilioProvision.ts'
-import { attemptProvision, type ProvisionAutomation } from '../_shared/provisioning.ts'
+import { getConnector, type ConnectorDeps, type ProvisionRow } from '../_shared/connectors.ts'
+import { runConnectorProvision } from '../_shared/provisioning.ts'
 import { corsHeaders } from '../_shared/cors.ts'
-
-export type { ProvisionAutomation }
 
 interface RetryDeps {
   createUserClient: (authHeader: string) => SupabaseClient
-  provisionAutomation: ProvisionAutomation
+  // Forwarded to the connector that owns this provision. Was the Twilio number
+  // purchaser until the SMS product was removed (2026-08-07); the retry is now
+  // generic and works for whichever connector the row carries.
+  connectorDeps?: ConnectorDeps
 }
 
 function defaultCreateUserClient(authHeader: string): SupabaseClient {
@@ -18,7 +19,7 @@ function defaultCreateUserClient(authHeader: string): SupabaseClient {
 
 const defaultDeps: RetryDeps = {
   createUserClient: defaultCreateUserClient,
-  provisionAutomation: { purchaseNumber },
+  connectorDeps: {},
 }
 
 // Authorization: the caller's JWT is forwarded into a user-scoped Supabase
@@ -44,11 +45,30 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
 
   const { data: provisionRow } = await userClient
     .from('automation_provisions')
-    .select('id, business_name, status')
+    .select('id, connector_type, config, status')
     .eq('request_id', requestId)
     .single()
 
-  const row = provisionRow as { id: string; business_name: string; status: string } | null
+  // Resolve the connector from the AUTOMATION, exactly as provisionIfNeeded
+  // does. automation_provisions.connector_type carried a DB default of
+  // 'twilio_missed_call' until 20260807160000 dropped it, and both self-heal
+  // inserts relied on that default — so mislabeled rows are a live population,
+  // not a hypothesis. Dispatching on the provision column here would make the
+  // ONE human recovery path the single place that still trusts it: a
+  // booking-concierge provision self-healed before that migration would answer
+  // 409 "retired" forever, while a redelivered Stripe webhook fulfills it fine.
+  const { data: requestRow } = await userClient
+    .from('automation_requests')
+    .select('automations(connector_type)')
+    .eq('id', requestId)
+    .single()
+
+  const embedded = (requestRow as { automations?: unknown } | null)?.automations
+  const automation = (Array.isArray(embedded) ? embedded[0] : embedded) as
+    | { connector_type?: string | null }
+    | null
+
+  const row = provisionRow as (ProvisionRow & { status: string }) | null
   if (!row || row.status !== 'failed') {
     return new Response(JSON.stringify({ error: 'No failed provision found for this request' }), {
       status: 404,
@@ -56,7 +76,28 @@ export async function handleRetryProvision(req: Request, deps: RetryDeps = defau
     })
   }
 
-  const result = await attemptProvision(userClient, row, 'failed', deps.provisionAutomation)
+  // A row whose connector is retired (or which predates connector_type) cannot
+  // be retried. Answer 409 rather than letting getConnector's throw surface as
+  // an opaque 500 -- the admin clicking Retry should learn it is unretryable.
+  const connectorType = automation?.connector_type ?? row.connector_type
+
+  let connector
+  try {
+    connector = getConnector(connectorType)
+  } catch (error) {
+    return new Response(JSON.stringify({ error: (error as Error).message }), {
+      status: 409,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  }
+
+  const result = await runConnectorProvision(
+    userClient,
+    connector,
+    { ...row, connector_type: connectorType },
+    'failed',
+    deps.connectorDeps ?? {},
+  )
 
   return new Response(JSON.stringify({ status: result }), {
     status: 200,

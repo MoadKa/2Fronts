@@ -1,12 +1,9 @@
 import Stripe from 'npm:stripe@16'
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { createAdminClient } from '../_shared/supabaseAdmin.ts'
-import { purchaseNumber } from '../_shared/twilioProvision.ts'
-import { type ProvisionAutomation } from '../_shared/provisioning.ts'
+import { type ConnectorDeps } from '../_shared/connectors.ts'
 import { provisionIfNeeded } from '../_shared/provisionFulfillment.ts'
 import { alert, type AlertEvent } from '../_shared/alerting.ts'
-
-export type { ProvisionAutomation }
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY')!, { apiVersion: '2024-06-20' })
 const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!
@@ -14,7 +11,9 @@ const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!
 interface WebhookDeps {
   stripe: Pick<Stripe, 'webhooks'>
   createAdminClient: () => SupabaseClient
-  provisionAutomation: ProvisionAutomation
+  // Forwarded verbatim to whichever connector fulfills the provision. Empty by
+  // default; each connector reads only the deps it needs.
+  connectorDeps?: ConnectorDeps
   // Ops alerting (ALERT_WEBHOOK_URL). Injectable so payment_failed tests assert
   // the alert without a network call. Never throws (see _shared/alerting.ts).
   alert: (event: AlertEvent) => Promise<boolean>
@@ -23,7 +22,7 @@ interface WebhookDeps {
 const defaultDeps: WebhookDeps = {
   stripe,
   createAdminClient,
-  provisionAutomation: { purchaseNumber },
+  connectorDeps: {},
   alert: (event) => alert(event),
 }
 
@@ -43,11 +42,95 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
     const requestId = session.metadata?.request_id
     if (requestId) {
       const adminClient = deps.createAdminClient()
-      await adminClient
+      // Guarded so a CANCELLED request cannot be promoted back to 'paid'.
+      // Delisting an automation (see 20260807160000) cancels its in-flight
+      // requests, but Checkout Sessions already open at Stripe stay live: a
+      // customer who completes one afterwards is really charged. Without this
+      // guard the cancelled request silently flips to 'paid' and fulfillment
+      // then fails, taking money for something that cannot be delivered.
+      // Promote ONLY from a pre-payment status. Guarding with
+      // .not('status','eq','cancelled') instead would re-stamp paid_at on every
+      // re-delivery and silently revert a request an admin had already advanced
+      // to 'in_progress' or 'delivered' back to 'paid'.
+      const { data: promoted, error: promoteError } = await adminClient
         .from('automation_requests')
         .update({ status: 'paid', paid_at: new Date().toISOString() })
         .eq('id', requestId)
         .eq('stripe_checkout_session_id', session.id)
+        .in('status', ['requested', 'payment_pending'])
+        .select()
+
+      // A transient DB failure must NOT be read as "zero rows". Swallowing it
+      // here reports a real payment to ops as "this request does not exist" and
+      // answers Stripe 200, so the event is never redelivered and the purchase
+      // is permanently lost. Throwing gives Stripe its retry.
+      if (promoteError) throw promoteError
+
+      if (((promoted as unknown[] | null) ?? []).length === 0) {
+        // Zero affected rows has four distinct causes needing different human
+        // responses, so name the actual one instead of asserting the rarest.
+        const { data: actual, error: reReadError } = await adminClient
+          .from('automation_requests')
+          .select('status, stripe_checkout_session_id')
+          .eq('id', requestId)
+          .maybeSingle()
+
+        if (reReadError) throw reReadError
+
+        const current = actual as
+          | { status?: string; stripe_checkout_session_id?: string | null }
+          | null
+
+        if (!current) {
+          await deps.alert({
+            type: 'payment_for_unknown_request',
+            message: `checkout.session.completed names request ${requestId}, which does not exist. Session ${session.id} may have been charged against a deleted request, or this is a test-mode event hitting production.`,
+            fields: { requestId, sessionId: session.id },
+          })
+        } else if (current.status === 'cancelled') {
+          await deps.alert({
+            type: 'payment_on_cancelled_request',
+            message: `Request ${requestId} is CANCELLED but Stripe session ${session.id} completed. The customer was charged for something that cannot be delivered — refund required.`,
+            fields: { requestId, sessionId: session.id },
+          })
+        } else if (current.stripe_checkout_session_id !== session.id) {
+          // create-checkout-session best-effort-expires the previous session and
+          // swallows failure, so two sessions can be live at once. Paying the old
+          // one lands here. This is a legitimate purchase, NOT a refund case.
+          // Two very different situations share this branch, and they need
+          // opposite responses. Pre-payment: one legitimate charge on a
+          // superseded session, reconcile the id. Post-payment: the request was
+          // ALREADY paid on a different session, so the customer completed two
+          // sessions for one purchase — a real double charge that does need a
+          // refund. Hardcoding "do NOT refund" sent ops the wrong way.
+          const settled = ['paid', 'in_progress', 'delivered'].includes(current.status ?? '')
+          await deps.alert({
+            type: settled ? 'double_charge_suspected' : 'payment_on_stale_session',
+            message: settled
+              ? `Request ${requestId} is already '${current.status}' on session ${current.stripe_checkout_session_id}, but session ${session.id} ALSO completed. The customer was very likely charged twice for one purchase — verify both payment intents in Stripe and refund the duplicate.`
+              : `Request ${requestId} completed on session ${session.id}, but the request holds ${current.stripe_checkout_session_id}. A legitimate payment on a superseded session: the request is stuck at '${current.status}' with paid_at null. Do NOT refund; reconcile the session id.`,
+            fields: { requestId, sessionId: session.id, storedSessionId: current.stripe_checkout_session_id ?? null, currentStatus: current.status ?? null },
+          })
+        }
+        // Nothing below may run for a request that is NOT already past payment.
+        // The subscription store, the self-heal INSERT and provisionIfNeeded
+        // would otherwise deliver the product anyway: concierge live, request
+        // still reading 'cancelled', paid_at null.
+        //
+        // The one case that falls through is an ordinary Stripe re-delivery: the
+        // request is already 'paid' (or an admin has moved it to 'in_progress' /
+        // 'delivered') on THIS session id. That must keep running, because the
+        // subscription store and the self-heal are exactly what a retry after a
+        // 500 needs to complete. Silent by design.
+        const alreadySettled =
+          current !== null &&
+          current.stripe_checkout_session_id === session.id &&
+          ['paid', 'in_progress', 'delivered'].includes(current.status ?? '')
+
+        if (!alreadySettled) {
+          return new Response(JSON.stringify({ received: true }), { status: 200 })
+        }
+      }
 
       // Subscription sessions carry the new subscription + customer. Store them
       // on the provision so customer.subscription.deleted can later find this
@@ -97,8 +180,14 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
             let selfHealed = false
             try {
               // Derive connector_type from the purchased automation, as
-              // create-checkout-session's self-heal does; when absent the
-              // column's DB default applies.
+              // create-checkout-session's self-heal does.
+              //
+              // The column's DB default was dropped on 2026-08-07 (it was the
+              // now-retired 'twilio_missed_call'), so if this lookup comes back
+              // empty the insert below omits a NOT NULL column and throws. That
+              // is intentional: the throw is caught, ops gets a provision_missing
+              // alert, and Stripe still gets its 200. A silently defaulted row
+              // would have been born unfulfillable instead.
               const { data: requestRow } = await adminClient
                 .from('automation_requests')
                 .select('automations(connector_type)')
@@ -138,7 +227,7 @@ export async function handleStripeWebhook(req: Request, deps: WebhookDeps = defa
 
       // Idempotent: provisionIfNeeded claims its transition with a status guard,
       // so a re-delivered completed event does not double-activate.
-      await provisionIfNeeded(adminClient, requestId, deps.provisionAutomation)
+      await provisionIfNeeded(adminClient, requestId, deps.connectorDeps ?? {})
     }
   }
 

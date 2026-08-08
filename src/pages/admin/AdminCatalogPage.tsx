@@ -12,9 +12,11 @@ import type { Automation } from '../../types/database'
 // The connectors an automation can be fulfilled by. Keep in sync with the
 // connector_registry table; the value is written to automations.connector_type
 // and copied onto each provision at purchase.
+// twilio_missed_call was removed on 2026-08-07 with the SMS product. Leaving it
+// here would let an admin create a NEW automation that is unsellable on arrival:
+// create-checkout-session 409s on it and createProvisionDetails throws.
 const CONNECTOR_OPTIONS = [
   { value: 'google_sheets', label: 'Google Sheets' },
-  { value: 'twilio_missed_call', label: 'Twilio Missed-Call SMS' },
   { value: 'slack_notifications', label: 'Slack' },
 ]
 

@@ -8,10 +8,18 @@ interface FakeAutomation {
   pricing_model?: string
   recurring_interval?: string
   connector_type?: string
+  // Defaults to true in the admin fake; a test sets false to delist.
+  is_active?: boolean
 }
 
+const CONCIERGE: FakeAutomation = { name: 'Concierge', price_cents: 20000, currency: 'eur', pricing_model: 'subscription', recurring_interval: 'month', connector_type: 'booking_concierge' }
+const FREE: FakeAutomation = { name: 'Test', price_cents: 0, currency: 'eur' }
+const PAID_ONE_TIME: FakeAutomation = { name: 'Paid', price_cents: 49900, currency: 'eur' }
+
+// The request row as the USER client returns it. The automation is no longer
+// embedded here: RLS on automations hides a delisted one from a customer, so
+// production re-reads it through the admin client (see fakeAdminClient).
 function fakeUserClient(
-  automation: FakeAutomation,
   email = 'coach@example.com',
   stripeCustomerId: string | null = null,
   status = 'requested',
@@ -30,8 +38,8 @@ function fakeUserClient(
                       id: 'req-1',
                       status,
                       customer_id: 'user-1',
+                      automation_id: 'auto-1',
                       stripe_checkout_session_id: checkoutSessionId,
-                      automations: automation,
                       profiles: { email, stripe_customer_id: stripeCustomerId },
                     },
                     error: null,
@@ -77,6 +85,14 @@ interface CapturedAdmin {
   persistError?: Error
   // When true, the provision self-heal existence check finds no row.
   provisionMissing?: boolean
+  // The automation the purchase resolves to, read through the ADMIN client
+  // (defaults to CONCIERGE; is_active defaults to true).
+  automation?: FakeAutomation
+  // When true, the automations lookup returns no row at all.
+  automationMissing?: boolean
+  // When true, the free-path promotion (guarded by .not('status','eq',
+  // 'cancelled')) matches zero rows.
+  requestCancelled?: boolean
 }
 
 function newAdmin(overrides: Partial<CapturedAdmin> = {}): CapturedAdmin {
@@ -102,12 +118,22 @@ function fakeAdminClient(captured: CapturedAdmin) {
               record.filters.push(['is', col, val])
               return chain
             },
-            // The race-guarded profiles persist ends in .select() and inspects
-            // the affected rows: zero rows = a concurrent checkout won.
-            select: () =>
-              captured.persistError
+            not(...args: unknown[]) {
+              record.filters.push(['not', ...args])
+              return chain
+            },
+            // Two guarded writes end in .select() and inspect the affected rows:
+            // the free-path promotion on automation_requests (zero rows = the
+            // request was cancelled) and the race-guarded profiles persist (zero
+            // rows = a concurrent checkout won).
+            select: () => {
+              if (table === 'automation_requests') {
+                return Promise.resolve({ data: captured.requestCancelled ? [] : [{ id: 'req-1' }], error: null })
+              }
+              return captured.persistError
                 ? Promise.resolve({ data: null, error: captured.persistError })
-                : Promise.resolve({ data: captured.persistRaceLost ? [] : [{ id: 'user-1' }], error: null }),
+                : Promise.resolve({ data: captured.persistRaceLost ? [] : [{ id: 'user-1' }], error: null })
+            },
           }
           return chain
         },
@@ -118,6 +144,24 @@ function fakeAdminClient(captured: CapturedAdmin) {
         select(columns?: string) {
           const record = { table, columns, filters: [] as FilterCall[] }
           captured.selects.push(record)
+          if (table === 'automations') {
+            // The purchased automation, re-read through the admin client so a
+            // delisted one still resolves (RLS would hide it from the customer).
+            const chain = {
+              eq(col: string, val: unknown) {
+                record.filters.push(['eq', col, val])
+                return chain
+              },
+              maybeSingle: () =>
+                Promise.resolve({
+                  data: captured.automationMissing
+                    ? null
+                    : { is_active: true, ...(captured.automation ?? CONCIERGE) },
+                  error: null,
+                }),
+            }
+            return chain
+          }
           if (table === 'profiles') {
             // Profile re-read after a lost persist race.
             const chain = {
@@ -169,13 +213,13 @@ function req(): Request {
 const getEnv = (k: string) => (k === 'PUBLIC_APP_URL' ? 'https://2fronts.de' : undefined)
 
 Deno.test('free (0-amount) automation skips Stripe, marks paid, and fulfills', async () => {
-  const admin = newAdmin()
+  const admin = newAdmin({ automation: FREE })
   let stripeCalled = false
   let fulfilledRequestId: string | null = null
 
   const res = await handleCreateCheckout(req(), {
     stripe: { checkout: { sessions: { create: () => { stripeCalled = true; return Promise.resolve({ url: 'should-not-happen' }) } } } } as never,
-    createUserClient: fakeUserClient({ name: 'Test', price_cents: 0, currency: 'eur' }) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: (_admin, requestId) => { fulfilledRequestId = requestId; return Promise.resolve() },
     getEnv,
@@ -189,13 +233,39 @@ Deno.test('free (0-amount) automation skips Stripe, marks paid, and fulfills', a
   assertEquals(fulfilledRequestId, 'req-1') // shared fulfillment ran
 })
 
+// Delisting an automation CANCELS its in-flight requests. Re-POSTing a
+// cancelled one used to sail through the free path and promote it to 'paid',
+// so a request the founder had killed came back as a completed purchase. The
+// promotion is now guarded exactly like the webhook's and must match nothing.
+//
+// The read-status guard above catches the plain re-POST first, so what this
+// test still pins is the race the promotion guard exists for: the request is
+// pre-payment when we read it and cancelled by the time we write.
+Deno.test('free path on a cancelled request: promotion matches zero rows -> 409, no fulfillment', async () => {
+  const admin = newAdmin({ automation: FREE, requestCancelled: true })
+  let fulfillCalled = false
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: { checkout: { sessions: { create: () => Promise.reject(new Error('Stripe must not be touched on the free path')) } } } as never,
+    createUserClient: fakeUserClient('coach@example.com', null, 'requested') as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => { fulfillCalled = true; return Promise.resolve() },
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 409)
+  assertEquals(body.error, 'This request is no longer active')
+  assertEquals(fulfillCalled, false) // a cancelled request is never provisioned
+})
+
 Deno.test('a request that is already paid returns 409 and never reaches Stripe', async () => {
-  const admin = newAdmin()
+  const admin = newAdmin({ automation: PAID_ONE_TIME })
   let stripeCalled = false
 
   const res = await handleCreateCheckout(req(), {
     stripe: { checkout: { sessions: { create: () => { stripeCalled = true; return Promise.resolve({ url: 'should-not-happen' }) } } } } as never,
-    createUserClient: fakeUserClient({ name: 'Paid', price_cents: 49900, currency: 'eur' }, 'coach@example.com', null, 'paid') as never,
+    createUserClient: fakeUserClient('coach@example.com', null, 'paid') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.reject(new Error('must not fulfill a completed request again')),
     getEnv,
@@ -203,13 +273,86 @@ Deno.test('a request that is already paid returns 409 and never reaches Stripe',
 
   const body = await res.json()
   assertEquals(res.status, 409)
-  assertEquals(body.error, 'Request already completed')
+  assertEquals(body.error, 'Request is no longer payable')
   assertEquals(stripeCalled, false) // no second charge / second subscription
   assertEquals(admin.updates.length, 0) // nothing mutated
 })
 
+// A delisted automation can no longer provision, so charging for it would take
+// real money for something we cannot deliver. Requests created BEFORE the
+// delisting are still sitting in the funnel; without this guard they reach
+// Stripe. RLS also hides a delisted row from the customer's own client, which
+// is why the check reads through the ADMIN client — a guard on the old
+// user-side embed would have seen null and never fired.
+Deno.test('delisted automation (is_active false) returns 409 and never reaches Stripe', async () => {
+  const admin = newAdmin({ automation: { ...CONCIERGE, is_active: false } })
+  let stripeCalled = false
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: { checkout: { sessions: { create: () => { stripeCalled = true; return Promise.resolve({ id: 'cs_x', url: 'should-not-happen' }) } } } } as never,
+    createUserClient: fakeUserClient() as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.reject(new Error('must not fulfill a delisted automation')),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 409)
+  assertEquals(body.error, 'This automation is no longer available')
+  assertEquals(stripeCalled, false) // no charge for an undeliverable product
+  assertEquals(admin.updates.length, 0) // nothing mutated
+})
+
+// The Twilio missed-call connector was retired with the SMS product: its
+// getConnector() throws, so a paid request could never provision. The row may
+// still be is_active in some environment, so availability is judged on the
+// connector type too, not on the flag alone.
+Deno.test('retired connector type (twilio_missed_call) returns 409 and never reaches Stripe', async () => {
+  const admin = newAdmin({
+    // Still flagged active — only the connector type marks it as dead.
+    automation: { name: 'Missed Call', price_cents: 9900, currency: 'eur', connector_type: 'twilio_missed_call' },
+  })
+  let stripeCalled = false
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: { checkout: { sessions: { create: () => { stripeCalled = true; return Promise.resolve({ id: 'cs_x', url: 'should-not-happen' }) } } } } as never,
+    createUserClient: fakeUserClient() as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.reject(new Error('must not fulfill a retired connector')),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 409)
+  assertEquals(body.error, 'This automation is no longer available')
+  assertEquals(stripeCalled, false) // a retired connector can never provision
+  assertEquals(admin.updates.length, 0)
+})
+
+// A request pointing at an automation row that no longer exists (hard-deleted,
+// or a bad automation_id) must answer with a JSON 404. Before the null check
+// the code dereferenced automation.price_cents and threw a TypeError with no
+// CORS headers — the browser saw a network error instead of a message.
+Deno.test('missing automation row returns a JSON 404, not a crash', async () => {
+  const admin = newAdmin({ automationMissing: true })
+  let stripeCalled = false
+
+  const res = await handleCreateCheckout(req(), {
+    stripe: { checkout: { sessions: { create: () => { stripeCalled = true; return Promise.resolve({ id: 'cs_x', url: 'should-not-happen' }) } } } } as never,
+    createUserClient: fakeUserClient() as never,
+    createAdminClient: fakeAdminClient(admin) as never,
+    fulfill: () => Promise.reject(new Error('must not fulfill an unknown automation')),
+    getEnv,
+  })
+
+  const body = await res.json()
+  assertEquals(res.status, 404)
+  assertEquals(body.error, 'Automation not found')
+  assertEquals(stripeCalled, false)
+})
+
 Deno.test('paid one-time automation creates a payment-mode Stripe session and marks payment_pending', async () => {
-  const admin = newAdmin()
+  const admin = newAdmin({ automation: PAID_ONE_TIME })
   let createdMode: string | undefined
   let createdParams: Record<string, unknown> | undefined
 
@@ -218,7 +361,7 @@ Deno.test('paid one-time automation creates a payment-mode Stripe session and ma
       checkout: { sessions: { create: (params: Record<string, unknown>) => { createdMode = params.mode as string; createdParams = params; return Promise.resolve({ id: 'cs_1', url: 'https://stripe/pay' }) } } },
       customers: { create: () => { throw new Error('customers.create must NOT be called for a one-time automation') } },
     } as never,
-    createUserClient: fakeUserClient({ name: 'Paid', price_cents: 49900, currency: 'eur' }) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -236,7 +379,7 @@ Deno.test('paid one-time automation creates a payment-mode Stripe session and ma
 })
 
 Deno.test('subscription automation creates a subscription-mode session with a recurring price and a Stripe Customer', async () => {
-  const admin = newAdmin()
+  const admin = newAdmin({ automation: { name: 'Concierge', price_cents: 7900, currency: 'eur', pricing_model: 'subscription', recurring_interval: 'month' } })
   let createdParams: Record<string, unknown> | undefined
   let customerEmail: string | undefined
 
@@ -246,7 +389,7 @@ Deno.test('subscription automation creates a subscription-mode session with a re
       customers: { create: (params: { email?: string }) => { customerEmail = params.email; return Promise.resolve({ id: 'cus_123' }) } },
       subscriptions: { list: () => Promise.resolve({ data: [] }) },
     } as never,
-    createUserClient: fakeUserClient({ name: 'Concierge', price_cents: 7900, currency: 'eur', pricing_model: 'subscription', recurring_interval: 'month' }, 'coach@example.com') as never,
+    createUserClient: fakeUserClient('coach@example.com') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -334,15 +477,13 @@ function subscriptionStripe(captured: SubscriptionStripeCaptured, opts: Subscrip
   } as never
 }
 
-const CONCIERGE: FakeAutomation = { name: 'Concierge', price_cents: 20000, currency: 'eur', pricing_model: 'subscription', recurring_interval: 'month', connector_type: 'booking_concierge' }
-
 Deno.test('first-time subscriber gets a 14-day trial on the subscription', async () => {
   const admin = newAdmin() // no prior provisions
   const stripe: SubscriptionStripeCaptured = {}
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -364,7 +505,7 @@ Deno.test('returning subscriber (prior provision with a subscription id) gets NO
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -384,7 +525,7 @@ Deno.test('trial-eligibility select filters on the caller and on a non-null subs
 
   await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -408,7 +549,7 @@ Deno.test('stored stripe_customer_id is reused: no new Stripe Customer, session 
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe, { forbidCustomerCreate: true }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stored') as never,
+    createUserClient: fakeUserClient('coach@example.com', 'cus_stored') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -426,7 +567,7 @@ Deno.test('no stored customer id: Stripe Customer is created and persisted to pr
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -447,7 +588,7 @@ Deno.test('lost persist race (zero rows updated): the concurrent winner\'s store
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -469,7 +610,7 @@ Deno.test('orphan Customer delete failure is ignored: winner still used, checkou
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe, { customerDelError: new Error('stripe down') }),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -488,7 +629,7 @@ Deno.test('persist error: checkout still succeeds with the freshly created Custo
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -506,7 +647,7 @@ Deno.test('re-used Customer with Stripe-side subscription history gets NO trial 
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe, { forbidCustomerCreate: true, subscriptionsList: [{ id: 'sub_old', status: 'canceled' }] }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stored') as never,
+    createUserClient: fakeUserClient('coach@example.com', 'cus_stored') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -524,7 +665,7 @@ Deno.test('Stripe subscription-history lookup failure keeps the DB verdict (tria
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe, { forbidCustomerCreate: true, subscriptionsListError: new Error('stripe down') }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stored') as never,
+    createUserClient: fakeUserClient('coach@example.com', 'cus_stored') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -545,7 +686,7 @@ Deno.test('stored customer id AND a prior provision: Customer reused and NO tria
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe, { forbidCustomerCreate: true }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stored') as never,
+    createUserClient: fakeUserClient('coach@example.com', 'cus_stored') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -563,7 +704,7 @@ Deno.test('missing provision row is self-healed with a minimal pending insert be
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -583,7 +724,7 @@ Deno.test('existing provision row is left alone (no duplicate insert)', async ()
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -602,7 +743,7 @@ Deno.test('stale stored Customer (resource_missing): cleared, fresh Customer min
       // Stripe rejects the stored Customer id on the first session create.
       failFirstSessionCreate: { code: 'resource_missing', param: 'customer' },
     }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stale') as never,
+    createUserClient: fakeUserClient('coach@example.com', 'cus_stale') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -629,7 +770,7 @@ Deno.test('replay with a live session: the old session is expired before the new
     stripe: subscriptionStripe(stripe),
     // A previous checkout already left this request payment_pending with a
     // stored (still payable) session.
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', null, 'payment_pending', 'cs_old') as never,
+    createUserClient: fakeUserClient('coach@example.com', null, 'payment_pending', 'cs_old') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -650,7 +791,7 @@ Deno.test('expiring the old session fails (already expired/completed): checkout 
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe, { expireError: new Error('session already expired') }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', null, 'payment_pending', 'cs_old') as never,
+    createUserClient: fakeUserClient('coach@example.com', null, 'payment_pending', 'cs_old') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -669,7 +810,7 @@ Deno.test('a first checkout (no stored session id) never calls sessions.expire',
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -687,7 +828,7 @@ Deno.test('stale-customer retry loses the persist race: the winner\'s id is used
     stripe: subscriptionStripe(stripe, {
       failFirstSessionCreate: { code: 'resource_missing', param: 'customer' },
     }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stale') as never,
+    createUserClient: fakeUserClient('coach@example.com', 'cus_stale') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -720,7 +861,7 @@ Deno.test('Stripe history of only incomplete/incomplete_expired subscriptions st
         { id: 'sub_ie', status: 'incomplete_expired' },
       ],
     }),
-    createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stored') as never,
+    createUserClient: fakeUserClient('coach@example.com', 'cus_stored') as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -740,7 +881,7 @@ Deno.test('non-resource_missing Stripe errors are NOT retried', async () => {
   try {
     await handleCreateCheckout(req(), {
       stripe: subscriptionStripe(stripe, { failFirstSessionCreate: { code: 'card_declined', param: 'source' } }),
-      createUserClient: fakeUserClient(CONCIERGE, 'coach@example.com', 'cus_stored') as never,
+      createUserClient: fakeUserClient('coach@example.com', 'cus_stored') as never,
       createAdminClient: fakeAdminClient(admin) as never,
       fulfill: () => Promise.resolve(),
       getEnv,
@@ -759,7 +900,7 @@ Deno.test('trial checkout success_url carries trial=1 for the trial-specific res
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -777,7 +918,7 @@ Deno.test('non-trial checkout success_url does NOT carry trial=1', async () => {
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -793,7 +934,7 @@ Deno.test('trial subscription_data still carries request_id metadata for the web
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -817,7 +958,7 @@ Deno.test('trial-eligibility select resolving with a supabase error envelope als
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
@@ -836,7 +977,7 @@ Deno.test('trial-eligibility lookup failure fails closed: no trial, checkout sti
 
   const res = await handleCreateCheckout(req(), {
     stripe: subscriptionStripe(stripe),
-    createUserClient: fakeUserClient(CONCIERGE) as never,
+    createUserClient: fakeUserClient() as never,
     createAdminClient: fakeAdminClient(admin) as never,
     fulfill: () => Promise.resolve(),
     getEnv,
