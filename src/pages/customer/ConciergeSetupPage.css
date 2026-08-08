@@ -595,3 +595,57 @@ ol.wizard-qualify {
     transform: none;
   }
 }
+
+/* ---- Optional follow-up sender identity (done screen) ----
+   Set apart from the live-link block with the same dashed border the scrape
+   accelerator uses, so it reads as an offer rather than an unfinished step. */
+.wizard-followup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+
+.wizard-followup-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.wizard-followup-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.wizard-followup-form textarea {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  color: var(--color-foreground);
+  background: var(--color-surface);
+  resize: vertical;
+}
+
+.wizard-followup-form textarea:focus {
+  border-color: var(--dg-crimson);
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
+}
+
+/* The label wraps only the sentence being agreed to, so the box sits beside it. */
+.wizard-followup-ack {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.wizard-followup-ack input {
+  margin-top: 3px;
+  flex: 0 0 auto;
+}

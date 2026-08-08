@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
 import type { QualAnswer, QualCriterion, QualPrompt } from '../lib/qualification'
+import type { ConsentAction, ConsentLocale, ConsentSubmission } from '../lib/consent'
 
 // Client-side surface of the AI Booking Concierge:
 //   sendConciergeMessage -> the public chat (calls the concierge-chat edge fn)
@@ -25,6 +26,20 @@ export interface ConciergeChatReply {
 export interface ConciergeContact {
   name: string
   email: string
+  /**
+   * The follow-up email consent, present ONLY when the visitor ticked the box on
+   * a screen that actually named the sender. Optional so every existing caller
+   * compiles unchanged — and, more importantly, so "no consent" is expressed by
+   * the key being absent rather than by a falsy value the server has to
+   * interpret. An unticked box and a box that was never rendered must look
+   * identical on the wire; buildConsentSubmission collapses both to null and the
+   * caller drops the key.
+   *
+   * This is a CLAIM about what was on screen, not a decision: the browser sends
+   * the version + locale + rendered name, and the server re-renders the same
+   * text from its own copy and refuses the row if the two disagree.
+   */
+  consent?: ConsentSubmission
 }
 
 export type ConciergeLanguage = 'de' | 'en'
@@ -135,6 +150,17 @@ export interface ConciergeIntro {
    * deploy that doesn't send the field yet.
    */
   is_demo: boolean
+  /**
+   * True only when this coach can actually send follow-up mail: their switch is
+   * on, they have accepted being the legal sender, they have a privacy URL, and
+   * this is not a demo. The page renders the consent checkbox ONLY when this is
+   * true, because the notice promises a confirmation mail — offering the box
+   * while that mail cannot be sent puts a false statement on the consent screen.
+   *
+   * Defaults to FALSE, which is the safe reading of an older function deploy
+   * that does not send the field: no checkbox, no consent, nothing collected.
+   */
+  followup_available: boolean
 }
 
 /**
@@ -160,6 +186,7 @@ export async function fetchConciergeIntro(slug: string): Promise<ConciergeIntro>
     language: intro.language,
     business_name: String(intro.business_name ?? ''),
     is_demo: intro.is_demo === true,
+    followup_available: intro.followup_available === true,
   }
 }
 
@@ -167,6 +194,16 @@ export async function fetchConciergeIntro(slug: string): Promise<ConciergeIntro>
 // One conversation row as the owner sees it in the dashboard list.
 export interface ConciergeChatSummary {
   id: string
+  // Which setter this conversation happened on. Carried because the consent
+  // subject key is (concierge_id, visitor_email_norm) — the dashboard cannot
+  // look a visitor's consent up by conversation, and must not look it up by
+  // slug, which the owner can rename at will.
+  //
+  // NOTE: no consent_state on this interface, on purpose. One row here is one
+  // CONVERSATION; a visitor with two sessions who ticked in one would get
+  // 'granted' on one card and 'none' on the other, while the send path treats
+  // both as the same subject. The state is derived per ADDRESS, on the page.
+  concierge_id: string
   visitor_session_id: string
   visitor_name: string | null
   visitor_email: string | null
@@ -212,7 +249,7 @@ export async function listConciergeChats(): Promise<ConciergeChatSummary[]> {
   const { data, error } = await supabase
     .from('concierge_conversations')
     .select(
-      'id, visitor_session_id, visitor_name, visitor_email, outcome, qualified, qualification_answers, created_at, concierge:concierges(slug, business_name)',
+      'id, concierge_id, visitor_session_id, visitor_name, visitor_email, outcome, qualified, qualification_answers, created_at, concierge:concierges(slug, business_name)',
     )
     .order('created_at', { ascending: false })
   if (error) throw new Error('conciergeChats.loadFailed')
@@ -222,6 +259,7 @@ export async function listConciergeChats(): Promise<ConciergeChatSummary[]> {
     const concierge = Array.isArray(c) ? (c[0] ?? null) : (c ?? null)
     return {
       id: row.id as string,
+      concierge_id: row.concierge_id as string,
       visitor_session_id: row.visitor_session_id as string,
       visitor_name: (row.visitor_name as string | null) ?? null,
       visitor_email: (row.visitor_email as string | null) ?? null,
@@ -234,6 +272,85 @@ export async function listConciergeChats(): Promise<ConciergeChatSummary[]> {
       concierge: concierge as ConciergeChatSummary['concierge'],
     }
   })
+}
+
+// ---- Follow-up consent evidence (#concierge-consent) -----------------------
+
+/**
+ * One row of the append-only consent ledger, as the coach is allowed to read it.
+ *
+ * Every row carries its OWN wording snapshot (notice_version + notice_text +
+ * rendered_business_name + locale), copied forward onto confirmations and
+ * withdrawals rather than rebuilt. That is the point: a coach challenged over a
+ * mail has to show what stood on the visitor's screen that day, which may be an
+ * older version than the one this build renders.
+ */
+export interface ConciergeConsentRecord {
+  concierge_id: string
+  visitor_email_norm: string
+  action: ConsentAction
+  created_at: string
+  notice_version: string
+  notice_label: string
+  notice_text: string
+  rendered_business_name: string
+  locale: ConsentLocale
+}
+
+/**
+ * The columns, spelled out one by one. This is NOT style.
+ *
+ * Migration 20260808120000 revokes the table-level SELECT on
+ * concierge_consents and hands `authenticated` a COLUMN-level grant instead:
+ * visitor_ip and visitor_user_agent (personal data collected to prove the act to
+ * a court, not to profile a lead) and confirm_token / confirm_token_expires_at
+ * (a LIVE credential — whoever holds it can complete a double opt-in on the
+ * visitor's behalf) are withheld from the coach on purpose.
+ *
+ * A `select('*')` does not quietly drop those four. It fails the whole request
+ * with a permission error, and this list is what keeps that from happening. Add
+ * a column here only after checking it appears in that migration's grant.
+ */
+const CONSENT_COLUMNS = [
+  'concierge_id',
+  'visitor_email_norm',
+  'action',
+  'created_at',
+  'notice_version',
+  'notice_label',
+  'notice_text',
+  'rendered_business_name',
+  'locale',
+].join(', ')
+
+// Cap on one dashboard read of the consent ledger. See listConciergeConsents.
+const CONSENT_READ_LIMIT = 2000
+
+/**
+ * Read the consent ledger for one of the coach's concierges, newest first. RLS
+ * ("senders read own consent evidence") already limits this to evidence the
+ * caller answers for; the eq() is scoping, not security.
+ *
+ * Returns ROWS, not a state. The subject of a consent is
+ * (concierge_id, visitor_email_norm) and one address can appear across several
+ * conversations, so the caller groups by that pair and derives the state with
+ * effectiveConsentState. Throws the same i18n-key Error as the other dashboard
+ * reads.
+ */
+export async function listConciergeConsents(conciergeId: string): Promise<ConciergeConsentRecord[]> {
+  const { data, error } = await supabase
+    .from('concierge_consents')
+    .select(CONSENT_COLUMNS)
+    .eq('concierge_id', conciergeId)
+    .order('created_at', { ascending: false })
+    // Bounded on purpose. The public chat is unauthenticated, so the number of
+    // rows a coach's ledger can hold is not under their control; an unbounded
+    // read makes their Chats page a payload a stranger can inflate. Newest
+    // first, so the rows that decide the current state are always the ones we
+    // get. A coach who outgrows this needs paging, not a bigger number.
+    .limit(CONSENT_READ_LIMIT)
+  if (error) throw new Error('conciergeChats.loadFailed')
+  return (data ?? []) as unknown as ConciergeConsentRecord[]
 }
 
 /**
@@ -299,6 +416,48 @@ export async function linkProvisionToConcierge(provisionId: string, conciergeId:
     body: { provisionId, conciergeId },
   })
   if (error) throw new Error('conciergeSetup.saveFailed')
+}
+
+// What the coach types into the optional follow-up sender panel. The
+// acknowledgement is NOT in here: it is a boolean the page passes separately and
+// this module turns into the `ack` flag, so nobody can mistake it for a stored
+// field the browser owns.
+export interface FollowupSenderInput {
+  senderBlock: string
+  privacyUrl: string
+  replyTo: string
+}
+
+/**
+ * Save the coach's follow-up sender identity (optional, from the "you're live"
+ * screen). Goes through the concierge-setup edge function rather than a direct
+ * table write, because followup_sender_ack_at / followup_sender_ack_version are
+ * locked against client writes by migration 20260809100000 — the timestamp and
+ * the wording version are OUR record that the coach was shown the
+ * acknowledgement, so the browser must not be able to mint them. This call sends
+ * only `ack: true`; the server decides what that means and when it happened.
+ *
+ * Throws an i18n-key Error the panel resolves. The concierge is already live, so
+ * a failure here costs the follow-up feature, nothing else.
+ */
+export async function saveFollowupSender(
+  provisionId: string,
+  conciergeId: string,
+  input: FollowupSenderInput,
+): Promise<void> {
+  const { error } = await supabase.functions.invoke('concierge-setup', {
+    body: {
+      provisionId,
+      conciergeId,
+      followupSender: {
+        sender_block: input.senderBlock.trim(),
+        privacy_url: input.privacyUrl.trim(),
+        reply_to: input.replyTo.trim(),
+        ack: true,
+      },
+    },
+  })
+  if (error) throw new Error('conciergeOnboarding.followup.errors.saveFailed')
 }
 
 /**

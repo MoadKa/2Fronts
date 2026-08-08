@@ -147,6 +147,52 @@ export function validateStep(step: WizardStep, data: WizardData): string | null 
   }
 }
 
+// ---- Follow-up sender identity (optional, offered AFTER the wizard) --------
+//
+// Not a wizard step, and deliberately so. The product promises setup in under
+// 120 seconds; a seventh screen about Impressum and Datenschutz would tax every
+// coach for a feature most of them will not switch on today. So this lives on
+// the "you're live" screen, collapsed, and skipping it costs nothing but the
+// follow-up mail itself.
+//
+// These rules mirror parseFollowupSender in supabase/functions/concierge-setup.
+// The server re-validates everything; this copy exists only so the coach sees
+// the problem next to the field instead of as a failed request.
+export interface FollowupSenderData {
+  senderBlock: string // legal name + summonable address, §5 DDG
+  privacyUrl: string // the coach's own privacy notice, Art. 13 DSGVO
+  replyTo: string // a mailbox the coach reads, §7 Abs. 2 Nr. 4 UWG
+}
+
+export function emptyFollowupSender(): FollowupSenderData {
+  return { senderBlock: '', privacyUrl: '', replyTo: '' }
+}
+
+export const FOLLOWUP_SENDER_BLOCK_MAX = 500
+export const FOLLOWUP_REPLY_TO_MAX = 320
+
+// Deliberately loose, and identical to the server's: one @, no whitespace, a dot
+// in the domain. A stricter pattern starts rejecting valid addresses, and the
+// real proof that this mailbox is the coach's is the verification round-trip,
+// not a regex.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+// All four or nothing: the three fields AND the acknowledgement. A footer with a
+// name but no privacy link is not partially compliant, it is a non-compliant
+// mail that looks finished. Returns an error KEY under
+// conciergeOnboarding.followup.errors.*, or null when it is ready to save.
+export function validateFollowupSender(data: FollowupSenderData, acknowledged: boolean): string | null {
+  if (!data.senderBlock.trim()) return 'senderRequired'
+  if (data.senderBlock.trim().length > FOLLOWUP_SENDER_BLOCK_MAX) return 'senderTooLong'
+  if (!data.privacyUrl.trim()) return 'privacyRequired'
+  if (!isValidBookingUrl(data.privacyUrl)) return 'invalidUrl'
+  if (!data.replyTo.trim()) return 'replyToRequired'
+  if (data.replyTo.trim().length > FOLLOWUP_REPLY_TO_MAX) return 'invalidEmail'
+  if (!EMAIL_RE.test(data.replyTo.trim())) return 'invalidEmail'
+  if (!acknowledged) return 'ackRequired'
+  return null
+}
+
 // Final gate before creating the concierge: all required content is present and
 // valid, and the derived slug is usable. Returns the first failing field's key
 // or null when the wizard is ready to submit.

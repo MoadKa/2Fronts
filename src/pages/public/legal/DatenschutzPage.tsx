@@ -71,6 +71,14 @@ export function DatenschutzPage() {
         heading={t('legal.datenschutz.aiEmailHeading')}
         body={t('legal.datenschutz.aiEmailBody')}
       />
+      {/* 12.1 is the Art. 13 disclosure the consent checkbox on /c/:slug links
+          to. The three-year figure is not editorial: it must equal
+          CONSENT_RETENTION_YEARS in supabase/functions/_shared/consent.ts, which
+          is the number the notice itself states on screen. */}
+      <LegalSection
+        heading={t('legal.datenschutz.followupConsentHeading')}
+        body={t('legal.datenschutz.followupConsentBody')}
+      />
       <LegalSection
         heading={t('legal.datenschutz.changesHeading')}
         body={t('legal.datenschutz.changesBody')}

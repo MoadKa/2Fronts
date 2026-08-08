@@ -151,6 +151,31 @@
     "exportCsv": "Export as CSV",
     "noMessages": "No messages.",
     "loadFailed": "Could not load chats.",
+    "consent": {
+      "title": "Consent for follow-up emails",
+      "state": {
+        "confirmed": "Confirmed",
+        "granted": "Waiting for confirmation",
+        "withdrawn": "Withdrawn",
+        "none": "Nothing recorded"
+      },
+      "explain": {
+        "confirmed": "This person clicked the link in the confirmation email. You may email them about this conversation.",
+        "granted": "Box ticked, confirmation email not clicked yet: waiting for confirmation, not yet sendable. Do not email them yet.",
+        "withdrawn": "This person withdrew their consent. Do not email them.",
+        "none": "No consent on record for this address. Do not email them."
+      },
+      "evidenceTitle": "What this person read",
+      "evidenceHint": "The stored wording, exactly as it stood on screen that day. Older versions stay as they are, because they are what proves the consent given back then.",
+      "version": "Version",
+      "sender": "Sender",
+      "action": {
+        "granted": "Box ticked",
+        "confirmed": "Confirmed",
+        "withdrawn": "Withdrawn"
+      },
+      "noRecords": "Nothing stored for this address."
+    },
     "outcome": {
       "open": "Open",
       "booking_shown": "Booking shown",
@@ -293,7 +318,7 @@
       "responsibleHeading": "Responsible for content pursuant to Section 18 (2) MStV",
       "responsibleBody": "Moad Kaoukab\nHeerstr. 136, 47053 Duisburg",
       "disputeHeading": "Dispute resolution",
-      "disputeBody": "The European Commission provides a platform for online dispute resolution (ODR): https://ec.europa.eu/consumers/odr/. You can find our email address above in this imprint. We are neither willing nor obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
+      "disputeBody": "The European Commission's online dispute resolution platform ceased operating on 20 July 2025, so we no longer link to it. You can find our email address above in this imprint. We are neither willing nor obliged to participate in dispute resolution proceedings before a consumer arbitration board.",
       "liabilityContentHeading": "Liability for content",
       "liabilityContentBody": "As a service provider, we are responsible for our own content on these pages in accordance with Section 7 (1) TMG and general law. According to Sections 8 to 10 TMG, however, we as a service provider are not obliged to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity. Obligations to remove or block the use of information under general law remain unaffected.",
       "liabilityLinksHeading": "Liability for links",
@@ -334,6 +359,8 @@
       "complaintBody": "Without prejudice to any other administrative or judicial remedy, you have the right to lodge a complaint with a data protection supervisory authority, in particular in the Member State of your residence, place of work or place of the alleged infringement (Art. 77 GDPR).",
       "aiEmailHeading": "12. AI Concierge and email delivery (Google, Resend)",
       "aiEmailBody": "Anyone using a customer's AI Booking Concierge (the public chat at /c/...) enters their name, email address and chat messages. To generate replies, this content is processed by Google (Gemini API, Google Ireland Ltd. / Google LLC); this may involve a transfer to the USA on the basis of the EU Standard Contractual Clauses. Name, email address and the conversation are also stored for the respective coach so they can contact the prospect. If you send a suggestion via the \"Didn't find what you're looking for?\" form, we process your email address and, optionally, your industry and message. To send system and notification emails (e.g. request notifications, confirmation emails) we use the provider Resend (Resend, Inc., USA); the recipient's email address is processed and the transfer is based on the EU Standard Contractual Clauses. The legal basis is Art. 6(1)(b) and (f) GDPR and, where you have given consent, Art. 6(1)(a) GDPR.",
+      "followupConsentHeading": "12.1 Consent to the follow-up email, and proof of it",
+      "followupConsentBody": "In the public chat at /c/... you can tick a box allowing the coach in question to email you about that conversation. If you tick it, we store your email address together with the exact wording you read, the time, your IP address and your browser identifier (user agent). These details serve one purpose only: we must be able to show who consented, when, and to what. The legal basis for storing them is our legitimate interest in being able to prove the consent (Art. 6(1)(f) GDPR). The legal basis for the consent itself is your consent (Art. 6(1)(a) GDPR). We keep this proof for three years and delete it afterwards; the period matches the standard limitation period under Section 195 of the German Civil Code (BGB). The emails are sent on our behalf by the service provider Resend (Resend, Inc., USA) as a processor (Art. 28 GDPR); the transfer takes place on the basis of the EU standard contractual clauses. You can withdraw at any time, with one click at the bottom of any of these emails. We record the withdrawal as well, so that we do not write to you again.",
       "changesHeading": "13. Changes to this privacy policy",
       "changesBody": "We reserve the right to amend this privacy policy so that it always complies with current legal requirements or in order to implement changes to our services. The current version applies to your next visit."
     },
@@ -446,6 +473,7 @@
     "namePlaceholder": "Your name",
     "emailPlaceholder": "Your email",
     "contactSubmit": "Let's go",
+    "contactSkip": "Just looking for now",
     "unavailableTitle": "This page isn't available",
     "unavailableBody": "This concierge link is inactive or doesn't exist. Please check the link and try again.",
     "thinking": "Typing…",
@@ -590,6 +618,35 @@
       "copyLink": "Copy link",
       "copied": "Copied!",
       "test": "Test it yourself"
+    },
+    "followup": {
+      "title": "Follow up by email later",
+      "sub": "Optional. When someone agrees in the chat, your setter emails them once. That email has to show who is sending it: you. Without these details your setter sends no email, and everything else works as normal.",
+      "open": "Add your sender details",
+      "skip": "Best done now. You cannot reach this screen again later, so get in touch if you need to.",
+      "senderLabel": "Legal details for the email footer",
+      "senderHint": "Your legal name and a postal address where you can be served, exactly as they should appear in the email. §5 DDG requires it.",
+      "senderPlaceholder": "Acme Coaching GmbH\nMusterstraße 1\n45127 Essen",
+      "privacyLabel": "Link to your privacy policy",
+      "privacyHint": "The link goes into the email so recipients can read what happens with their data (Art. 13 GDPR).",
+      "privacyPlaceholder": "https://your-site.com/privacy",
+      "replyToLabel": "Reply-to address",
+      "replyToHint": "Replies and objections land here. Use a mailbox you actually read. We confirm the address once before anything goes out.",
+      "replyToPlaceholder": "hello@your-site.com",
+      "ackLabel": "I send these emails myself. 2Fronts only transmits them on my behalf. I am responsible for their content, legal details and data protection.",
+      "save": "Save sender details",
+      "saving": "Saving…",
+      "saved": "Saved. We'll confirm your reply-to address next, then your setter can follow up.",
+      "errors": {
+        "senderRequired": "Please add your name and address, otherwise the email cannot go out.",
+        "senderTooLong": "That's too long for an email footer. Trim it to your name and address.",
+        "privacyRequired": "Please link your privacy policy.",
+        "invalidUrl": "That doesn't look like a valid link. It should start with https://",
+        "replyToRequired": "Please add a reply-to address.",
+        "invalidEmail": "That doesn't look like a valid email address.",
+        "ackRequired": "Please confirm that you are the sender of these emails.",
+        "saveFailed": "We couldn't save your sender details. Please try again."
+      }
     },
     "errors": {
       "required": "Please fill this in to continue.",

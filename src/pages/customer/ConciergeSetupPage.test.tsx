@@ -7,10 +7,12 @@ import { ConciergeSetupPage } from './ConciergeSetupPage'
 const createConcierge = vi.fn()
 const linkProvisionToConcierge = vi.fn()
 const draftConciergeFromUrl = vi.fn()
+const saveFollowupSender = vi.fn()
 vi.mock('../../services/ConciergeService', () => ({
   createConcierge: (...a: unknown[]) => createConcierge(...a),
   linkProvisionToConcierge: (...a: unknown[]) => linkProvisionToConcierge(...a),
   draftConciergeFromUrl: (...a: unknown[]) => draftConciergeFromUrl(...a),
+  saveFollowupSender: (...a: unknown[]) => saveFollowupSender(...a),
 }))
 
 function renderPage() {
@@ -67,6 +69,7 @@ describe('ConciergeSetupPage onboarding wizard', () => {
     createConcierge.mockReset()
     linkProvisionToConcierge.mockReset()
     draftConciergeFromUrl.mockReset()
+    saveFollowupSender.mockReset()
     await i18n.changeLanguage('de')
   })
 
@@ -433,6 +436,84 @@ describe('ConciergeSetupPage onboarding wizard', () => {
         screen.getByText(i18n.getFixedT('de')('conciergeOnboarding.errors.slugTaken')),
       ).toBeInTheDocument(),
     )
+  })
+
+  // ---- Optional follow-up sender identity (done screen) ----
+
+  it('does not put the follow-up sender fields in the way of finishing setup', async () => {
+    // The 120-second promise: the wizard is still six steps, and the sender
+    // panel is collapsed on the finish screen rather than being a seventh.
+    createConcierge.mockResolvedValue({ id: 'con-f', slug: 'acme-coaching' })
+    linkProvisionToConcierge.mockResolvedValue(undefined)
+    renderPage()
+    const T = i18n.getFixedT('de')
+    completeWizard('de')
+
+    await waitFor(() => expect(screen.getByText(T('conciergeOnboarding.done.title'))).toBeInTheDocument())
+    // Offered, not demanded: no field is on screen until the coach asks for it.
+    expect(screen.getByText(T('conciergeOnboarding.followup.open'))).toBeInTheDocument()
+    expect(screen.queryByLabelText(T('conciergeOnboarding.followup.senderLabel'))).not.toBeInTheDocument()
+    expect(saveFollowupSender).not.toHaveBeenCalled()
+  })
+
+  it('saves the sender identity through the service (never the ack timestamp)', async () => {
+    createConcierge.mockResolvedValue({ id: 'con-f2', slug: 'acme-coaching' })
+    linkProvisionToConcierge.mockResolvedValue(undefined)
+    saveFollowupSender.mockResolvedValue(undefined)
+    renderPage()
+    const T = i18n.getFixedT('de')
+    completeWizard('de')
+    await waitFor(() => expect(screen.getByText(T('conciergeOnboarding.done.title'))).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.followup.open')))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.followup.senderLabel')), {
+      target: { value: 'Acme Coaching GmbH, Musterstr. 1, 45127 Essen' },
+    })
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.followup.privacyLabel')), {
+      target: { value: 'https://acme.de/datenschutz' },
+    })
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.followup.replyToLabel')), {
+      target: { value: 'hallo@acme.de' },
+    })
+    fireEvent.click(screen.getByLabelText(T('conciergeOnboarding.followup.ackLabel')))
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.followup.save')))
+
+    await waitFor(() => expect(saveFollowupSender).toHaveBeenCalled())
+    const [provision, conciergeId, input] = saveFollowupSender.mock.calls[0]
+    expect(provision).toBe('prov-1')
+    expect(conciergeId).toBe('con-f2')
+    expect(input).toEqual({
+      senderBlock: 'Acme Coaching GmbH, Musterstr. 1, 45127 Essen',
+      privacyUrl: 'https://acme.de/datenschutz',
+      replyTo: 'hallo@acme.de',
+    })
+    // The browser sends no timestamp and no wording version: the edge function
+    // mints both, because the database refuses them to any client.
+    expect(Object.keys(input as object)).toEqual(['senderBlock', 'privacyUrl', 'replyTo'])
+  })
+
+  it('refuses to save without the acknowledgement ticked', async () => {
+    createConcierge.mockResolvedValue({ id: 'con-f3', slug: 'acme-coaching' })
+    linkProvisionToConcierge.mockResolvedValue(undefined)
+    renderPage()
+    const T = i18n.getFixedT('de')
+    completeWizard('de')
+    await waitFor(() => expect(screen.getByText(T('conciergeOnboarding.done.title'))).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.followup.open')))
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.followup.senderLabel')), {
+      target: { value: 'Acme Coaching GmbH, Musterstr. 1' },
+    })
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.followup.privacyLabel')), {
+      target: { value: 'https://acme.de/datenschutz' },
+    })
+    fireEvent.change(screen.getByLabelText(T('conciergeOnboarding.followup.replyToLabel')), {
+      target: { value: 'hallo@acme.de' },
+    })
+    fireEvent.click(screen.getByText(T('conciergeOnboarding.followup.save')))
+
+    expect(screen.getByText(T('conciergeOnboarding.followup.errors.ackRequired'))).toBeInTheDocument()
+    expect(saveFollowupSender).not.toHaveBeenCalled()
   })
 
   it('still shows success when linking the provision fails', async () => {

@@ -4,6 +4,11 @@ name: Deploy Supabase backend
 # project on every push to main that touches supabase/. This mirrors Vercel's
 # automatic frontend deploy, so no one ever hand-runs `supabase ... deploy`.
 #
+# Before anything is pushed to production, the `test-db` job spins up a throwaway
+# local Postgres, applies every migration to it, and runs the pgTAP suite in
+# supabase/tests/database. It needs no secrets and it gates `deploy` — a failing
+# SQL assertion stops the migration from ever reaching the live project.
+#
 # One-time setup (GitHub repo → Settings → Secrets and variables → Actions):
 #   SUPABASE_ACCESS_TOKEN  — https://supabase.com/dashboard/account/tokens
 #   SUPABASE_DB_PASSWORD   — the project's database password
@@ -11,14 +16,42 @@ name: Deploy Supabase backend
 # INTAKE_SECRET, OAUTH_STATE_SECRET, ALERT_WEBHOOK_URL) are set once on the
 # project via `supabase secrets set` and persist across deploys — they are NOT
 # managed here, so they never touch CI logs.
+#
+# The follow-up consent chain adds three more, same rule — set once via
+# `supabase secrets set`, never here:
+#   RESEND_API_KEY         — the Resend credential used by _shared/email.ts.
+#   FOLLOWUP_FROM_DOMAIN   — the verified sending domain the follow-up mail's
+#                            From address is built on.
+#   CONSENT_CONFIRM_SECRET — HMAC key for the double-opt-in confirm link. Until
+#                            it is set, concierge-consent-confirm fails closed:
+#                            every click renders the neutral page and no
+#                            confirmation can ever be recorded.
 
 on:
   push:
     branches: [main]
+    # The list is duplicated under pull_request rather than shared via a YAML
+    # anchor. An anchor parses fine locally but GitHub's own workflow parser has
+    # rejected anchors/aliases, and an invalid workflow does not fail loudly —
+    # it simply never runs. That would silently remove the pgTAP gate, the
+    # migration push and the function deploy all at once, which is the worst
+    # possible failure for a change that documents a deploy-order hazard twice.
     paths:
       - 'supabase/migrations/**'
       - 'supabase/functions/**'
       - 'supabase/config.toml'
+      - 'supabase/tests/**' # a test-only change must still get run
+      - '.github/workflows/deploy-supabase.yml'
+  # Also run on the PR, so a broken migration is caught BEFORE it is merged.
+  # Without this the suite first executes in the same run that pushes to
+  # production: `needs: test-db` still stops the push, but you only find out
+  # after landing, with main already carrying the bad file.
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/functions/**'
+      - 'supabase/config.toml'
+      - 'supabase/tests/**'
       - '.github/workflows/deploy-supabase.yml'
   workflow_dispatch: {} # allow manual runs from the Actions tab
 
@@ -27,7 +60,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Runs entirely against a local, throwaway Postgres started by the CLI inside
+  # the runner. Deliberately declares NO secrets and never links the project, so
+  # it cannot touch (or leak) production.
+  test-db:
+    name: pgTAP database tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+        with:
+          version: latest
+
+      # pg_prove exits 0 when it is handed nothing to run, which would turn a
+      # missing/renamed test directory into a green build. Fail loudly instead.
+      - name: Assert the suite is not empty
+        run: |
+          count="$(find supabase/tests/database -type f -name '*.test.sql' | wc -l)"
+          echo "Found $count pgTAP test file(s) in supabase/tests/database."
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No *.test.sql files found under supabase/tests/database — the SQL suite would pass vacuously."
+            exit 1
+          fi
+
+      # Starts local Postgres only (no auth/storage/edge runtime) and applies
+      # every file in supabase/migrations to it from scratch.
+      - name: Start local Postgres and apply all migrations
+        run: supabase db start
+
+      # `supabase test db` installs pgTAP itself (it runs
+      # `create extension if not exists pgtap with schema extensions` before
+      # pg_prove and drops it afterwards), so no migration or seed has to.
+      - name: Run pgTAP tests
+        run: supabase test db --local supabase/tests/database
+
   deploy:
+    needs: test-db # a red SQL assertion must block the production migration push
+    # NEVER on a pull_request event. The test-db job above is the whole point of
+    # running on PRs; this one holds production credentials and must stay bound
+    # to main. A fork PR would otherwise be a deploy trigger.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

@@ -41,6 +41,32 @@
   text-underline-offset: 0.22em;
 }
 
+/* Legal footer. Permanent, because the follow-up consent above it points here:
+   a link a visitor cannot find is a disclosure that was never made. Quiet on
+   purpose though — muted ink at meta size, same register as the embed credit
+   right above, so it stays reachable without competing with the conversation.
+   Underline only on hover/focus keeps the resting page calm. */
+.concierge-legal {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  padding-top: var(--space-xs);
+}
+
+.concierge-legal a {
+  font-size: var(--dg-fs-meta);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.concierge-legal a:hover,
+.concierge-legal a:focus-visible {
+  color: var(--dg-ink);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
 /* Demo disclosure: this concierge was built BY 2Fronts as a sales demo, not by
    the business it speaks for. It used to sit muted at 0.75rem — small print,
    which is exactly what the world forbids for an authored-demonstration
@@ -298,6 +324,68 @@
   outline-offset: 2px;
 }
 
+/* Follow-up consent. It sits inside the drawn contact bar but must not read as
+   another thing to fill in: no ground of its own, no edge, no lamp. The tick is
+   one line at small size in body ink; the five sentences under it are muted ink
+   at meta size on a narrow measure, so the block stays a footnote to the form
+   rather than a second form. */
+.concierge-consent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.concierge-consent-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  font-size: var(--dg-fs-small);
+  line-height: 1.5;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+/* Square and drawn like everything else here. accent-color keeps the native
+   control — and with it the native keyboard behaviour — instead of a div
+   dressed up as a checkbox. */
+.concierge-consent-label input[type='checkbox'] {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0.2em 0 0;
+  border-radius: 0;
+  accent-color: var(--dg-ink);
+  cursor: pointer;
+}
+
+.concierge-consent-label input[type='checkbox']:focus-visible {
+  outline: 3px solid var(--dg-crimson-deep);
+  outline-offset: 2px;
+}
+
+/* Deliberately NOT part of the label: a sibling, described-by the box. Nothing
+   about it invites a click — muted ink, default cursor, no hit target — because
+   a tick collected by misclicking an explanation is not a tick. The one link in
+   it is the exception and says so with an underline. */
+.concierge-consent-notice {
+  margin: 0;
+  max-width: 58ch;
+  font-size: var(--dg-fs-meta);
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.concierge-consent-notice a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
+.concierge-consent-notice a:hover,
+.concierge-consent-notice a:focus-visible {
+  color: var(--dg-ink);
+}
+
 .concierge-contact-submit {
   min-height: 48px;
   padding: var(--space-sm) var(--space-xl);
@@ -319,9 +407,34 @@
 }
 
 .concierge-contact-submit:disabled,
+.concierge-contact-skip:disabled,
 .concierge-send:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* "Just looking for now". A real, reachable way past the contact form — the
+   consent notice's claim that the tick is voluntary only holds if the address
+   is optional too. Styled as quiet text rather than a second button: it must be
+   findable without competing with the primary action, because an escape hatch
+   nobody sees is the same as no escape hatch. */
+.concierge-contact-skip {
+  align-self: center;
+  padding: var(--space-xs) 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font-family: var(--sans);
+  font-size: var(--dg-fs-meta);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.concierge-contact-skip:hover:not(:disabled),
+.concierge-contact-skip:focus-visible {
+  color: var(--dg-ink);
+  text-decoration: underline;
 }
 
 .concierge-send {

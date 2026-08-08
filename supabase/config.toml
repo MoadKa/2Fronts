@@ -436,3 +436,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.concierge-chat]
 verify_jwt = false
+# The double-opt-in click. A visitor following a link out of their mail client
+# carries no JWT, so this one is public by necessity; its security is the signed
+# confirm token (CONSENT_CONFIRM_SECRET), not the gateway.
+[functions.concierge-consent-confirm]
+verify_jwt = false

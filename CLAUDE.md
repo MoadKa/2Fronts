@@ -17,16 +17,21 @@ Key routing rules:
 - Resume context → invoke /context-restore
 - Author a backlog-ready spec/issue → invoke /spec
 
-## Design System — "Der Doppelgänger", home page migrated 2026-07-31
-`DESIGN.md` is binding again. It documents the world that actually shipped, not
-an intention: read it before any visual or UI decision.
+## Design System — "Der Rundgang", carried across the app 2026-08-06 (`13a1d16`)
+`DESIGN.md` is binding. It documents the world that actually shipped, not an
+intention: read it before any visual or UI decision. Its `name:` frontmatter is
+the authoritative name of the world — trust the file over this heading.
 
-**Mind the scope line at the top of DESIGN.md.** The world is implemented on the
-home page only (`/` and `/en`, scoped to `.dg-page`), plus the global nav and
-footer via a `variant='dg'` switch on those routes. Setup, chats, my-requests,
-admin, automation detail and the public concierge page still run the old tokens
-in `src/index.css` (Space Grotesk, DM Sans, glass, pill radii). That is recorded
-debt awaiting the next migration — never cite those surfaces as precedent.
+**The home-page-only scope line is history.** `13a1d16` carried the world across
+the app, so most surfaces now run `--dg-*` tokens, including the public concierge
+page (`ConciergePublicPage.css` is fully migrated — verified 2026-08-08, zero old
+tokens). Do not repeat the old claim that it is debt.
+
+What is still genuinely unmigrated is narrower and worth checking per file rather
+than per list: `MyRequestsPage.css` carries no `--dg-*` token at all, and a
+handful of migrated files keep residual old-token usages (`CatalogPage.css`,
+`ConciergeSetupPage.css`, `AppLayout.css`). Before citing any surface as
+precedent or as debt, grep it — this section has been stale once already.
 
 - `PRODUCT.md` is binding and independent: users, positioning, pricing, claim
   guardrails, evidence. Visual work must not contradict it.

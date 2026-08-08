@@ -151,6 +151,31 @@
     "exportCsv": "Als CSV exportieren",
     "noMessages": "Keine Nachrichten.",
     "loadFailed": "Chats konnten nicht geladen werden.",
+    "consent": {
+      "title": "Einwilligung für Follow-up-Mails",
+      "state": {
+        "confirmed": "Bestätigt",
+        "granted": "Wartet auf Bestätigung",
+        "withdrawn": "Widerrufen",
+        "none": "Nichts erfasst"
+      },
+      "explain": {
+        "confirmed": "Diese Person hat den Link in der Bestätigungsmail geklickt. Du darfst ihr zu diesem Gespräch eine E-Mail schreiben.",
+        "granted": "Häkchen gesetzt, Bestätigungsmail noch nicht geklickt: wartet auf Bestätigung, noch nicht versandfähig. Schreib ihr noch nicht.",
+        "withdrawn": "Diese Person hat ihre Einwilligung widerrufen. Schreib ihr nicht.",
+        "none": "Zu dieser Adresse liegt keine Einwilligung vor. Schreib ihr nicht."
+      },
+      "evidenceTitle": "Was diese Person gelesen hat",
+      "evidenceHint": "Der gespeicherte Wortlaut, genau so, wie er damals auf dem Bildschirm stand. Ältere Fassungen bleiben stehen, denn sie belegen die Einwilligung von damals.",
+      "version": "Fassung",
+      "sender": "Absender",
+      "action": {
+        "granted": "Häkchen gesetzt",
+        "confirmed": "Bestätigt",
+        "withdrawn": "Widerrufen"
+      },
+      "noRecords": "Zu dieser Adresse ist nichts gespeichert."
+    },
     "outcome": {
       "open": "Offen",
       "booking_shown": "Termin gezeigt",
@@ -293,7 +318,7 @@
       "responsibleHeading": "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV",
       "responsibleBody": "Moad Kaoukab\nHeerstr. 136, 47053 Duisburg",
       "disputeHeading": "Streitschlichtung",
-      "disputeBody": "Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: https://ec.europa.eu/consumers/odr/. Unsere E-Mail-Adresse finden Sie oben im Impressum. Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.",
+      "disputeBody": "Die Plattform der Europäischen Kommission zur Online-Streitbeilegung hat ihren Betrieb am 20. Juli 2025 eingestellt. Wir verweisen deshalb nicht mehr darauf. Unsere E-Mail-Adresse finden Sie oben im Impressum. Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.",
       "liabilityContentHeading": "Haftung für Inhalte",
       "liabilityContentBody": "Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt.",
       "liabilityLinksHeading": "Haftung für Links",
@@ -334,6 +359,8 @@
       "complaintBody": "Unbeschadet eines anderweitigen verwaltungsrechtlichen oder gerichtlichen Rechtsbehelfs steht Ihnen das Recht auf Beschwerde bei einer Datenschutz-Aufsichtsbehörde zu, insbesondere in dem Mitgliedstaat Ihres Aufenthaltsorts, Ihres Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes (Art. 77 DSGVO).",
       "aiEmailHeading": "12. KI-Concierge und E-Mail-Versand (Google, Resend)",
       "aiEmailBody": "Wer den AI Booking Concierge eines Kunden nutzt (öffentlicher Chat unter /c/...), gibt seinen Namen, seine E-Mail-Adresse und seine Chat-Nachrichten ein. Diese Inhalte werden zur Erzeugung der Antworten an Google verarbeitet (Gemini API, Google Ireland Ltd. bzw. Google LLC); dabei kann eine Übermittlung in die USA auf Grundlage der EU-Standardvertragsklauseln erfolgen. Name, E-Mail-Adresse und der Gesprächsverlauf werden zudem für den jeweiligen Coach gespeichert, damit dieser den Interessenten kontaktieren kann. Wenn Sie über das Formular „Nicht gefunden, was du suchst?“ einen Vorschlag senden, verarbeiten wir Ihre E-Mail-Adresse sowie optional Branche und Nachricht. Für den Versand von System- und Benachrichtigungs-E-Mails (z. B. Anfrage-Benachrichtigungen, Bestätigungs-E-Mails) nutzen wir den Dienstleister Resend (Resend, Inc., USA); dabei wird die Empfänger-E-Mail-Adresse verarbeitet, die Übermittlung erfolgt auf Grundlage der EU-Standardvertragsklauseln. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und lit. f DSGVO sowie, soweit Sie eine Einwilligung erteilt haben, Art. 6 Abs. 1 lit. a DSGVO.",
+      "followupConsentHeading": "12.1 Einwilligung in die Nachfass-E-Mail und deren Nachweis",
+      "followupConsentBody": "Im öffentlichen Chat unter /c/... können Sie ankreuzen, dass der jeweilige Coach Ihnen zu diesem Gespräch eine E-Mail schreiben darf. Kreuzen Sie an, speichern wir neben Ihrer E-Mail-Adresse auch den Wortlaut, den Sie dabei gelesen haben, den Zeitpunkt, Ihre IP-Adresse und die Kennung Ihres Browsers (User-Agent). Diese Angaben dienen allein dem Nachweis: Wir müssen belegen können, wer wann und wofür eingewilligt hat. Rechtsgrundlage dafür ist unser berechtigtes Interesse an der Nachweisbarkeit der Einwilligung (Art. 6 Abs. 1 lit. f DSGVO). Für die Einwilligung selbst ist es Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Den Nachweis bewahren wir drei Jahre lang auf und löschen ihn danach; die Frist entspricht der regelmäßigen Verjährungsfrist nach § 195 BGB. Die E-Mails versendet in unserem Auftrag der Dienstleister Resend (Resend, Inc., USA) als Auftragsverarbeiter (Art. 28 DSGVO); die Übermittlung erfolgt auf Grundlage der EU-Standardvertragsklauseln. Sie können jederzeit widerrufen, mit einem Klick am Ende jeder dieser E-Mails. Auch den Widerruf halten wir fest, damit wir Sie nicht erneut anschreiben.",
       "changesHeading": "13. Änderungen dieser Datenschutzerklärung",
       "changesBody": "Wir behalten uns vor, diese Datenschutzerklärung anzupassen, damit sie stets den aktuellen rechtlichen Anforderungen entspricht oder um Änderungen unserer Leistungen umzusetzen. Für Ihren erneuten Besuch gilt dann die jeweils aktuelle Fassung."
     },
@@ -446,6 +473,7 @@
     "namePlaceholder": "Dein Name",
     "emailPlaceholder": "Deine E-Mail",
     "contactSubmit": "Los geht's",
+    "contactSkip": "Erst mal nur schauen",
     "unavailableTitle": "Diese Seite ist nicht verfügbar",
     "unavailableBody": "Dieser Concierge-Link ist inaktiv oder existiert nicht. Bitte überprüfe den Link und versuche es erneut.",
     "thinking": "Schreibt…",
@@ -590,6 +618,35 @@
       "copyLink": "Link kopieren",
       "copied": "Kopiert!",
       "test": "Selbst ausprobieren"
+    },
+    "followup": {
+      "title": "Später per E-Mail nachfassen",
+      "sub": "Optional. Wenn jemand im Chat zustimmt, schreibt dein Setter ihm einmal per E-Mail. Diese Mail muss zeigen, wer sie schickt: du. Ohne diese Angaben verschickt dein Setter keine Mail, alles andere läuft trotzdem.",
+      "open": "Absender hinterlegen",
+      "skip": "Am besten gleich jetzt. Diese Seite erreichst du später nicht mehr, dann melde dich bei uns.",
+      "senderLabel": "Impressum für die Mail",
+      "senderHint": "Rechtlicher Name und ladungsfähige Anschrift, genau so wie sie in der Mail stehen sollen. §5 DDG verlangt das.",
+      "senderPlaceholder": "Acme Coaching GmbH\nMusterstraße 1\n45127 Essen",
+      "privacyLabel": "Link zu deiner Datenschutzerklärung",
+      "privacyHint": "Der Link steht in der Mail, damit Empfänger nachlesen können, was mit ihren Daten passiert (Art. 13 DSGVO).",
+      "privacyPlaceholder": "https://deine-website.de/datenschutz",
+      "replyToLabel": "Antwortadresse",
+      "replyToHint": "Hier landen Antworten und Widersprüche. Nimm ein Postfach, das du wirklich liest. Wir bestätigen die Adresse einmal, bevor etwas rausgeht.",
+      "replyToPlaceholder": "hallo@deine-website.de",
+      "ackLabel": "Ich verschicke diese E-Mails selbst. 2Fronts übermittelt sie nur in meinem Auftrag. Für Inhalt, Impressum und Datenschutz stehe ich gerade.",
+      "save": "Absender speichern",
+      "saving": "Wir speichern…",
+      "saved": "Gespeichert. Wir bestätigen jetzt deine Antwortadresse, danach kann dein Setter nachfassen.",
+      "errors": {
+        "senderRequired": "Bitte trag Name und Anschrift ein, sonst darf die Mail nicht raus.",
+        "senderTooLong": "Das ist zu lang für den Mailfuß. Kürze es auf Name und Anschrift.",
+        "privacyRequired": "Bitte verlinke deine Datenschutzerklärung.",
+        "invalidUrl": "Das sieht nicht nach einem gültigen Link aus. Er sollte mit https:// beginnen.",
+        "replyToRequired": "Bitte trag eine Antwortadresse ein.",
+        "invalidEmail": "Das sieht nicht nach einer gültigen E-Mail-Adresse aus.",
+        "ackRequired": "Bitte bestätige, dass du der Absender dieser Mails bist.",
+        "saveFailed": "Wir konnten den Absender nicht speichern. Bitte versuch es noch einmal."
+      }
     },
     "errors": {
       "required": "Bitte fülle dies aus, um fortzufahren.",

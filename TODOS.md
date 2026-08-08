@@ -273,6 +273,20 @@ verbatim from the original captures — only structure changed.
 **Priority:** P1
 **Depends on:** Nothing blocking engineering work, but should be resolved before the first real customer pays.
 
+## Email / Notifications
+
+### Three Resend transports in the tree — migrate `notify-request` and `submit-wish` onto `_shared/email.ts`
+
+**What:** The Resend HTTP call now exists three times: the new shared transport `supabase/functions/_shared/email.ts`, and an inline `defaultSendEmail` in each of `supabase/functions/notify-request/index.ts` and `supabase/functions/submit-wish/index.ts`. Both older copies are byte-for-byte the same idea — POST to `https://api.resend.com/emails`, return a bare `boolean` — and both should be deleted in favour of `sendEmail()`.
+
+**Why:** The two inline copies collapse every failure into `false`, which cannot distinguish "Resend rejected this" from "we never learned the outcome". Any future change to how we talk to Resend (a header, an endpoint version, a redaction rule) has to be made in three places, and the shared module is the only one of the three that redacts the API key out of error strings or reports retry semantics. Divergence here is silent by construction: nothing fails if only one copy is updated.
+
+**Context:** `_shared/email.ts` was added deliberately without touching the two callers, to keep the follow-up consent-chain diff reviewable. The migration is mechanical but not free: both callers' `SendEmailFn` type is exported and injected by their own tests (`notify-request/index.test.ts`, `submit-wish/index.test.ts`), so the fakes those tests inject must move from returning `boolean` to returning a `SendEmailResult`. Both call sites are best-effort notifications that only care about `ok`, so no behaviour needs to change.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Nothing.
+
 ## Completed
 
 ### Connector pipeline go-live: set the required secrets
@@ -322,3 +336,72 @@ verbatim from the original captures — only structure changed.
 **Status:** `concierge-chat/index.ts` now rejects `message` > 2000 chars (`message_too_long`) and `session_id` > 256 chars (`session_id_too_long`) before any DB/Gemini call.
 
 **Completed:** v1.0.1.0 (2026-06-25)
+
+## Follow-up sender identity — reachable only once (2026-08-08)
+
+- [ ] **No way back into the sender-identity panel.** It lives on the wizard's
+      "you're live" screen at `/connect/:provisionId/confirm`. Once the wizard
+      completes, `MyRequestsPage.tsx:76` swaps the "Set up your setter" link for
+      "Open dashboard", and the wizard itself always starts at `step: 'welcome'`
+      with no load of an existing concierge — re-entering it would try to create
+      a SECOND concierge, not edit the first. So a coach who skips the panel can
+      never come back to it.
+      The copy used to promise "Du kannst das jederzeit später erledigen"; that
+      was corrected to say the opposite rather than leave a false promise
+      standing. The real fix is a settings surface under `/app/` that edits
+      `followup_sender_block` / `followup_privacy_url` / `followup_reply_to`,
+      with `concierge-setup`'s owner-scoped service-side ack write behind it.
+- [ ] **`followup_reply_to_verified_at` is never set by anything.** The wizard
+      deliberately does not stamp it (typing an address is not proof of reading
+      it), and no verification round-trip exists yet. Until one does, any send
+      path that requires a verified reply-to will refuse every row. Build the
+      round-trip, or decide explicitly that the ack alone is the gate.
+- [ ] **The ack wording and its version constant can drift apart.** The text is
+      `conciergeOnboarding.followup.ackLabel` in both locale files;
+      `FOLLOWUP_SENDER_ACK_VERSION` lives in `concierge-setup/index.ts`. Nothing
+      links them, so a copy edit can silently invalidate stored evidence. Mirror
+      it the way `src/lib/consent.test.ts` mirrors the consent wording.
+
+## Follow-up consent — open findings from the pre-landing review (2026-08-08)
+
+Found by an adversarial review of the consent chain. The mail-cannon chain
+(dead caps + re-armable grant + demo not excluded) was FIXED before landing;
+these survived triage and are recorded rather than rushed.
+
+- [ ] **P1 — Decide whether a consent survives a business-name change, BEFORE
+      the send path is built.** The notice a visitor agreed to says "Sie gilt
+      nur für {business_name}". State is derived from `action` + `created_at`
+      alone; nothing compares the stored `rendered_business_name` to the
+      concierge's CURRENT `business_name`. A coach who renames, repurposes or
+      sells their setter inherits every confirmed consent given under the old
+      name. The grant path checks name equality meticulously; the send path has
+      no equivalent. The ledger is append-only, so a wrong-sender binding cannot
+      be corrected afterwards. This is a decision, not a bug: decide it in
+      step 16, not after the first send.
+- [ ] **P2 — Read-then-insert on the consent ledger is not atomic.** Both
+      `captureConsent` and `concierge-consent-confirm` derive state from a read
+      and then insert, with no lock between. Two simultaneous confirms can file
+      two `confirmed` rows (harmless: latest-wins reads them as one), and a
+      withdrawal landing inside the window can be overtaken by a confirmation
+      with a later timestamp. The per-recipient cooldown closes the abusive
+      path; the ordering edge remains. Proper fix is one `security definer`
+      function doing `insert … select … where not exists (…)` in a single
+      statement.
+- [ ] **P2 — `concierge_rate_limits` grows without bound on attacker-controlled
+      keys.** Pre-existing: `20260625130000` defines `bucket_key text primary
+      key` with no TTL and no purge job. The new `doi-ip:<x-forwarded-for>`
+      bucket adds a second unbounded key space next to the existing `ip:` one.
+      Both are fed by an unauthenticated endpoint.
+- [ ] **P3 — The `current_setting('role')` half of the append-only trigger's
+      service-role check has no test.** `concierge_consents.test.sql`
+      impersonates via a JWT claim, so every service-role assertion passes
+      through the `auth.role()` half. Add one assertion using `set local role
+      service_role` with no JWT (the psql/SQL-editor path the comment
+      describes), and bump `plan(25)` to `plan(26)`.
+- [ ] **P3 — The 3-year retention purge is manual.** The consent notice AND the
+      privacy page both promise three years to visitors; nothing deletes
+      anything. There is no scheduler in this database on purpose. Until one
+      exists, this is a promise kept by a human remembering.
+- [ ] **P3 — `_shared/email.ts` logs the Resend error body on a 4xx**, which can
+      echo the recipient address, while its caller is careful not to. Scrub the
+      address in `redact()` or stop logging the body.

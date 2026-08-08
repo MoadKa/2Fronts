@@ -3,7 +3,12 @@ import { LegalLayout, LegalSection } from './LegalLayout'
 
 // Impressum (legal notice) pursuant to Section 5 TMG. Provider data lives in the
 // `legal.impressum.*` i18n keys (Moad Kaoukab, Kleinunternehmer §19 UStG — no
-// USt-IdNr; contact by email, no phone).
+// USt-IdNr).
+//
+// The phone number is rendered, not optional. §5 Abs. 1 Nr. 2 TMG wants a channel
+// that enables "unmittelbare Kommunikation"; EuGH C-298/07 lets email stand alone
+// only where a comparably fast second route exists. The number was already in both
+// locale files and simply never reached the page — restored 2026-08-08.
 export function ImpressumPage() {
   const { t } = useTranslation()
   return (
@@ -19,6 +24,9 @@ export function ImpressumPage() {
         <h2>{t('legal.impressum.contactHeading')}</h2>
         <p>
           {t('legal.impressum.contactEmailLabel')}: {t('legal.impressum.contactEmail')}
+        </p>
+        <p>
+          {t('legal.impressum.contactPhoneLabel')}: {t('legal.impressum.contactPhone')}
         </p>
       </section>
 
