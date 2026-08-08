@@ -32,6 +32,27 @@ import {
   evaluateQualified,
   nextUnansweredCriterion,
 } from '../_shared/qualification.ts'
+import { isEntitledToServe, isExpiredDemo } from '../_shared/entitlement.ts'
+import {
+  type ConsentLocale,
+  type ConsentSnapshot,
+  type ConsentSubmission,
+  buildConsentRow,
+  effectiveConsentState,
+  isConsentMismatch,
+  normalizeConsentEmail,
+  CONSENT_UA_MAX,
+} from '../_shared/consent.ts'
+import { buildConfirmUrl, buildConsentMail } from '../_shared/consentMail.ts'
+import { sendEmail } from '../_shared/email.ts'
+import { type AlertEvent, alert } from '../_shared/alerting.ts'
+
+// The entitlement predicates now live in _shared/entitlement.ts, which imports
+// nothing — so the follow-up mail path can apply the same rules without pulling
+// the Gemini client (imported above, at module scope) into its bundle. They are
+// re-exported here because this module was their home: every existing importer
+// and test keeps working unchanged.
+export { isEntitledToServe, isExpiredDemo }
 
 const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json' }
 
@@ -58,60 +79,16 @@ export interface ConciergeChatDeps {
   checkSpendCap?: (key: string) => Promise<boolean>
   // Injectable clock, so the demo-expiry branch is testable without waiting.
   now?: () => Date
-}
-
-// A sales-demo concierge stops serving on its own date (migration
-// 20260727120000). Checked here rather than as a query filter for two reasons:
-// the owner must still be able to READ and revive an expired row, and the rule
-// then lives in one testable place instead of being duplicated across the probe
-// query and the main load query.
-//
-// NULL / absent expiry = never expires, which is every real customer row.
-export function isExpiredDemo(
-  row: { demo_expires_at?: string | null },
-  now: Date,
-): boolean {
-  const expiresAt = row.demo_expires_at
-  if (typeof expiresAt !== 'string' || expiresAt === '') return false
-  const parsed = Date.parse(expiresAt)
-  // An unparseable timestamp must not silently take a demo offline; treat it as
-  // "no expiry" and let the row keep serving.
-  if (Number.isNaN(parsed)) return false
-  return parsed <= now.getTime()
-}
-
-// Whether this concierge is currently PAID FOR (migration 20260729100000).
-//
-// is_active alone was never a paywall. It only records what the Stripe webhook
-// last said, so a webhook that never arrived -- dropped, retried past its
-// window, or simply never sent because the row was created without a purchase
-// at all -- left the bot serving on the operator's model spend forever. The
-// three insert paths that produced such a row are closed at the database now,
-// but that only stops NEW ones; this is the check that decides whether a row
-// gets served, whatever put it there.
-//
-// A demo has no subscription and is bounded by isExpiredDemo instead, so it is
-// entitled by construction while it is still in date.
-//
-// NULL entitled_until on a non-demo row = NOT entitled. That is the whole point:
-// the value lapses on its own, so a missed cancellation stops being permanent
-// free service. Existing rows are backfilled with a grace window by the
-// migration so nobody is cut off at deploy time.
-export function isEntitledToServe(
-  row: { is_demo?: boolean | null; demo_expires_at?: string | null; entitled_until?: string | null },
-  now: Date,
-): boolean {
-  if (row.is_demo === true) return !isExpiredDemo(row, now)
-
-  const until = row.entitled_until
-  if (typeof until !== 'string' || until === '') return false
-  const parsed = Date.parse(until)
-  // Unparseable cuts the OTHER way from isExpiredDemo. There, a bad value must
-  // not take a demo offline; here, a bad value must not hand out unpaid service
-  // -- and unlike a demo, a real customer being wrongly refused is visible and
-  // gets reported, where a freeloader never will be.
-  if (Number.isNaN(parsed)) return false
-  return parsed > now.getTime()
+  // Injectable ops alert. MUST match _shared/alerting.ts's AlertEvent shape
+  // exactly: a mismatched stub posts { type: undefined, text: undefined } to a
+  // live third-party webhook and nobody notices until an incident.
+  alertFn?: (event: AlertEvent) => Promise<boolean>
+  // Injectable mail transport for the double-opt-in confirmation, so tests stay
+  // offline. Defaults to the shared Resend transport.
+  sendMail?: typeof sendEmail
+  // Injectable env reader, so the consent path's configuration branches are
+  // testable without touching the process environment.
+  env?: (key: string) => string | undefined
 }
 
 const defaultDeps: ConciergeChatDeps = {
@@ -213,10 +190,27 @@ const CONTROL = {
   intro: '__intro_gate__',
   final: '__final_gate__',
   done: '__done_questions__',
+  // "Just looking for now": leave the opening contact form WITHOUT giving name
+  // and email, and talk to the concierge anyway.
+  //
+  // Why this exists at all. The conversation used to open in `phase: 'contact'`
+  // with no way past it, so a visitor could not ask a single question without
+  // handing over their address first. The follow-up consent notice tells them
+  // ticking the box is voluntary and that they can "ganz normal weiterschreiben"
+  // without it -- and a court reads the whole screen, not the sentence. A
+  // voluntary tick sitting on top of a compulsory address is a Kopplung, and if
+  // collecting the address is itself unlawful then consent to mail it is moot.
+  // That would put every row in the ledger at risk, so this is not a UX nicety.
+  skipContact: '__skip_contact__',
 } as const
 
 function isControlId(id: string): boolean {
-  return id === CONTROL.intro || id === CONTROL.final || id === CONTROL.done
+  return (
+    id === CONTROL.intro ||
+    id === CONTROL.final ||
+    id === CONTROL.done ||
+    id === CONTROL.skipContact
+  )
 }
 
 // Short localized acknowledgement returned when the visitor clicks a quick-reply
@@ -228,6 +222,15 @@ function answerAck(language: Lang): string {
 // The greeting shown the moment the visitor hands over name + email: greet by
 // name, then immediately ask the FIRST gate — do you have questions before we
 // start? — so the flow always offers help before it qualifies.
+// The same opening for a visitor who chose not to leave their details. It must
+// not nag: they already declined once, and asking again on the next screen turns
+// "voluntary" back into "delayed compulsory".
+function introGreetingAnonymous(language: Lang): string {
+  return language === 'en'
+    ? 'Sure, ask away. Do you have any questions before we start?'
+    : 'Klar, frag einfach. Hast du Fragen, bevor wir loslegen?'
+}
+
 function introGreeting(language: Lang, name: string): string {
   return language === 'en'
     ? `Thanks, ${name}! Before we start, do you have any questions for me?`
@@ -313,19 +316,44 @@ function contactRequest(language: ConciergeKnowledge['language']): string {
 interface VisitorContact {
   name: string
   email: string
+  // The follow-up consent claim, when the visitor ticked the box. Null for an
+  // unticked box AND for a malformed object -- see parseContact.
+  consent: ConsentSubmission | null
 }
 
 function isEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)
 }
 
+// Parse the consent claim WITHOUT importing consent.ts's parser semantics into
+// the contact's own validity. Kept separate and total for one reason: a
+// malformed consent object must never invalidate the contact. Losing a coach
+// their lead because our checkbox payload was wrong is a worse failure than
+// storing no consent, and consent is optional anyway.
 function parseContact(raw: unknown): VisitorContact | null {
   if (!raw || typeof raw !== 'object') return null
   const c = raw as Record<string, unknown>
   const name = typeof c.name === 'string' ? c.name.trim() : ''
   const email = typeof c.email === 'string' ? c.email.trim() : ''
   if (!name || name.length > 200 || !email || email.length > 320 || !isEmail(email)) return null
-  return { name, email }
+
+  // Deliberately re-implemented rather than delegated: consent.ts's
+  // parseConsentSubmission returns null for a bad claim, which is the same
+  // answer we want, but routing through it here would tempt someone to make a
+  // null consent reject the contact. It cannot: the field is optional.
+  let consent: ConsentSubmission | null = null
+  const rawConsent = c.consent
+  if (rawConsent && typeof rawConsent === 'object' && !Array.isArray(rawConsent)) {
+    const k = rawConsent as Record<string, unknown>
+    const version = typeof k.notice_version === 'string' ? k.notice_version.trim() : ''
+    const locale = k.locale
+    const rendered =
+      typeof k.rendered_business_name === 'string' ? k.rendered_business_name.trim() : ''
+    if (version && version.length <= 100 && (locale === 'de' || locale === 'en') && rendered) {
+      consent = { notice_version: version, locale, rendered_business_name: rendered }
+    }
+  }
+  return { name, email, consent }
 }
 
 // Validate an inbound quick-reply answer from the public body. Returns null when
@@ -355,6 +383,216 @@ async function logTurns(
   await admin
     .from('concierge_messages')
     .insert(turns.map((t) => ({ conversation_id: conversationId, role: t.role, content: t.content })))
+}
+
+// --------------------------------------------------------------------------
+// Follow-up consent capture
+// --------------------------------------------------------------------------
+
+// This endpoint runs with --no-verify-jwt and accepts ANY well-formed address.
+// Sending a confirmation mail from it without a ceiling turns it into a mail
+// cannon aimed at arbitrary third parties, under a named coach's business name.
+// Two independent caps, both failing CLOSED (a database that cannot answer sends
+// nothing), mirroring dbSpendCap's posture rather than the rate limiter's.
+const DOI_DAILY_CAP = 100 // per concierge
+const DOI_IP_DAILY_CAP = 5 // per client IP, across all concierges
+const DOI_WINDOW_SECS = 86_400
+
+// How long a confirmation link stays spendable. Long enough for someone who
+// reads their mail at the weekend, short enough that a leaked old link is not a
+// standing liability.
+const CONFIRM_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+// How many ledger rows to read when deriving the current state. The ledger is
+// append-only and per (concierge, address); a subject with more than 40 rows is
+// somebody hammering the form, and the newest rows decide the state anyway.
+const CONSENT_HISTORY_LIMIT = 40
+
+function randomConfirmToken(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+interface ConsentCaptureCtx {
+  admin: SupabaseClient
+  concierge: ConciergeRow & {
+    owner_id?: string | null
+    slug?: string | null
+    followup_sender_block?: string | null
+  }
+  conversationId: string
+  contact: VisitorContact
+  visitorIp: string
+  userAgent: string | null
+  spendCap: (key: string) => Promise<boolean>
+  alertFn: (event: AlertEvent) => Promise<boolean>
+  sendMail: typeof sendEmail
+  env: (k: string) => string | undefined
+}
+
+// Record the consent (or the withdrawal), then fire the double-opt-in mail.
+//
+// The whole body is best-effort by design and the CALLER wraps it: nothing in
+// here may fail the contact submission. A visitor who typed their name and email
+// has given the coach a lead, and that lead must land even if every part of the
+// consent machinery is broken.
+async function captureConsent(ctx: ConsentCaptureCtx): Promise<void> {
+  const { admin, concierge, contact } = ctx
+  const emailNorm = normalizeConsentEmail(contact.email)
+  const locale: ConsentLocale = concierge.language === 'en' ? 'en' : 'de'
+
+  // Prior state for this subject. supabase-js answers PostgREST errors as
+  // { error } but REJECTS on transport failure -- the caller's try/catch owns
+  // that case.
+  const { data: history, error: historyError } = await admin
+    .from('concierge_consents')
+    .select(
+      'action, created_at, notice_version, notice_label, notice_text, rendered_business_name, locale',
+    )
+    .eq('concierge_id', concierge.id)
+    .eq('visitor_email_norm', emailNorm)
+    .order('created_at', { ascending: false })
+    .limit(CONSENT_HISTORY_LIMIT)
+  if (historyError) {
+    // Fail CLOSED. Without the history we cannot tell a first grant from a
+    // duplicate, nor spot a withdrawal we must honour, and guessing either way
+    // writes a false record into evidence.
+    console.error('captureConsent: consent history read failed:', historyError.message ?? historyError)
+    return
+  }
+
+  const rows = (history ?? []) as Array<{
+    action: 'granted' | 'confirmed' | 'withdrawn'
+    created_at: string
+    notice_version: string
+    notice_label: string
+    notice_text: string
+    rendered_business_name: string
+    locale: ConsentLocale
+  }>
+  const priorState = effectiveConsentState(rows)
+  const lastGrant = rows.find((r) => r.action === 'granted')
+  const priorSnapshot: ConsentSnapshot | null = lastGrant
+    ? {
+        notice_version: lastGrant.notice_version,
+        notice_label: lastGrant.notice_label,
+        notice_text: lastGrant.notice_text,
+        rendered_business_name: lastGrant.rendered_business_name,
+        locale: lastGrant.locale,
+      }
+    : null
+
+  const { row, reason } = buildConsentRow({
+    submission: contact.consent,
+    concierge_id: concierge.id,
+    conversation_id: ctx.conversationId,
+    sender_owner_id: concierge.owner_id ?? null,
+    visitor_email: contact.email,
+    business_name: concierge.business_name,
+    locale,
+    prior_state: priorState,
+    prior_snapshot: priorSnapshot,
+    visitor_ip: ctx.visitorIp,
+    visitor_user_agent: ctx.userAgent,
+  })
+
+  if (isConsentMismatch(reason)) {
+    // The screen and the server disagree about what was consented to: either a
+    // deploy skew (the browser is running an older bundle than this isolate) or
+    // someone forging submissions. Both need a human, and neither may write.
+    // No address in the payload: alerting.ts forwards `fields` verbatim to a
+    // third-party webhook.
+    await ctx.alertFn({
+      type: 'consent_mismatch',
+      message: `Follow-up consent refused for concierge ${concierge.slug ?? concierge.id}: ${reason}`,
+      fields: { concierge_id: concierge.id, reason, claimed_version: contact.consent?.notice_version },
+    })
+    return
+  }
+  if (!row) return // no_consent_no_prior / already_granted: normal, silent.
+
+  // A grant needs a confirmation token; a withdrawal does not.
+  const isGrant = row.action === 'granted'
+  const confirmToken = isGrant ? randomConfirmToken() : null
+  const { error: insertError } = await admin.from('concierge_consents').insert({
+    ...row,
+    confirm_token: confirmToken,
+    confirm_token_expires_at: isGrant
+      ? new Date(Date.now() + CONFIRM_TOKEN_TTL_MS).toISOString()
+      : null,
+  })
+  if (insertError) {
+    console.error('captureConsent: consent insert failed:', insertError.message ?? insertError)
+    return
+  }
+  if (!isGrant || !confirmToken) return
+
+  // ---- Double opt-in mail -------------------------------------------------
+  //
+  // Order matters: the row is already stored. If the mail never goes out the
+  // consent simply stays 'granted' and nothing may ever be sent to it, which is
+  // the safe direction. The reverse -- mail first, row second -- could put a
+  // live confirm link in someone's inbox with no record behind it.
+  const secret = ctx.env('CONSENT_CONFIRM_SECRET')
+  const supabaseUrl = ctx.env('SUPABASE_URL')
+  const apiKey = ctx.env('RESEND_API_KEY')
+  const from = ctx.env('FOLLOWUP_FROM_DOMAIN')
+  if (!secret || !supabaseUrl || !apiKey || !from) {
+    // An unconfigured project stores consent and sends nothing. Loud, because
+    // silence here looks exactly like "nobody ticked the box".
+    console.error('captureConsent: consent stored but DOI mail is unconfigured; nothing sent')
+    return
+  }
+
+  if (!(await ctx.spendCap(`doi:${concierge.id}`))) {
+    console.error(`captureConsent: DOI daily cap reached for concierge ${concierge.id}`)
+    return
+  }
+  if (!(await ctx.spendCap(`doi-ip:${ctx.visitorIp}`))) {
+    console.error('captureConsent: DOI per-IP cap reached')
+    return
+  }
+
+  const confirmUrl = await buildConfirmUrl(
+    `${supabaseUrl.replace(/\/+$/, '')}/functions/v1/concierge-consent-confirm`,
+    confirmToken,
+    secret,
+  )
+  if (!confirmUrl) {
+    console.error('captureConsent: could not build a confirm URL; nothing sent')
+    return
+  }
+
+  const mail = buildConsentMail({
+    concierge: {
+      business_name: concierge.business_name,
+      language: concierge.language,
+      followup_sender_block: concierge.followup_sender_block ?? null,
+    },
+    confirmUrl,
+    locale: row.locale,
+  })
+  if (!mail) {
+    console.error('captureConsent: could not build the DOI mail; nothing sent')
+    return
+  }
+
+  const result = await ctx.sendMail({
+    apiKey,
+    from,
+    to: contact.email,
+    subject: mail.subject,
+    text: mail.text,
+    html: mail.html,
+    // Stable per grant: a redelivered request must not produce a second mail.
+    idempotencyKey: `doi:${confirmToken.slice(0, 24)}`,
+  })
+  if (!result.ok) {
+    // No address and no raw provider body in the log: a Resend 4xx echoes the
+    // recipient, and this log is not the place for it.
+    console.error(`captureConsent: DOI mail rejected (status ${result.status ?? 'none'})`)
+  }
 }
 
 // Enter (or stay in) a free-type Q&A loop after the visitor tapped "Yes" on a
@@ -577,7 +815,15 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   //    crash — and we never even build a prompt for a concierge that isn't live.
   const { data: conciergeData, error: conciergeErr } = await admin
     .from('concierges')
-    .select('id, business_name, offer_description, qa, tone, language, calendar_url, qualification_criteria, is_demo, demo_expires_at, entitled_until')
+    // DEPLOY-ORDER HAZARD, restating the note at the probe select above: an
+    // unknown column makes PostgREST answer an ERROR, and that lands in the
+    // `conciergeErr` branch below, which is a 404. So adding a column here
+    // BEFORE its migration reaches production takes every concierge page down
+    // for paying customers, and it looks like "the link is dead", not like a
+    // schema problem. The follow-up columns arrive in 20260809100000; that
+    // migration must be applied before this function is deployed. The CI order
+    // (db push then functions deploy) guarantees it; a hand-deploy does not.
+    .select('id, owner_id, slug, business_name, offer_description, qa, tone, language, calendar_url, qualification_criteria, is_demo, demo_expires_at, entitled_until, followup_enabled, followup_sender_block, followup_privacy_url, followup_reply_to')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle()
@@ -614,6 +860,12 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
   }
 
   try {
+    // The fail-closed fixed-window counter, shared by two very different
+    // consumers: the per-concierge Gemini spend cap further down, and the two
+    // double-opt-in mail caps in the contact branch just below. Bound here so
+    // both can reach it; the Gemini CHECK deliberately stays where it is.
+    const spendCap = deps.checkSpendCap ?? ((key: string) => dbSpendCap(admin, key))
+
     // 2. Find (or open) this visitor's conversation for the concierge, and load
     //    its recorded qualification answers + the flow phase (so we resume the
     //    right step on this turn).
@@ -630,6 +882,28 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
         .from('concierge_conversations')
         .update({ visitor_name: contact.name, visitor_email: contact.email, phase: 'intro_gate' })
         .eq('id', conversationId)
+      // Consent capture. Wrapped here, not inside captureConsent, so that BOTH
+      // an { error } response and a thrown transport failure end the same way:
+      // the lead is stored, the visitor gets their greeting, and the consent is
+      // simply absent. An unwrapped rejection would fall through to the outer
+      // catch and answer 502 -- losing the coach a lead over a checkbox.
+      try {
+        await captureConsent({
+          admin,
+          concierge,
+          conversationId,
+          contact,
+          visitorIp: clientIp(req),
+          userAgent: (req.headers.get('user-agent') ?? '').slice(0, CONSENT_UA_MAX) || null,
+          spendCap,
+          alertFn: deps.alertFn ?? ((event) => alert(event)),
+          sendMail: deps.sendMail ?? sendEmail,
+          env: deps.env ?? ((k) => Deno.env.get(k) ?? undefined),
+        })
+      } catch (e) {
+        console.error('concierge-chat: consent capture threw:', e instanceof Error ? e.message : e)
+      }
+
       const reply = introGreeting(concierge.language, contact.name)
       await logTurns(admin, conversationId, [
         { role: 'user', content: `${contact.name} · ${contact.email}` },
@@ -643,6 +917,23 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     //     never touch qualification_answers. Guarded by phase so a stale/out-of-band
     //     click just falls through to normal handling. No model call.
     if (answer && isControlId(answer.criterion_id)) {
+      // "Just looking": advance out of the contact phase with no contact stored.
+      // Guarded to `phase === 'contact'` like every other control, so a stale or
+      // spoofed click later in the flow cannot rewind anything. `hasContact`
+      // stays false for the rest of the conversation, and revealBooking already
+      // handles the no-contact case, so booking still works.
+      if (answer.criterion_id === CONTROL.skipContact && phase === 'contact') {
+        await admin
+          .from('concierge_conversations')
+          .update({ phase: 'intro_gate' })
+          .eq('id', conversationId)
+        const reply = introGreetingAnonymous(concierge.language)
+        await logTurns(admin, conversationId, [
+          { role: 'user', content: answer.label },
+          { role: 'assistant', content: reply },
+        ])
+        return ok({ reply, show_booking: false, quick_replies: introGatePrompt(concierge.language) })
+      }
       // Intro gate: "any questions before we start?"
       if (answer.criterion_id === CONTROL.intro && phase === 'intro_gate') {
         return answer.qualifies
@@ -720,7 +1011,10 @@ export async function handleConciergeChat(req: Request, deps: ConciergeChatDeps 
     // turns are free, so charging them against a spend cap would starve a real
     // visitor's conversation for traffic that cost nothing. Everything from here
     // down reaches Gemini. Fails CLOSED: see dbSpendCap.
-    const spendCap = deps.checkSpendCap ?? ((key: string) => dbSpendCap(admin, key))
+    //
+    // (The `spendCap` function itself is built earlier, because the contact
+    // branch also needs it for the double-opt-in mail caps. Only this CHECK
+    // belongs here; the comment above is about the check, not the binding.)
     if (!(await spendCap(`conc:${concierge.id}`))) {
       return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: jsonHeaders })
     }

@@ -4,14 +4,22 @@ import {
   fetchConciergeIntro,
   createConcierge,
   linkProvisionToConcierge,
+  listConciergeChats,
+  listConciergeConsents,
   newSessionId,
 } from './ConciergeService'
 
 let invokeResult: { data: unknown; error: unknown } = { data: null, error: null }
 let insertResult: { data: unknown; error: unknown } = { data: null, error: null }
+let selectResult: { data: unknown; error: unknown } = { data: [], error: null }
 let userResult: { data: { user: { id: string } | null } } = { data: { user: { id: 'user-1' } } }
 let capturedInvoke: { name: string; body: unknown } | null = null
 let capturedInsert: { table: string; row: Record<string, unknown> } | null = null
+let capturedSelect: {
+  table: string
+  columns: string
+  filters: Array<{ column: string; value: unknown }>
+} | null = null
 
 vi.mock('../lib/supabaseClient', () => ({
   supabase: {
@@ -22,6 +30,20 @@ vi.mock('../lib/supabaseClient', () => ({
         return {
           select: () => ({ single: () => Promise.resolve(insertResult) }),
         }
+      },
+      // A read chain thin enough to record what was asked for. The column list
+      // is the interesting part: on concierge_consents a `select('*')` is a hard
+      // permission error, not a silent over-fetch.
+      select: (columns: string) => {
+        capturedSelect = { table, columns, filters: [] }
+        const chain = {
+          eq: (column: string, value: unknown) => {
+            capturedSelect?.filters.push({ column, value })
+            return chain
+          },
+          order: () => Promise.resolve(selectResult),
+        }
+        return chain
       },
     }),
     functions: {
@@ -75,6 +97,47 @@ describe('ConciergeService', () => {
   it('sendConciergeMessage throws a generic error key on other failures', async () => {
     invokeResult = { data: null, error: { message: 'boom' } }
     await expect(sendConciergeMessage('acme', 'sess-1', 'hi')).rejects.toThrow('conciergeChat.error')
+  })
+
+  it('sendConciergeMessage carries the follow-up consent claim through untouched', async () => {
+    // The three fields are a CLAIM about the screen the visitor saw. The server
+    // re-renders the same wording from its own copy and refuses the row if they
+    // disagree, so anything this layer added, renamed or dropped would either
+    // invalidate a real consent or, worse, describe a screen that never existed.
+    invokeResult = { data: { reply: 'Danke!', show_booking: false }, error: null }
+    await sendConciergeMessage('acme', 'sess-1', 'Max', undefined, undefined, {
+      name: 'Max',
+      email: 'max@example.com',
+      consent: {
+        notice_version: 'concierge-followup-email-v1',
+        locale: 'de',
+        rendered_business_name: 'Coach Meyer',
+      },
+    })
+    expect((capturedInvoke?.body as { contact?: unknown }).contact).toEqual({
+      name: 'Max',
+      email: 'max@example.com',
+      consent: {
+        notice_version: 'concierge-followup-email-v1',
+        locale: 'de',
+        rendered_business_name: 'Coach Meyer',
+      },
+    })
+  })
+
+  it('sendConciergeMessage sends no consent key at all when the caller gives none', async () => {
+    // "No consent" has to reach the server as an ABSENT key, not as a present
+    // one holding null/false. An unticked box and a box that was never rendered
+    // must be indistinguishable on the wire — the moment they differ, the server
+    // has a signal it can be tempted to store.
+    invokeResult = { data: { reply: 'Danke!', show_booking: false }, error: null }
+    await sendConciergeMessage('acme', 'sess-1', 'Max', undefined, undefined, {
+      name: 'Max',
+      email: 'max@example.com',
+    })
+    const contact = (capturedInvoke?.body as { contact: Record<string, unknown> }).contact
+    expect('consent' in contact).toBe(false)
+    expect(contact).toEqual({ name: 'Max', email: 'max@example.com' })
   })
 
   it('fetchConciergeIntro probes concierge-chat with slug + probe and returns language and name', async () => {
@@ -195,5 +258,68 @@ describe('ConciergeService', () => {
   it('linkProvisionToConcierge throws saveFailed on error', async () => {
     invokeResult = { data: null, error: { message: 'persist_failed' } }
     await expect(linkProvisionToConcierge('prov-1', 'con-1')).rejects.toThrow('conciergeSetup.saveFailed')
+  })
+
+  // -------------------------------------------------------------------------
+  // Reading the consent ledger from the dashboard
+  // -------------------------------------------------------------------------
+
+  it('listConciergeConsents asks for explicit columns, never *', async () => {
+    // Migration 20260808120000 revokes table-level SELECT and grants it column by
+    // column. A `select('*')` there is not a silent over-fetch, it is a hard
+    // permission error that would blank the whole page. This test is the guard.
+    selectResult = { data: [], error: null }
+    await listConciergeConsents('con-1')
+    expect(capturedSelect?.table).toBe('concierge_consents')
+    expect(capturedSelect?.columns).not.toContain('*')
+    expect(capturedSelect?.columns.length).toBeGreaterThan(0)
+  })
+
+  it('listConciergeConsents never asks for a column the coach is not granted', async () => {
+    // Withheld by the migration: the visitor's IP, their user agent, and a live
+    // confirmation token (which would let a coach confirm on their lead's behalf).
+    selectResult = { data: [], error: null }
+    await listConciergeConsents('con-1')
+    for (const forbidden of [
+      'visitor_ip',
+      'visitor_user_agent',
+      'confirm_token',
+      'confirm_token_expires_at',
+    ]) {
+      expect(capturedSelect?.columns).not.toContain(forbidden)
+    }
+  })
+
+  it('listConciergeConsents filters by the concierge and returns the rows', async () => {
+    const rows = [
+      { concierge_id: 'con-1', visitor_email_norm: 'a@b.de', action: 'granted', created_at: '2026-08-01T10:00:00Z' },
+    ]
+    selectResult = { data: rows, error: null }
+    const out = await listConciergeConsents('con-1')
+    expect(capturedSelect?.filters).toContainEqual({ column: 'concierge_id', value: 'con-1' })
+    expect(out).toEqual(rows)
+  })
+
+  it('listConciergeConsents returns an empty list rather than null when there is nothing', async () => {
+    selectResult = { data: null, error: null }
+    expect(await listConciergeConsents('con-1')).toEqual([])
+  })
+
+  it('listConciergeConsents surfaces a load failure as the page-level key', async () => {
+    selectResult = { data: null, error: { message: 'permission denied for table concierge_consents' } }
+    await expect(listConciergeConsents('con-1')).rejects.toThrow('conciergeChats.loadFailed')
+  })
+
+  it('listConciergeChats reads conversations, not the consent ledger', async () => {
+    // The two are deliberately separate calls. listConciergeChats returns one row
+    // per CONVERSATION, and consent belongs to an ADDRESS: a visitor with two
+    // sessions must not show two different consent states.
+    // No argument: RLS already scopes conversations to concierges the caller
+    // owns, so this one needs no filter. listConciergeConsents DOES take an id,
+    // because it is read per concierge.
+    selectResult = { data: [], error: null }
+    await listConciergeChats()
+    expect(capturedSelect?.table).toBe('concierge_conversations')
+    expect(capturedSelect?.columns).not.toContain('consent')
   })
 })

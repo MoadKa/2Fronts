@@ -177,6 +177,55 @@
   border-radius: var(--radius-sm);
 }
 
+/* Consent panel in the transcript modal: the state, then the stored evidence. */
+.concierge-chat-consent {
+  margin-bottom: var(--space-lg);
+}
+
+.concierge-chat-consent h4 {
+  margin: var(--space-md) 0 var(--space-xs);
+}
+
+.concierge-chat-consent-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.concierge-chat-consent-records {
+  list-style: none;
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.concierge-chat-consent-records li {
+  padding: var(--space-sm);
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+}
+
+.concierge-chat-consent-head {
+  display: block;
+  font-size: var(--dg-fs-meta);
+  color: var(--color-text);
+}
+
+.concierge-chat-consent-label {
+  margin: var(--space-xs) 0 0;
+  font-weight: 600;
+}
+
+.concierge-chat-consent-text {
+  margin: var(--space-xs) 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .concierge-chat-transcript {
   display: flex;
   flex-direction: column;

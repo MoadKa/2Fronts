@@ -273,6 +273,20 @@ verbatim from the original captures — only structure changed.
 **Priority:** P1
 **Depends on:** Nothing blocking engineering work, but should be resolved before the first real customer pays.
 
+## Email / Notifications
+
+### Three Resend transports in the tree — migrate `notify-request` and `submit-wish` onto `_shared/email.ts`
+
+**What:** The Resend HTTP call now exists three times: the new shared transport `supabase/functions/_shared/email.ts`, and an inline `defaultSendEmail` in each of `supabase/functions/notify-request/index.ts` and `supabase/functions/submit-wish/index.ts`. Both older copies are byte-for-byte the same idea — POST to `https://api.resend.com/emails`, return a bare `boolean` — and both should be deleted in favour of `sendEmail()`.
+
+**Why:** The two inline copies collapse every failure into `false`, which cannot distinguish "Resend rejected this" from "we never learned the outcome". Any future change to how we talk to Resend (a header, an endpoint version, a redaction rule) has to be made in three places, and the shared module is the only one of the three that redacts the API key out of error strings or reports retry semantics. Divergence here is silent by construction: nothing fails if only one copy is updated.
+
+**Context:** `_shared/email.ts` was added deliberately without touching the two callers, to keep the follow-up consent-chain diff reviewable. The migration is mechanical but not free: both callers' `SendEmailFn` type is exported and injected by their own tests (`notify-request/index.test.ts`, `submit-wish/index.test.ts`), so the fakes those tests inject must move from returning `boolean` to returning a `SendEmailResult`. Both call sites are best-effort notifications that only care about `ok`, so no behaviour needs to change.
+
+**Effort:** M
+**Priority:** P3
+**Depends on:** Nothing.
+
 ## Completed
 
 ### Connector pipeline go-live: set the required secrets
@@ -322,3 +336,28 @@ verbatim from the original captures — only structure changed.
 **Status:** `concierge-chat/index.ts` now rejects `message` > 2000 chars (`message_too_long`) and `session_id` > 256 chars (`session_id_too_long`) before any DB/Gemini call.
 
 **Completed:** v1.0.1.0 (2026-06-25)
+
+## Follow-up sender identity — reachable only once (2026-08-08)
+
+- [ ] **No way back into the sender-identity panel.** It lives on the wizard's
+      "you're live" screen at `/connect/:provisionId/confirm`. Once the wizard
+      completes, `MyRequestsPage.tsx:76` swaps the "Set up your setter" link for
+      "Open dashboard", and the wizard itself always starts at `step: 'welcome'`
+      with no load of an existing concierge — re-entering it would try to create
+      a SECOND concierge, not edit the first. So a coach who skips the panel can
+      never come back to it.
+      The copy used to promise "Du kannst das jederzeit später erledigen"; that
+      was corrected to say the opposite rather than leave a false promise
+      standing. The real fix is a settings surface under `/app/` that edits
+      `followup_sender_block` / `followup_privacy_url` / `followup_reply_to`,
+      with `concierge-setup`'s owner-scoped service-side ack write behind it.
+- [ ] **`followup_reply_to_verified_at` is never set by anything.** The wizard
+      deliberately does not stamp it (typing an address is not proof of reading
+      it), and no verification round-trip exists yet. Until one does, any send
+      path that requires a verified reply-to will refuse every row. Build the
+      round-trip, or decide explicitly that the ack alone is the gate.
+- [ ] **The ack wording and its version constant can drift apart.** The text is
+      `conciergeOnboarding.followup.ackLabel` in both locale files;
+      `FOLLOWUP_SENDER_ACK_VERSION` lives in `concierge-setup/index.ts`. Nothing
+      links them, so a copy edit can silently invalidate stored evidence. Mirror
+      it the way `src/lib/consent.test.ts` mirrors the consent wording.

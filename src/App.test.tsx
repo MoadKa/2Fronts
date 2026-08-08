@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import i18n from './i18n'
 import App from './App'
 
@@ -50,10 +50,35 @@ describe('App routing — public concierge is standalone', () => {
       expect(screen.getByLabelText(T('conciergePublic.namePlaceholder'))).toBeInTheDocument(),
     )
 
-    // No marketplace nav sign-in button, no footer legal links.
+    // No marketplace nav sign-in button, and none of the marketplace footer.
     expect(screen.queryByText(T('nav.signInRegister'))).not.toBeInTheDocument()
-    expect(screen.queryByText('Impressum')).not.toBeInTheDocument()
+    expect(screen.queryByText(T('footer.rights', { year: new Date().getFullYear() }))).not.toBeInTheDocument()
     expect(screen.queryByText('AGB')).not.toBeInTheDocument()
+    expect(screen.queryByText(T('footer.forCoaches'))).not.toBeInTheDocument()
+  })
+
+  // Impressum and Datenschutz are the ONE exception to "no chrome", and they are
+  // not chrome: 2Fronts operates this page under its own domain, so §5 DDG makes
+  // the imprint mandatory here, and the follow-up consent notice sends visitors
+  // to the privacy policy by name. A consent linking a page that does not exist
+  // is not informed consent (Art. 13 DSGVO). The assertion above is deliberately
+  // narrowed to the marketplace footer's own copy so the two cannot be confused.
+  it('renders /c/:slug WITH its own minimal legal links', async () => {
+    const T = i18n.getFixedT('de')
+    const { container } = renderAppAt('/c/some-coach')
+    await waitFor(() =>
+      expect(screen.getByLabelText(T('conciergePublic.namePlaceholder'))).toBeInTheDocument(),
+    )
+    // Scoped to the page's own legal footer. The consent notice ALSO links the
+    // privacy policy by name, deliberately — a notice that names a document it
+    // does not link is not informed consent — so an unscoped query matches two
+    // anchors and this assertion has to say which one it means.
+    const legal = container.querySelector('.concierge-legal')
+    expect(legal).not.toBeNull()
+    expect(within(legal as HTMLElement).getByRole('link', { name: T('legal.impressum.title') }))
+      .toHaveAttribute('href', '/impressum')
+    expect(within(legal as HTMLElement).getByRole('link', { name: T('legal.datenschutz.title') }))
+      .toHaveAttribute('href', '/datenschutz')
   })
 
   // Control: a normal marketplace route DOES carry the nav, proving the chrome

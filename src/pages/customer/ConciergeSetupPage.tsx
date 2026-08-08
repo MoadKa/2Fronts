@@ -5,6 +5,7 @@ import {
   createConcierge,
   draftConciergeFromUrl,
   linkProvisionToConcierge,
+  saveFollowupSender,
   type ConciergeLanguage,
 } from '../../services/ConciergeService'
 import { Input } from '../../components/ui/Input'
@@ -15,6 +16,7 @@ import { BUILTIN_CRITERION_IDS, type QualCriterion } from '../../lib/qualificati
 import { INDUSTRIES, industryLabel } from '../../lib/industries'
 import {
   CONTENT_STEPS,
+  emptyFollowupSender,
   emptyWizardData,
   isValidBookingUrl,
   nextStep,
@@ -22,7 +24,9 @@ import {
   progressFor,
   slugify,
   TONE_PRESETS,
+  validateFollowupSender,
   validateStep,
+  type FollowupSenderData,
   type TonePreset,
   type WizardData,
   type WizardStep,
@@ -92,7 +96,18 @@ export function ConciergeSetupPage() {
 
   const [saving, setSaving] = useState(false)
   const [createdSlug, setCreatedSlug] = useState<string | null>(null)
+  const [createdId, setCreatedId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+
+  // ---- Optional follow-up sender identity (offered on the DONE screen) ----
+  // Never a wizard step: the 120-second promise is the product's, and Impressum
+  // + Datenschutz fields would tax every coach for a feature most will not turn
+  // on today. Skipping it simply means no follow-up mail is ever sent.
+  const [followupOpen, setFollowupOpen] = useState(false)
+  const [followup, setFollowup] = useState<FollowupSenderData>(emptyFollowupSender)
+  const [followupAck, setFollowupAck] = useState(false)
+  const [followupError, setFollowupError] = useState<string | null>(null) // error KEY
+  const [followupState, setFollowupState] = useState<'idle' | 'saving' | 'saved'>('idle')
 
   function update(patch: Partial<WizardData>) {
     setData((d) => ({ ...d, ...patch }))
@@ -359,6 +374,7 @@ export function ConciergeSetupPage() {
       }
 
       setCreatedSlug(concierge.slug)
+      setCreatedId(concierge.id)
       setStep('done')
     } catch (err) {
       const key = err instanceof Error ? err.message : 'conciergeSetup.saveFailed'
@@ -371,6 +387,38 @@ export function ConciergeSetupPage() {
         setFormError(t('conciergeOnboarding.errors.saveFailed'))
       }
       setSaving(false)
+    }
+  }
+
+  // Save the optional sender identity. The concierge is already live, so every
+  // failure here is contained to this panel: the coach keeps their setter and
+  // simply gets no follow-up mail until they fix it.
+  //
+  // The tick travels as a plain boolean. The TIMESTAMP and the WORDING VERSION
+  // of the acknowledgement are minted by the concierge-setup edge function with
+  // the service role, because migration 20260809100000 refuses those two columns
+  // to any browser client. If the acknowledgement text below ever changes, bump
+  // FOLLOWUP_SENDER_ACK_VERSION there — an old row must keep proving what the
+  // coach actually read.
+  async function handleSaveFollowup() {
+    if (followupState === 'saving') return
+    const err = validateFollowupSender(followup, followupAck)
+    if (err) {
+      setFollowupError(err)
+      return
+    }
+    if (!createdId || !provisionId) {
+      setFollowupError('saveFailed')
+      return
+    }
+    setFollowupError(null)
+    setFollowupState('saving')
+    try {
+      await saveFollowupSender(provisionId, createdId, followup)
+      setFollowupState('saved')
+    } catch {
+      setFollowupState('idle')
+      setFollowupError('saveFailed')
     }
   }
 
@@ -410,6 +458,93 @@ export function ConciergeSetupPage() {
           {/* Self-serve install: the widget snippet + 3-step tutorial, so the
               coach can put the setter on their own website right now. */}
           <ConciergeEmbedSection slugs={[createdSlug]} />
+
+          {/* Optional: who sends the follow-up mail. Collapsed by default so the
+              finish screen still reads "you're live", not "three more forms". */}
+          <section className="wizard-followup">
+            <h2 className="wizard-followup-title">{t('conciergeOnboarding.followup.title')}</h2>
+            <p className="muted">{t('conciergeOnboarding.followup.sub')}</p>
+
+            {!followupOpen && followupState !== 'saved' && (
+              <div className="mapping-actions">
+                <Button type="button" variant="secondary" onClick={() => setFollowupOpen(true)}>
+                  {t('conciergeOnboarding.followup.open')}
+                </Button>
+                <span className="input-hint">{t('conciergeOnboarding.followup.skip')}</span>
+              </div>
+            )}
+
+            {followupOpen && followupState !== 'saved' && (
+              <div className="wizard-followup-form">
+                <div className="input-field">
+                  <label htmlFor="followup-sender">
+                    {t('conciergeOnboarding.followup.senderLabel')}
+                  </label>
+                  <textarea
+                    id="followup-sender"
+                    rows={4}
+                    value={followup.senderBlock}
+                    onChange={(e) => setFollowup({ ...followup, senderBlock: e.target.value })}
+                    placeholder={t('conciergeOnboarding.followup.senderPlaceholder')}
+                  />
+                  <span className="input-hint">{t('conciergeOnboarding.followup.senderHint')}</span>
+                </div>
+
+                <Input
+                  label={t('conciergeOnboarding.followup.privacyLabel')}
+                  type="url"
+                  value={followup.privacyUrl}
+                  onChange={(e) => setFollowup({ ...followup, privacyUrl: e.target.value })}
+                  placeholder={t('conciergeOnboarding.followup.privacyPlaceholder')}
+                />
+                <span className="input-hint">{t('conciergeOnboarding.followup.privacyHint')}</span>
+
+                <Input
+                  label={t('conciergeOnboarding.followup.replyToLabel')}
+                  type="email"
+                  value={followup.replyTo}
+                  onChange={(e) => setFollowup({ ...followup, replyTo: e.target.value })}
+                  placeholder={t('conciergeOnboarding.followup.replyToPlaceholder')}
+                />
+                <span className="input-hint">{t('conciergeOnboarding.followup.replyToHint')}</span>
+
+                {/* The acknowledgement. Its wording is versioned server-side
+                    (FOLLOWUP_SENDER_ACK_VERSION): changing a word here means
+                    bumping it there. The label wraps ONLY the sentence the coach
+                    is agreeing to. */}
+                <label className="wizard-followup-ack">
+                  <input
+                    type="checkbox"
+                    checked={followupAck}
+                    onChange={() => setFollowupAck((v) => !v)}
+                  />
+                  <span>{t('conciergeOnboarding.followup.ackLabel')}</span>
+                </label>
+
+                {followupError && (
+                  <span className="input-error">
+                    {t(`conciergeOnboarding.followup.errors.${followupError}`)}
+                  </span>
+                )}
+
+                <div className="mapping-actions">
+                  <Button
+                    type="button"
+                    onClick={() => void handleSaveFollowup()}
+                    disabled={followupState === 'saving'}
+                  >
+                    {followupState === 'saving'
+                      ? t('conciergeOnboarding.followup.saving')
+                      : t('conciergeOnboarding.followup.save')}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {followupState === 'saved' && (
+              <p className="input-hint">{t('conciergeOnboarding.followup.saved')}</p>
+            )}
+          </section>
         </div>
       </div>
     )

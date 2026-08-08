@@ -24,6 +24,26 @@ describe('Legal pages render publicly (DE)', () => {
     expect(screen.getByText(/moad@2fronts\.de/)).toBeInTheDocument()
   })
 
+  // Regression: the phone number sat in both locale files for months and was
+  // never rendered — the page printed the email alone. §5 Abs. 1 Nr. 2 TMG wants
+  // a channel allowing "unmittelbare Kommunikation", and EuGH C-298/07 lets
+  // email stand by itself only where a comparably fast second route exists.
+  it('Impressum renders the phone number, not just the email', () => {
+    i18n.changeLanguage('de')
+    render(<ImpressumPage />)
+    expect(screen.getByText(/\+49 15566237817/)).toBeInTheDocument()
+  })
+
+  // The EU ODR platform stopped operating on 2025-07-20. Pointing visitors at a
+  // dead redress route is worse than saying nothing, so the link is gone and the
+  // §36 VSBG declaration stays.
+  it('Impressum no longer links the discontinued EU ODR platform', () => {
+    i18n.changeLanguage('de')
+    render(<ImpressumPage />)
+    expect(screen.queryByText(/ec\.europa\.eu\/consumers\/odr/)).toBeNull()
+    expect(screen.getByText(/nicht bereit und nicht verpflichtet/)).toBeInTheDocument()
+  })
+
   it('Datenschutz renders in German and contains the Google Limited Use clause verbatim', () => {
     i18n.changeLanguage('de')
     render(<DatenschutzPage />)
@@ -33,6 +53,26 @@ describe('Legal pages render publicly (DE)', () => {
         "2Fronts' use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements."
       )
     ).toBeInTheDocument()
+  })
+
+  // The consent notice a visitor reads on /c/:slug names a retention period and
+  // sends them here for the detail. If this section is missing, or names a
+  // different number of years, or claims a legal obligation nobody imposed
+  // (lit. c rather than lit. f), the consent it backs is not informed.
+  it('Datenschutz discloses the follow-up consent evidence (IP, lit. f, three years, Resend)', () => {
+    i18n.changeLanguage('de')
+    render(<DatenschutzPage />)
+    // Anchor on the purpose sentence: it is unique to this section's body.
+    const section = screen.getByText(/Nachweisbarkeit der Einwilligung/)
+    expect(section).toHaveTextContent('IP-Adresse')
+    expect(section).toHaveTextContent('User-Agent')
+    // Berechtigtes Interesse an der Nachweisbarkeit — NOT lit. c, since no
+    // statute obliges storing the IP.
+    expect(section).toHaveTextContent('Art. 6 Abs. 1 lit. f')
+    expect(section).not.toHaveTextContent('lit. c')
+    // Word for word the figure the on-screen notice states.
+    expect(section).toHaveTextContent('drei Jahre')
+    expect(section).toHaveTextContent('Resend')
   })
 
   it('AGB renders in German', () => {

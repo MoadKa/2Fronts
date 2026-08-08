@@ -9,7 +9,10 @@ import {
   isValidSlug,
   validateStep,
   validateAll,
+  validateFollowupSender,
+  emptyFollowupSender,
   TOTAL_CONTENT_STEPS,
+  type FollowupSenderData,
   type WizardData,
 } from './conciergeWizard'
 
@@ -127,6 +130,48 @@ describe('validateAll', () => {
 
   it('catches a business name that produces an unusable slug', () => {
     expect(validateAll(fullData({ businessName: '!!!' }))).toBe('slugInvalid')
+  })
+})
+
+describe('validateFollowupSender', () => {
+  function sender(over: Partial<FollowupSenderData> = {}): FollowupSenderData {
+    return {
+      senderBlock: 'Acme Coaching GmbH, Musterstr. 1, 45127 Essen',
+      privacyUrl: 'https://acme.de/datenschutz',
+      replyTo: 'hallo@acme.de',
+      ...over,
+    }
+  }
+
+  it('accepts a complete, acknowledged sender identity', () => {
+    expect(validateFollowupSender(sender(), true)).toBeNull()
+  })
+
+  // All four or nothing: a footer missing any one of them is not partially
+  // compliant, it is a non-compliant mail that looks finished.
+  it('rejects each missing piece with its own key', () => {
+    expect(validateFollowupSender(sender({ senderBlock: '  ' }), true)).toBe('senderRequired')
+    expect(validateFollowupSender(sender({ privacyUrl: '' }), true)).toBe('privacyRequired')
+    expect(validateFollowupSender(sender({ replyTo: '' }), true)).toBe('replyToRequired')
+    expect(validateFollowupSender(sender(), false)).toBe('ackRequired')
+  })
+
+  it('rejects a privacy link that is not an absolute http(s) URL', () => {
+    expect(validateFollowupSender(sender({ privacyUrl: 'acme.de/datenschutz' }), true)).toBe('invalidUrl')
+    expect(validateFollowupSender(sender({ privacyUrl: 'javascript:alert(1)' }), true)).toBe('invalidUrl')
+  })
+
+  it('rejects a reply-to that is not an email address', () => {
+    expect(validateFollowupSender(sender({ replyTo: 'hallo(at)acme.de' }), true)).toBe('invalidEmail')
+    expect(validateFollowupSender(sender({ replyTo: 'hallo@acme' }), true)).toBe('invalidEmail')
+  })
+
+  it('caps the sender block at what fits in a mail footer', () => {
+    expect(validateFollowupSender(sender({ senderBlock: 'x'.repeat(501) }), true)).toBe('senderTooLong')
+  })
+
+  it('starts empty, so a coach who skips it saves nothing', () => {
+    expect(validateFollowupSender(emptyFollowupSender(), false)).toBe('senderRequired')
   })
 })
 
